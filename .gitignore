@@ -1,0 +1,56 @@
+# Local dependencies and generated caches
+.codex_pkgs/
+__pycache__/
+web/node_modules/
+.claude/
+.playwright-cli/
+
+# Local database files
+data/*.db
+data/*.db-*
+
+# Local frontend build output
+web/dist/
+web/*.tsbuildinfo
+web/vite.config.d.ts
+web/vite.config.js
+
+# Local sync logs
+.sync_logs/
+
+# Local browser verification artifacts
+output/
+output/chrome-headless-profile*/
+output/liquid-glass-check*.png
+
+# Local test and temporary artifacts
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+web/test-results/
+tmp/
+temp/
+*.tmp
+*.bak
+
+# Local archives and raw personal files
+*.zip
+*.tgz
+*.tar.gz
+*.pdf
+**/原始体检报告/
+**/原始简历/
+
+# Local secrets and environment files
+.env
+.env.*
+.lifeos-secrets/
+私钥文件
+私钥文件.pub
+*.pem
+*.key
+*.ppk
+id_rsa
+id_ed25519

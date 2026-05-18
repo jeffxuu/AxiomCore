@@ -1,0 +1,1647 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Axiom Core · 个人决策智能核心</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg-1: #f7fbff;
+      --bg-2: #edf4f8;
+      --bg-3: #f9f6ef;
+      --glass: rgba(255, 255, 255, 0.46);
+      --glass-strong: rgba(255, 255, 255, 0.68);
+      --glass-dark: rgba(16, 24, 40, 0.62);
+      --stroke: rgba(255, 255, 255, 0.72);
+      --line: rgba(38, 51, 77, 0.13);
+      --text: #172033;
+      --muted: #667085;
+      --soft: rgba(255, 255, 255, 0.36);
+      --blue: #0a66ff;
+      --cyan: #00a6b4;
+      --green: #14876f;
+      --amber: #b76e00;
+      --red: #c83232;
+      --pink: #d94f8c;
+      --ink: #0b1220;
+      --pointer-x: 50%;
+      --pointer-y: 20%;
+      --parallax-x: 0px;
+      --parallax-y: 0px;
+      --nav-x: 0px;
+      --nav-y: 0px;
+      --nav-w: 120px;
+      --nav-h: 42px;
+      --shadow: 0 28px 90px rgba(24, 35, 56, 0.16);
+      --inner: inset 0 1px 0 rgba(255,255,255,0.82), inset 0 -1px 0 rgba(255,255,255,0.24);
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      min-height: 100vh;
+      margin: 0;
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
+      line-height: 1.62;
+      background:
+        linear-gradient(120deg, rgba(10, 102, 255, 0.16), transparent 34%),
+        linear-gradient(250deg, rgba(0, 166, 180, 0.16), transparent 38%),
+        linear-gradient(35deg, rgba(217, 79, 140, 0.10), transparent 44%),
+        linear-gradient(165deg, var(--bg-1), var(--bg-2) 48%, var(--bg-3));
+      background-attachment: fixed;
+      overflow-x: hidden;
+      position: relative;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background:
+        conic-gradient(from 110deg at 50% 42%, rgba(255,255,255,0.28), rgba(10,102,255,0.10), rgba(20,135,111,0.12), rgba(255,255,255,0.28)),
+        linear-gradient(rgba(255,255,255,0.18) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.16) 1px, transparent 1px);
+      background-size: 100% 100%, 44px 44px, 44px 44px;
+      mask-image: linear-gradient(to bottom, rgba(0,0,0,0.70), transparent 86%);
+      animation: liquidDrift 18s ease-in-out infinite alternate;
+      z-index: 0;
+    }
+
+    body::after {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background:
+        radial-gradient(circle at var(--pointer-x) var(--pointer-y), rgba(255,255,255,0.50), transparent 24%),
+        linear-gradient(to bottom, rgba(255,255,255,0.24), transparent 34%, rgba(8,18,32,0.06));
+      mix-blend-mode: screen;
+      z-index: 0;
+    }
+
+    .liquid-canvas {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      opacity: 0.95;
+    }
+
+    a { color: var(--blue); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    .shell {
+      position: relative;
+      z-index: 1;
+      display: block;
+      width: min(1320px, calc(100% - 40px));
+      margin: 14px auto 36px;
+    }
+
+    .glass {
+      position: relative;
+      overflow: hidden;
+      border: 1px solid var(--stroke);
+      background:
+        linear-gradient(145deg, rgba(255,255,255,0.86), rgba(255,255,255,0.34) 46%, rgba(255,255,255,0.18)),
+        var(--glass);
+      backdrop-filter: blur(38px) saturate(1.75) contrast(1.03);
+      -webkit-backdrop-filter: blur(38px) saturate(1.75) contrast(1.03);
+      box-shadow: var(--shadow), 0 1px 0 rgba(255,255,255,0.75) inset, 0 -1px 0 rgba(255,255,255,0.22) inset;
+      outline: 1px solid rgba(255,255,255,0.28);
+      outline-offset: -2px;
+      transition: transform 220ms ease, border-color 220ms ease, box-shadow 220ms ease;
+    }
+
+    .glass::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background:
+        linear-gradient(120deg, rgba(255,255,255,0.62), transparent 30%, rgba(255,255,255,0.24) 56%, transparent 72%),
+        radial-gradient(circle at var(--pointer-x) var(--pointer-y), rgba(255,255,255,0.42), transparent 30%);
+      opacity: 0.58;
+      mix-blend-mode: screen;
+    }
+
+    .section.glass::after,
+    aside.glass::after,
+    .tile::after,
+    .btn::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background:
+        radial-gradient(circle at var(--card-x, 50%) var(--card-y, 20%), rgba(255,255,255,0.72), transparent 24%),
+        linear-gradient(120deg, transparent, rgba(255,255,255,0.34), transparent);
+      opacity: 0;
+      transition: opacity 180ms ease;
+      mix-blend-mode: screen;
+    }
+
+    .section.glass:hover::after,
+    aside.glass:hover::after,
+    .tile:hover::after,
+    .btn:hover::after {
+      opacity: 0.72;
+    }
+
+    .section.glass {
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.88), rgba(255,255,255,0.70)),
+        rgba(255,255,255,0.78);
+      backdrop-filter: blur(10px) saturate(1.08);
+      -webkit-backdrop-filter: blur(10px) saturate(1.08);
+      box-shadow: 0 18px 52px rgba(24, 34, 48, 0.10);
+      outline: 0;
+    }
+
+    .section.glass::before,
+    .section.glass::after {
+      display: none;
+    }
+
+    aside {
+      position: sticky;
+      top: 12px;
+      z-index: 30;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-height: 58px;
+      height: auto;
+      padding: 7px;
+      border-radius: 999px;
+      overflow: visible;
+      background:
+        radial-gradient(circle at var(--card-x, 50%) var(--card-y, 30%), rgba(255,255,255,0.76), transparent 27%),
+        linear-gradient(120deg, rgba(255,255,255,0.54), rgba(255,255,255,0.18) 46%, rgba(255,255,255,0.42)),
+        rgba(255,255,255,0.26);
+      backdrop-filter: blur(34px) saturate(1.8) contrast(1.08);
+      -webkit-backdrop-filter: blur(34px) saturate(1.8) contrast(1.08);
+      box-shadow:
+        0 18px 54px rgba(12, 20, 34, 0.15),
+        inset 0 1px 1px rgba(255,255,255,0.86),
+        inset 0 -1px 1px rgba(255,255,255,0.30);
+      transition: padding 220ms ease, min-height 220ms ease, box-shadow 220ms ease, background 220ms ease;
+    }
+
+    body.nav-condensed aside {
+      min-height: 50px;
+      padding: 5px;
+      box-shadow:
+        0 14px 42px rgba(12, 20, 34, 0.13),
+        inset 0 1px 1px rgba(255,255,255,0.82),
+        inset 0 -1px 1px rgba(255,255,255,0.28);
+    }
+
+    .identity {
+      flex: 0 0 auto;
+      position: relative;
+      z-index: 2;
+      padding: 7px 18px;
+      border-radius: 999px;
+      color: var(--ink);
+      background:
+        linear-gradient(145deg, rgba(255,255,255,0.72), rgba(255,255,255,0.16));
+      box-shadow:
+        inset 0 1px 1px rgba(255,255,255,0.88),
+        inset 0 -1px 1px rgba(255,255,255,0.22);
+      transition: padding 220ms ease;
+    }
+
+    body.nav-condensed .identity {
+      padding: 5px 15px;
+    }
+
+    .identity h1 {
+      margin: 0;
+      font-size: 18px;
+      line-height: 1.15;
+      letter-spacing: 0;
+    }
+
+    .identity p {
+      display: none;
+    }
+
+    .status-dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      margin-right: 6px;
+      border-radius: 50%;
+      background: #38bdf8;
+      box-shadow: 0 0 18px #38bdf8;
+    }
+
+    nav {
+      position: relative;
+      display: flex;
+      flex: 1;
+      gap: 3px;
+      margin-top: 0;
+      padding: 3px;
+      overflow-x: auto;
+      scrollbar-width: none;
+      border-radius: 999px;
+      isolation: isolate;
+      background:
+        linear-gradient(115deg, rgba(255,255,255,0.28), rgba(255,255,255,0.06) 44%, rgba(255,255,255,0.22));
+    }
+
+    nav::-webkit-scrollbar {
+      display: none;
+    }
+
+    nav::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 0;
+      z-index: 0;
+      width: var(--nav-w);
+      height: var(--nav-h);
+      border-radius: 999px;
+      background:
+        radial-gradient(circle at 32% 18%, rgba(255,255,255,0.95), rgba(255,255,255,0.22) 28%, transparent 54%),
+        linear-gradient(135deg, rgba(255,255,255,0.84), rgba(255,255,255,0.30) 52%, rgba(255,255,255,0.62));
+      box-shadow:
+        0 10px 26px rgba(10,102,255,0.14),
+        inset 0 1px 1px rgba(255,255,255,0.95),
+        inset 0 -1px 1px rgba(255,255,255,0.34);
+      opacity: 0.94;
+      transform: translate3d(var(--nav-x), var(--nav-y), 0) scale(1);
+      transition:
+        transform 420ms cubic-bezier(.19, 1, .22, 1),
+        width 420ms cubic-bezier(.19, 1, .22, 1),
+        height 420ms cubic-bezier(.19, 1, .22, 1),
+        border-radius 420ms cubic-bezier(.19, 1, .22, 1);
+    }
+
+    nav::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      z-index: 1;
+      pointer-events: none;
+      border-radius: inherit;
+      background:
+        radial-gradient(circle at var(--card-x, 50%) var(--card-y, 30%), rgba(255,255,255,0.46), transparent 22%),
+        linear-gradient(100deg, rgba(255,255,255,0.22), transparent 30%, rgba(255,255,255,0.18) 68%, transparent);
+      mix-blend-mode: screen;
+      opacity: 0.72;
+    }
+
+    .nav-btn {
+      position: relative;
+      overflow: hidden;
+      z-index: 2;
+      width: 100%;
+      min-height: 42px;
+      min-width: max-content;
+      padding: 8px 12px;
+      border: 0;
+      border-radius: 999px;
+      background: transparent;
+      color: #263445;
+      font: inherit;
+      font-size: 14px;
+      text-align: center;
+      cursor: pointer;
+      box-shadow: none;
+      transition: color 180ms ease, transform 180ms ease, text-shadow 180ms ease;
+    }
+
+    .nav-btn:hover {
+      color: #0f2748;
+      transform: translateY(-1px);
+    }
+
+    .nav-btn.active {
+      color: #10233e;
+      text-shadow: 0 1px 0 rgba(255,255,255,0.58);
+    }
+
+    .side-note {
+      display: none;
+    }
+
+    main {
+      min-width: 0;
+      margin-top: 16px;
+    }
+
+    .hero {
+      position: relative;
+      overflow: hidden;
+      display: grid;
+      align-items: end;
+      min-height: min(760px, calc(100vh - 96px));
+      padding: clamp(34px, 6vw, 72px);
+      border-radius: 8px;
+      isolation: isolate;
+      color: #f8fafc;
+      background:
+        radial-gradient(circle at 72% 28%, rgba(10,102,255,0.34), transparent 32%),
+        radial-gradient(circle at 48% 66%, rgba(0,166,180,0.24), transparent 34%),
+        linear-gradient(135deg, #061021, #09111f 48%, #171020);
+      box-shadow: 0 36px 120px rgba(5,9,20,0.34);
+      transition: min-height 240ms ease, padding 240ms ease;
+    }
+
+    .hero.glass {
+      border-color: rgba(255,255,255,0.20);
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
+    }
+
+    .hero::after {
+      content: "";
+      position: absolute;
+      right: -11%;
+      bottom: -32%;
+      width: 58%;
+      height: 82%;
+      background:
+        linear-gradient(135deg, rgba(10, 102, 255, 0.22), rgba(0, 166, 180, 0.16), rgba(217, 79, 140, 0.10)),
+        linear-gradient(45deg, rgba(255,255,255,0.2), rgba(255,255,255,0));
+      transform: rotate(-11deg);
+      filter: blur(2px);
+      border: 1px solid rgba(255,255,255,0.38);
+      border-radius: 8px;
+      pointer-events: none;
+      animation: glassFloat 8s ease-in-out infinite alternate;
+    }
+
+    .hero-content {
+      position: relative;
+      z-index: 2;
+      max-width: 840px;
+    }
+
+    .liquid-hero-visual {
+      position: absolute;
+      right: 26px;
+      top: 30px;
+      z-index: 1;
+      width: min(480px, 40%);
+      height: calc(100% - 60px);
+      min-height: 250px;
+      pointer-events: none;
+      perspective: 900px;
+      transform: translate3d(var(--parallax-x), var(--parallax-y), 0);
+      transition: transform 120ms ease-out;
+    }
+
+    .liquid-pane {
+      position: absolute;
+      display: grid;
+      align-content: space-between;
+      min-height: 112px;
+      padding: 16px;
+      border: 1px solid rgba(255,255,255,0.58);
+      border-radius: 22px;
+      background:
+        radial-gradient(circle at 24% 18%, rgba(255,255,255,0.86), rgba(255,255,255,0.18) 32%, transparent 60%),
+        linear-gradient(145deg, rgba(255,255,255,0.48), rgba(255,255,255,0.12) 45%, rgba(255,255,255,0.30)),
+        rgba(255,255,255,0.16);
+      backdrop-filter: blur(28px) saturate(1.85) contrast(1.12);
+      -webkit-backdrop-filter: blur(28px) saturate(1.85) contrast(1.12);
+      box-shadow:
+        0 26px 70px rgba(16,24,40,0.18),
+        inset 0 1px 1px rgba(255,255,255,0.88),
+        inset 0 -1px 1px rgba(255,255,255,0.24);
+      animation: paneFloat 7s ease-in-out infinite alternate;
+      transform-style: preserve-3d;
+    }
+
+    .liquid-pane::before {
+      content: "";
+      position: absolute;
+      inset: 1px;
+      border-radius: inherit;
+      pointer-events: none;
+      background:
+        linear-gradient(120deg, rgba(255,255,255,0.66), transparent 28%, rgba(255,255,255,0.20) 62%, transparent),
+        radial-gradient(circle at var(--card-x, 44%) var(--card-y, 26%), rgba(255,255,255,0.76), transparent 30%);
+      opacity: 0.64;
+      mix-blend-mode: screen;
+    }
+
+    .liquid-pane span {
+      color: rgba(52, 64, 84, 0.78);
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .liquid-pane strong {
+      color: var(--ink);
+      font-size: 28px;
+      line-height: 1;
+    }
+
+    .pane-a {
+      top: 6px;
+      right: 28px;
+      width: 220px;
+      transform: rotateY(-18deg) rotateZ(2deg);
+    }
+
+    .pane-b {
+      top: 102px;
+      left: 0;
+      width: 230px;
+      animation-delay: -2s;
+      transform: rotateY(16deg) rotateZ(-4deg);
+    }
+
+    .pane-c {
+      right: 0;
+      bottom: 0;
+      width: 190px;
+      animation-delay: -4s;
+      transform: rotateY(-10deg) rotateZ(5deg);
+    }
+
+    .liquid-ribbon {
+      position: absolute;
+      inset: 22px 12px 16px 18px;
+      border: 1px solid rgba(255,255,255,0.34);
+      border-radius: 8px;
+      background:
+        linear-gradient(115deg, rgba(10,102,255,0.20), transparent 36%),
+        linear-gradient(255deg, rgba(0,166,180,0.20), transparent 44%);
+      filter: blur(0.2px);
+      transform: rotate(-8deg) skewY(-4deg);
+      animation: ribbonSweep 8s ease-in-out infinite alternate;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 30px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      color: #1d385b;
+      background: rgba(255,255,255,0.62);
+      border: 1px solid rgba(255,255,255,0.74);
+      font-size: 13px;
+      font-weight: 700;
+      box-shadow: var(--inner);
+    }
+
+    .hero h2 {
+      max-width: 760px;
+      margin: 20px 0 12px;
+      color: #ffffff;
+      font-size: clamp(44px, 7vw, 92px);
+      line-height: 0.96;
+      letter-spacing: 0;
+    }
+
+    .hero p {
+      max-width: 760px;
+      margin: 0;
+      color: rgba(248,250,252,0.72);
+      font-size: 17px;
+    }
+
+    .hero.compact {
+      min-height: 270px;
+      align-items: center;
+      padding: clamp(24px, 4vw, 44px);
+    }
+
+    .hero.compact .hero-content {
+      max-width: min(840px, 66%);
+    }
+
+    .hero.compact h2 {
+      max-width: 820px;
+      margin: 14px 0 10px;
+      font-size: clamp(32px, 4.8vw, 58px);
+      line-height: 1.03;
+    }
+
+    .hero.compact p {
+      max-width: 780px;
+      font-size: 15px;
+    }
+
+    .hero.compact .hero-actions,
+    .hero.compact .local-board-status {
+      display: none;
+    }
+
+    .hero.compact .liquid-hero-visual {
+      top: 18px;
+      right: 18px;
+      width: min(390px, 34%);
+      height: calc(100% - 36px);
+      min-height: 190px;
+    }
+
+    .hero.compact .liquid-pane {
+      min-height: 78px;
+      padding: 12px;
+    }
+
+    .hero.compact .liquid-pane strong {
+      font-size: 23px;
+    }
+
+    .hero-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 24px;
+    }
+
+    .btn {
+      position: relative;
+      overflow: hidden;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 40px;
+      padding: 9px 13px;
+      border: 1px solid rgba(255,255,255,0.54);
+      border-radius: 8px;
+      background: rgba(255,255,255,0.62);
+      color: #1f2937;
+      font-size: 14px;
+      font-weight: 700;
+      box-shadow: var(--inner);
+      transition: transform 180ms ease, box-shadow 180ms ease, background 180ms ease, border-color 180ms ease;
+    }
+
+    .btn.primary {
+      border-color: rgba(10, 102, 255, 0.28);
+      background:
+        linear-gradient(135deg, rgba(10, 102, 255, 0.96), rgba(0, 166, 180, 0.86));
+      color: white;
+    }
+
+    .btn:hover {
+      text-decoration: none;
+      transform: translateY(-2px) scale(1.015);
+      box-shadow: 0 18px 36px rgba(10, 102, 255, 0.18), var(--inner);
+    }
+
+    .local-board-status {
+      display: none;
+      margin-top: 14px;
+      max-width: 560px;
+      padding: 10px 12px;
+      border: 1px solid rgba(255,255,255,0.42);
+      border-radius: 22px;
+      background:
+        radial-gradient(circle at var(--card-x, 18%) var(--card-y, 10%), rgba(255,255,255,0.58), transparent 26%),
+        linear-gradient(135deg, rgba(255,255,255,0.22), rgba(255,255,255,0.08) 48%, rgba(255,255,255,0.18)),
+        rgba(8, 16, 30, 0.42);
+      color: rgba(248,250,252,0.88);
+      font-size: 14px;
+      backdrop-filter: blur(26px) saturate(1.65);
+      -webkit-backdrop-filter: blur(26px) saturate(1.65);
+      box-shadow:
+        0 20px 54px rgba(2, 8, 23, 0.24),
+        inset 0 1px 1px rgba(255,255,255,0.52),
+        inset 0 -1px 1px rgba(255,255,255,0.16);
+    }
+
+    .local-board-status.active {
+      display: block;
+      animation: viewIn 260ms cubic-bezier(.2,.8,.2,1);
+    }
+
+    .local-board-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 0 0 4px;
+      color: #ffffff;
+      font-size: 15px;
+      font-weight: 800;
+    }
+
+    .local-board-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 999px;
+      background: #f59e0b;
+      box-shadow: 0 0 18px rgba(245,158,11,0.86);
+    }
+
+    .local-board-copy {
+      margin: 0;
+      color: rgba(248,250,252,0.74);
+      line-height: 1.45;
+    }
+
+    .local-board-status code {
+      display: inline-block;
+      padding: 5px 9px;
+      border: 1px solid rgba(255,255,255,0.18);
+      border-radius: 999px;
+      background: rgba(2,6,23,0.46);
+      color: #fff;
+      font-family: Consolas, "SFMono-Regular", monospace;
+      font-size: 13px;
+    }
+
+    .local-board-status a {
+      color: inherit;
+      font-weight: 800;
+    }
+
+    .view {
+      display: none;
+      margin-top: 22px;
+    }
+
+    .view.active {
+      display: block;
+      animation: viewIn 420ms cubic-bezier(.2,.8,.2,1);
+    }
+
+    .section {
+      margin-bottom: 18px;
+      padding: 24px;
+      border-radius: 8px;
+    }
+
+    .section h2 {
+      margin: 0 0 14px;
+      color: var(--ink);
+      font-size: 24px;
+      letter-spacing: 0;
+    }
+
+    .section h3 {
+      margin: 18px 0 8px;
+      color: var(--ink);
+      font-size: 16px;
+      letter-spacing: 0;
+    }
+
+    .section p { margin: 8px 0 0; }
+
+    .grid {
+      display: grid;
+      gap: 14px;
+    }
+
+    .cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+    .tile {
+      position: relative;
+      overflow: hidden;
+      padding: 16px;
+      border-radius: 8px;
+      border: 1px solid rgba(255,255,255,0.55);
+      background:
+        linear-gradient(145deg, rgba(255,255,255,0.68), rgba(255,255,255,0.30));
+      box-shadow: var(--inner);
+      transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+    }
+
+    .tile:hover,
+    .file-grid a:hover,
+    .step:hover {
+      transform: translateY(-3px);
+      border-color: rgba(10,102,255,0.24);
+      box-shadow: 0 18px 42px rgba(24, 35, 56, 0.12), var(--inner);
+    }
+
+    .tile strong {
+      display: block;
+      color: var(--ink);
+      font-size: 15px;
+      margin-bottom: 6px;
+    }
+
+    .tile .big {
+      color: var(--ink);
+      font-size: 27px;
+      font-weight: 800;
+      line-height: 1.25;
+      word-break: break-word;
+    }
+
+    .muted { color: var(--muted); }
+    .risk { color: var(--red); font-weight: 800; }
+    .good { color: var(--green); font-weight: 800; }
+    .warn { color: var(--amber); font-weight: 800; }
+    .focus { color: var(--blue); font-weight: 800; }
+
+    .tagrow {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      min-height: 29px;
+      padding: 4px 9px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.6);
+      background: rgba(255,255,255,0.54);
+      color: #344054;
+      font-size: 13px;
+      white-space: nowrap;
+    }
+
+    ul, ol {
+      margin: 8px 0 0;
+      padding-left: 22px;
+    }
+
+    li { margin: 6px 0; }
+
+    table {
+      width: 100%;
+      margin-top: 10px;
+      border-collapse: collapse;
+      overflow: hidden;
+      border-radius: 8px;
+      font-size: 14px;
+    }
+
+    th, td {
+      padding: 11px;
+      border-bottom: 1px solid rgba(48, 63, 84, 0.14);
+      background: rgba(255,255,255,0.38);
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      color: var(--ink);
+      background: rgba(255,255,255,0.64);
+      font-weight: 800;
+    }
+
+    .flow {
+      display: grid;
+      gap: 12px;
+    }
+
+    .step {
+      display: grid;
+      grid-template-columns: 96px minmax(0, 1fr);
+      gap: 14px;
+      align-items: start;
+      padding: 14px;
+      border-radius: 8px;
+      background: rgba(255,255,255,0.45);
+      border: 1px solid rgba(255,255,255,0.56);
+      transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+    }
+
+    .step .when {
+      color: var(--blue);
+      font-weight: 800;
+    }
+
+    .profile-list {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px 16px;
+      margin-top: 8px;
+    }
+
+    .profile-list div {
+      padding-bottom: 8px;
+      border-bottom: 1px dashed rgba(48, 63, 84, 0.18);
+    }
+
+    .profile-list b {
+      color: var(--ink);
+      display: block;
+      font-size: 13px;
+    }
+
+    .daily {
+      display: grid;
+      grid-template-columns: 110px minmax(0, 1fr);
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .daily div {
+      padding: 11px;
+      border-radius: 8px;
+      background: rgba(255,255,255,0.44);
+      border: 1px solid rgba(255,255,255,0.5);
+    }
+
+    .daily b { color: var(--ink); }
+
+    .file-grid a {
+      display: block;
+      min-height: 44px;
+      padding: 11px 12px;
+      border-radius: 8px;
+      background: rgba(255,255,255,0.5);
+      border: 1px solid rgba(255,255,255,0.58);
+      color: #1d385b;
+      font-weight: 700;
+      transition: transform 180ms ease, background 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+    }
+
+    .file-grid a:hover {
+      text-decoration: none;
+      background: rgba(255,255,255,0.78);
+    }
+
+    .callout {
+      padding: 15px;
+      border-radius: 8px;
+      border: 1px solid rgba(255,255,255,0.58);
+      background: rgba(255, 248, 234, 0.72);
+      color: #6f3f00;
+    }
+
+    .footer {
+      padding: 8px 2px 30px;
+      color: rgba(52, 64, 84, 0.78);
+      font-size: 13px;
+    }
+
+    .reveal {
+      opacity: 0;
+      transform: translateY(18px) scale(0.985);
+      transition: opacity 560ms cubic-bezier(.2,.8,.2,1), transform 560ms cubic-bezier(.2,.8,.2,1);
+    }
+
+    .reveal.is-visible {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+
+    @keyframes liquidDrift {
+      from { filter: hue-rotate(0deg) brightness(1); transform: translate3d(0, 0, 0) scale(1); }
+      to { filter: hue-rotate(10deg) brightness(1.03); transform: translate3d(0, -12px, 0) scale(1.025); }
+    }
+
+    @keyframes glassFloat {
+      from { transform: rotate(-11deg) translate3d(0, 0, 0); }
+      to { transform: rotate(-8deg) translate3d(-18px, -16px, 0); }
+    }
+
+    @keyframes paneFloat {
+      from { translate: 0 0; filter: saturate(1.05); }
+      to { translate: 0 -14px; filter: saturate(1.24); }
+    }
+
+    @keyframes ribbonSweep {
+      from { transform: rotate(-8deg) skewY(-4deg) translateX(0); opacity: 0.72; }
+      to { transform: rotate(-5deg) skewY(-2deg) translateX(-18px); opacity: 0.95; }
+    }
+
+    @keyframes viewIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      *,
+      *::before,
+      *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        scroll-behavior: auto !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+
+    @media (prefers-reduced-transparency: reduce) {
+      .glass,
+      aside,
+      nav::before,
+      .liquid-pane,
+      .btn {
+        backdrop-filter: none !important;
+        -webkit-backdrop-filter: none !important;
+        background: rgba(255,255,255,0.92) !important;
+      }
+
+      .hero.glass {
+        background: #09111f !important;
+      }
+    }
+
+    @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+      .glass,
+      aside,
+      .liquid-pane,
+      .btn {
+        background: rgba(255,255,255,0.88);
+      }
+
+      .hero.glass {
+        background: #09111f;
+      }
+    }
+
+    @media (max-width: 980px) {
+      .shell {
+        width: min(100% - 24px, 860px);
+        margin: 12px auto;
+      }
+
+      aside {
+        top: 8px;
+        align-items: stretch;
+        flex-direction: column;
+        height: auto;
+        border-radius: 8px;
+      }
+
+      nav {
+        width: 100%;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .hero { padding: 24px; min-height: auto; }
+      .hero.compact .hero-content { max-width: 100%; }
+      .liquid-hero-visual { display: none; }
+      .cols-4, .cols-3, .cols-2, .profile-list { grid-template-columns: 1fr; }
+      .step, .daily { grid-template-columns: 1fr; }
+      table { display: block; overflow-x: auto; }
+    }
+  </style>
+</head>
+<body>
+  <canvas id="liquidCanvas" class="liquid-canvas" aria-hidden="true"></canvas>
+  <div class="shell">
+    <aside class="glass">
+      <div class="identity">
+        <h1>Axiom Core</h1>
+        <p><span class="status-dot"></span>个人决策智能核心 · 2026-05-11</p>
+      </div>
+      <nav aria-label="视图导航">
+        <button class="nav-btn active" data-view="dashboard">总览仪表盘</button>
+        <button class="nav-btn" data-view="profile">个人档案</button>
+        <button class="nav-btn" data-view="career">职业与求职</button>
+        <button class="nav-btn" data-view="finance">债务与现金流</button>
+        <button class="nav-btn" data-view="health">健康与训练</button>
+        <button class="nav-btn" data-view="learning">英语与能力</button>
+        <button class="nav-btn" data-view="execution">每日执行</button>
+        <button class="nav-btn" data-view="files">文件与补充</button>
+      </nav>
+      <div class="side-note">
+        当前系统目标：先恢复现金流，再用健康、英语、数据能力和项目表达推动职业升级。
+      </div>
+    </aside>
+
+    <main>
+      <header class="hero glass">
+        <div class="hero-content">
+          <span class="eyebrow">Axiom Core ·Personal Operating System</span>
+          <h2>把求职、债务、健康和能力升级放进同一个系统。</h2>
+          <p>当前主线是拿到18K-22K稳定工作，保住债务还款节奏；中长期主线是从仓储现场管理升级到供应链计划、项目管理或外企运营管理。</p>
+          <div class="hero-actions">
+            <a class="btn primary" id="openLocalBoard" data-local-board-link href="http://127.0.0.1:8765/app">打开本地打卡看板</a>
+            <a class="btn primary" href="00_个人总档案/00_个人AI发展档案.md">打开总档案</a>
+            <a class="btn" href="07_AI总结输出/2026-05-11_当前处境分析与90天行动计划.md">查看90天计划</a>
+            <button class="btn" onclick="window.print()">打印当前页</button>
+          </div>
+          <div class="local-board-status" id="localBoardStatus" role="status" aria-live="polite"></div>
+        </div>
+        <div class="liquid-hero-visual" aria-hidden="true">
+          <div class="liquid-ribbon"></div>
+          <div class="liquid-pane pane-a"><span>现金流</span><strong>优先</strong></div>
+          <div class="liquid-pane pane-b"><span>求职节奏</span><strong>18K+</strong></div>
+          <div class="liquid-pane pane-c"><span>90天系统</span><strong>执行</strong></div>
+        </div>
+      </header>
+
+      <section class="view active" id="dashboard">
+        <div class="section glass">
+          <h2>总览仪表盘</h2>
+          <div class="grid cols-4">
+            <div class="tile"><strong>当前阶段</strong><div class="big">待业求职</div><span class="muted">2026年4月中旬离职</span></div>
+            <div class="tile"><strong>求职目标</strong><div class="big">18K-22K</div><span class="muted">最低接受18K</span></div>
+            <div class="tile"><strong>债务压力</strong><div class="big risk">13W / 2.47W</div><span class="muted">自述债务 / 征信余额</span></div>
+            <div class="tile"><strong>三年方向</strong><div class="big">外企 / 25K</div><span class="muted">运营管理或项目管理</span></div>
+          </div>
+        </div>
+
+        <div class="grid cols-3">
+          <div class="section glass">
+            <h2>本阶段最重要的事</h2>
+            <ol>
+              <li>每天投递和跟进18K以上岗位。</li>
+              <li>整理债务清单，优先处理当前逾期并保证最低还款不断供。</li>
+              <li>每天完成英语、运动和面试案例训练。</li>
+            </ol>
+          </div>
+          <div class="section glass">
+            <h2>不能踩的坑</h2>
+            <ul>
+              <li>不要为了焦虑去做高投入副业。</li>
+              <li>不要接受夜班、低底薪高提成或不稳定销售。</li>
+              <li>不要把英语当作短期上岸条件，它是中长期杠杆。</li>
+            </ul>
+          </div>
+          <div class="section glass">
+            <h2>系统判断</h2>
+            <p>你不是缺经历，而是要把现场经验翻译成经营结果、流程机制、项目管理和跨部门协同能力。求职表达要从“我做过什么”升级成“我如何解决问题并交付指标”。</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="view" id="profile">
+        <div class="section glass">
+          <h2>个人档案</h2>
+          <div class="profile-list">
+            <div><b>姓名</b>徐建平</div>
+            <div><b>出生日期</b>1995-09-28</div>
+            <div><b>所在地</b>中国广东广州</div>
+            <div><b>家庭情况</b>未婚，与父母组成三口之家</div>
+            <div><b>当前身份</b>待业求职中</div>
+            <div><b>职业定位</b>供应链履约运营 / 仓储运营管理 / 物流项目管理</div>
+            <div><b>学历</b>专科：广东财经大学工商企业管理；本科：广开法商学院经济与金融</div>
+            <div><b>当前限制</b>无稳定现金流、自述13W债务、征信当前逾期、英语基础薄弱、运动习惯未建立</div>
+          </div>
+        </div>
+
+        <div class="section glass">
+          <h2>经历底色</h2>
+          <p>初中毕业后因家庭经济条件限制未继续就读高中，2008年至2015年进入工厂工作，并与家人共同改善家庭住房条件。这段经历说明你很早就进入真实劳动环境，后续能从制造业工艺改善转到京东物流、得物供应链，核心不是学历路径，而是现场问题解决能力和持续上升的执行结果。</p>
+        </div>
+      </section>
+
+      <section class="view" id="career">
+        <div class="section glass">
+          <h2>职业资产</h2>
+          <div class="grid cols-3">
+            <div class="tile"><strong>团队规模</strong><div class="big">230+人</div><span class="muted">现场团队管理</span></div>
+            <div class="tile"><strong>降本结果</strong><div class="big">240万+</div><span class="muted">日常运营年化降本增效</span></div>
+            <div class="tile"><strong>搬仓结果</strong><div class="big">320万</div><span class="muted">累计节省成本</span></div>
+          </div>
+          <table>
+            <thead><tr><th>经历</th><th>关键职责</th><th>可对外表达的结果</th></tr></thead>
+            <tbody>
+              <tr><td>得物供应链</td><td>广州仓入库分拣，覆盖四大品类，230+人团队</td><td>人效+47%，万单赔付率-35%，UPC打印率提升至90%+并复制11仓</td></tr>
+              <tr><td>京东物流</td><td>华南多仓仓储及履约运营</td><td>年化降本240万+，库存周转+18%，单位履约成本-12%，OTD 98.8%+</td></tr>
+              <tr><td>南玻太阳能</td><td>清洗段制程优化、缺陷治理、标准化改善</td><td>不良率-30%+，一检放行率+4pct，返工成本节省约15万元/年</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="section glass">
+          <h2>岗位策略</h2>
+          <div class="grid cols-2">
+            <div class="tile">
+              <strong>短期上岸岗位</strong>
+              <div class="tagrow">
+                <span class="tag">仓储运营经理</span>
+                <span class="tag">履约运营经理</span>
+                <span class="tag">仓配运营经理</span>
+                <span class="tag">物流项目经理</span>
+                <span class="tag">区域仓储运营</span>
+              </div>
+            </div>
+            <div class="tile">
+              <strong>中期转型岗位</strong>
+              <div class="tagrow">
+                <span class="tag">供应链计划</span>
+                <span class="tag">供应链项目管理</span>
+                <span class="tag">外企运营管理</span>
+                <span class="tag">流程改善</span>
+                <span class="tag">S&OP</span>
+              </div>
+            </div>
+          </div>
+          <h3>面试故事库</h3>
+          <ol>
+            <li>人效由70+提升到103：组织架构、排班、人员复用、过程指标。</li>
+            <li>万单赔付率下降35%：风险识别、异常闭环、质量责任和复盘机制。</li>
+            <li>搬仓节省320万：SKU分层、路线优化、设备复用、供应商谈判。</li>
+            <li>UPC规则复制到全国11仓：试点验证、系统规则、执行口径和跨仓推广。</li>
+            <li>大促保障：预测、弹性人力、库容、设备和异常预案。</li>
+          </ol>
+        </div>
+      </section>
+
+      <section class="view" id="finance">
+        <div class="section glass">
+          <h2>债务与现金流</h2>
+          <div class="grid cols-4">
+            <div class="tile"><strong>自述债务</strong><div class="big risk">约130,000</div><span class="muted">需拆分到账户</span></div>
+            <div class="tile"><strong>征信余额</strong><div class="big warn">约24,679</div><span class="muted">2026-05-12报告口径</span></div>
+            <div class="tile"><strong>当前逾期</strong><div class="big risk">1户</div><span class="muted">广州银行贷记卡</span></div>
+            <div class="tile"><strong>最低还款</strong><div class="big warn">约7,000/月</div><span class="muted">不能断供</span></div>
+          </div>
+          <h3>征信已显示账户</h3>
+          <table>
+            <thead><tr><th>账户</th><th>额度</th><th>余额/已使用</th><th>状态</th><th>处理策略</th></tr></thead>
+            <tbody>
+              <tr><td>广州银行贷记卡</td><td>10,000</td><td>10,224</td><td class="risk">当前逾期</td><td>最高优先级核对并处理。</td></tr>
+              <tr><td>平安银行信用卡</td><td>4,000</td><td>4,060</td><td>当前无逾期</td><td>保最低还款，避免再次逾期。</td></tr>
+              <tr><td>邮储银行人民币信用卡</td><td>3,000</td><td>2,329</td><td>当前无逾期</td><td>保最低还款，后续压降余额。</td></tr>
+              <tr><td>中信银行信用卡</td><td>3,000</td><td>3,042</td><td>当前无逾期</td><td>保最低还款，后续压降余额。</td></tr>
+              <tr><td>招商银行信用卡</td><td>5,000</td><td>836</td><td>当前无逾期</td><td>金额较小，可作为恢复现金流后的优先结清项。</td></tr>
+              <tr><td>交通银行信用卡</td><td>2,000</td><td>1,945</td><td>从未逾期</td><td>维持正常，避免新增消费。</td></tr>
+              <tr><td>华夏银行信用卡</td><td>1,300</td><td>1,305</td><td>从未逾期</td><td>已接近/超过额度，需核对账单。</td></tr>
+              <tr><td>美团/京东/中融贷款</td><td>21,000</td><td>938</td><td>当前无逾期</td><td>余额小，确认是否可关闭循环额度。</td></tr>
+            </tbody>
+          </table>
+          <h3>待核对口径</h3>
+          <p>信用报告显示的未结清/未销户余额约24,679元，和自述债务约130,000元存在明显差额。下一步需要把剩余差额拆成信用卡分期、网贷/消费贷、亲友借款、生活欠款、罚息或其他账单。</p>
+          <p class="callout">当前不适合做任何需要投入本金的副业、投资、加盟项目或新增贷款申请。先处理当前逾期，恢复主业现金流，再谈副业验证。</p>
+        </div>
+      </section>
+
+      <section class="view" id="health">
+        <div class="section glass">
+          <h2>健康与训练</h2>
+          <table>
+            <thead><tr><th>项目</th><th>当前记录</th><th>管理动作</th></tr></thead>
+            <tbody>
+              <tr><td>体重 / BMI</td><td>60.4kg，BMI 22.9</td><td>增肌可以继续，但要监控腰围和体脂趋势。</td></tr>
+              <tr><td>血脂</td><td>总胆固醇5.52 mmol/L，偏高</td><td>规律运动，少油炸、奶茶、夜宵和高糖零食。</td></tr>
+              <tr><td>尿酸</td><td>416.09 μmol/L，接近上限</td><td>增加饮水，减少高嘌呤和含糖饮料。</td></tr>
+              <tr><td>心率</td><td>窦性心动过缓，HR 54-55</td><td>目前无症状，训练循序渐进；如头晕、胸闷、心慌及时就医。</td></tr>
+              <tr><td>肾脏</td><td>左肾结石约2×2mm，伴左肾囊肿约9×7mm</td><td>多饮水，后续按泌尿外科建议复查超声。</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="section glass">
+          <h2>零成本训练路径</h2>
+          <div class="flow">
+            <div class="step"><div class="when">第1-2周</div><div>快走20分钟；深蹲3组×10；跪姿俯卧撑3组；平板支撑3组×20-30秒；靠墙静蹲2组。</div></div>
+            <div class="step"><div class="when">第3-6周</div><div>快走或慢跑30分钟；深蹲4组×15；俯卧撑4组×8-15；弓步蹲3组；卷腹3组。</div></div>
+            <div class="step"><div class="when">第7-12周</div><div>有氧30分钟；深蹲5组×20；俯卧撑5组；弓步蹲4组；臀桥4组；平板支撑4组。</div></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="view" id="learning">
+        <div class="section glass">
+          <h2>英语与能力升级</h2>
+          <div class="grid cols-2">
+            <div class="tile">
+              <strong>英语90天目标</strong>
+              <ul>
+                <li>掌握1000-1500个基础词。</li>
+                <li>能做1分钟英文自我介绍。</li>
+                <li>能用简单英文描述团队规模、职责和成果。</li>
+                <li>能看懂基础英文岗位要求。</li>
+              </ul>
+            </div>
+            <div class="tile">
+              <strong>职业能力升级</strong>
+              <ul>
+                <li>Excel经营指标看板。</li>
+                <li>供应链计划基础：库存、需求、补货、周转。</li>
+                <li>项目管理表达：目标、里程碑、风险、复盘。</li>
+                <li>AI辅助简历、面试、日报和英语练习。</li>
+              </ul>
+            </div>
+          </div>
+          <h3>每天2小时英语结构</h3>
+          <table>
+            <thead><tr><th>时间</th><th>内容</th><th>标准</th></tr></thead>
+            <tbody>
+              <tr><td>30分钟</td><td>基础词汇</td><td>每天30个，先会认和知道中文意思。</td></tr>
+              <tr><td>30分钟</td><td>基础句子跟读</td><td>跟读，不追求口音，先建立嘴巴肌肉记忆。</td></tr>
+              <tr><td>30分钟</td><td>基础语法</td><td>主谓宾、一般现在时、过去时、疑问句。</td></tr>
+              <tr><td>30分钟</td><td>工作经历英文表达</td><td>把履约、团队、指标、项目写成简单英文句。</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="view" id="execution">
+        <div class="section glass">
+          <h2>每日执行面板</h2>
+          <div class="daily">
+            <div><b>08:30</b></div><div>起床、整理、检查当天待办。</div>
+            <div><b>09:00</b></div><div>求职投递、岗位筛选、HR沟通。</div>
+            <div><b>11:30</b></div><div>零成本运动训练。</div>
+            <div><b>14:00</b></div><div>面试案例复盘、简历优化、模拟问答。</div>
+            <div><b>16:00</b></div><div>英语学习2小时。</div>
+            <div><b>20:00</b></div><div>供应链知识、数据看板或项目管理学习。</div>
+            <div><b>21:20</b></div><div>记录投递数、沟通数、面试反馈、运动和英语完成情况。</div>
+          </div>
+        </div>
+
+        <div class="section glass">
+          <h2>今日打卡模板</h2>
+          <table>
+            <thead><tr><th>模块</th><th>目标</th><th>今天记录</th></tr></thead>
+            <tbody>
+              <tr><td>求职</td><td>投递30-50个岗位</td><td>待填写</td></tr>
+              <tr><td>面试准备</td><td>复盘1个案例或1组问答</td><td>待填写</td></tr>
+              <tr><td>英语</td><td>2小时</td><td>待填写</td></tr>
+              <tr><td>运动</td><td>30-40分钟</td><td>待填写</td></tr>
+              <tr><td>债务/消费</td><td>记录支出，避免新增债务</td><td>待填写</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="view" id="files">
+        <div class="section glass">
+          <h2>文件入口</h2>
+          <div class="grid cols-2 file-grid">
+            <a href="00_个人总档案/00_个人AI发展档案.md">总档案 Markdown</a>
+            <a href="00_个人总档案/个人信用报告摘要.md">个人信用报告摘要</a>
+            <a href="07_AI总结输出/2026-05-11_当前处境分析与90天行动计划.md">90天行动计划</a>
+            <a href="04_学习与技能/简历信息摘要.md">简历信息摘要</a>
+            <a href="03_身体健康/体检报告摘要.md">体检报告摘要</a>
+            <a href="个人信用报告.pdf">个人信用报告 PDF</a>
+            <a href="04_学习与技能/原始简历/徐建平_简历_供应链履约运营负责人_2026-05.pdf">原始简历 PDF</a>
+            <a href="03_身体健康/原始体检报告/徐建平_体检报告_2024-01-14_爱康国宾.pdf">2024体检报告 PDF</a>
+            <a href="03_身体健康/原始体检报告/徐建平_体检报告_2025-11-11_瑞慈健康.pdf">2025体检报告 PDF</a>
+            <a href="http://127.0.0.1:8765/app" data-local-board-link>本地打卡看板</a>
+            <a href="01_系统说明/本地数据库与网页打卡方案.md">本地数据库与网页打卡方案</a>
+            <a href="README.md">项目说明 README</a>
+          </div>
+        </div>
+
+        <div class="section glass">
+          <h2>待补充信息</h2>
+          <ol>
+            <li>核对广州银行当前逾期金额、最低还款、账单日和还款日。</li>
+            <li>解释自述13W债务与征信余额约24,679元之间的差额。</li>
+            <li>每笔债务的平台/银行、剩余金额、利率、还款日、是否可协商。</li>
+            <li>当前现金还能支撑几个月生活费。</li>
+            <li>是否接受深圳、佛山、东莞的岗位机会。</li>
+            <li>是否接受短期继续做仓储运营经理作为现金流跳板。</li>
+            <li>最近一周投递平台、投递数量、面试反馈和被拒原因。</li>
+            <li>每月固定支出拆分：房租、餐饮、交通、通讯、还款、其他。</li>
+            <li>睡眠时间、饮食习惯、当前腰围或体脂率。</li>
+          </ol>
+        </div>
+      </section>
+
+      <div class="footer">
+        Axiom Core 是本地静态系统页，数据来自 Markdown 档案。后续更新档案后，可继续同步扩展页面。
+      </div>
+    </main>
+  </div>
+
+  <script>
+    const buttons = Array.from(document.querySelectorAll(".nav-btn"));
+    const views = Array.from(document.querySelectorAll(".view"));
+    const revealTargets = Array.from(document.querySelectorAll(".hero, .section, .tile, .step, .file-grid a"));
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const navBar = document.querySelector("nav");
+    const liquidCanvas = document.querySelector("#liquidCanvas");
+    const liquidPointer = { x: 0.56, y: 0.28 };
+    const localBoardLinks = Array.from(document.querySelectorAll("[data-local-board-link]"));
+    const localBoardStatus = document.querySelector("#localBoardStatus");
+    const localBoardUrl = "http://127.0.0.1:8765/app";
+    const localBoardHealthUrl = "http://127.0.0.1:8765/api/health";
+    const hero = document.querySelector(".hero");
+    const heroEyebrow = document.querySelector(".hero .eyebrow");
+    const heroTitle = document.querySelector(".hero h2");
+    const heroBody = document.querySelector(".hero p");
+    const heroPanes = Array.from(document.querySelectorAll(".liquid-pane"));
+    const heroProfiles = {
+      dashboard: {
+        eyebrow: "Axiom Core ·总览仪表盘",
+        title: "把求职、债务、健康和能力升级放进同一个系统。",
+        body: "当前主线是拿到18K-22K稳定工作，保住债务还款节奏；中长期主线是从仓储现场管理升级到供应链计划、项目管理或外企运营管理。",
+        panes: [["现金流", "优先"], ["求职节奏", "18K+"], ["90天系统", "执行"]],
+      },
+      profile: {
+        eyebrow: "Axiom Core ·个人档案",
+        title: "先看清当前底牌，再决定发力顺序。",
+        body: "这里集中放基础身份、经历底色、学历路径和当前限制，用来判断哪些事该优先处理，哪些能力可以变成职业筹码。",
+        panes: [["当前身份", "待业"], ["核心经历", "现场"], ["关键约束", "现金流"]],
+      },
+      career: {
+        eyebrow: "Axiom Core ·职业与求职",
+        title: "把现场管理经历翻译成岗位能听懂的成果。",
+        body: "这一栏关注求职定位、简历表达、面试案例和岗位策略，目标是尽快拿到18K以上稳定工作，并为后续转向供应链计划或项目管理铺路。",
+        panes: [["目标薪资", "18K+"], ["团队规模", "230+"], ["降本结果", "240万"]],
+      },
+      finance: {
+        eyebrow: "Axiom Core ·债务与现金流",
+        title: "先守住还款节奏，再谈长期优化。",
+        body: "这一栏用于看清债务、征信、最低还款和现金流风险，当前策略是减少新增压力，优先处理逾期和每月固定支出。",
+        panes: [["自述债务", "13W"], ["征信余额", "2.47W"], ["优先级", "止血"]],
+      },
+      health: {
+        eyebrow: "Axiom Core ·健康与训练",
+        title: "用可持续训练把状态拉回可用区间。",
+        body: "健康栏聚焦睡眠、体检风险、运动习惯和体能恢复。目标不是短期猛练，而是让身体支持求职、工作和长期升级。",
+        panes: [["训练方式", "渐进"], ["体检风险", "追踪"], ["睡眠", "优先"]],
+      },
+      learning: {
+        eyebrow: "Axiom Core ·英语与能力",
+        title: "把英语和数据能力做成长期杠杆。",
+        body: "这一栏承接英语基础、供应链数据、项目表达和可迁移方法沉淀。短期服务面试表达，长期服务外企和更高岗位天花板。",
+        panes: [["英语", "每日"], ["数据看板", "补齐"], ["方法沉淀", "输出"]],
+      },
+      execution: {
+        eyebrow: "Axiom Core ·每日执行",
+        title: "每天只盯关键动作，不靠情绪推进。",
+        body: "执行栏用于把求职、英语、训练、财务记录拆成当天可完成的动作，重点是不断线、可复盘、能同步到每日记录。",
+        panes: [["打卡", "每日"], ["复盘", "晚上"], ["同步", "Markdown"]],
+      },
+      files: {
+        eyebrow: "Axiom Core ·文件与补充",
+        title: "把原始材料和输出文档放在同一个入口。",
+        body: "这里汇总总档案、信用报告、体检报告、简历摘要和90天计划，方便后续补资料、查证据和继续扩展系统。",
+        panes: [["总档案", "MD"], ["报告", "PDF"], ["计划", "90天"]],
+      },
+    };
+
+    function updateHero(id) {
+      const profile = heroProfiles[id] || heroProfiles.dashboard;
+      if (hero) {
+        hero.classList.toggle("compact", id !== "dashboard");
+      }
+      if (heroEyebrow) heroEyebrow.textContent = profile.eyebrow;
+      if (heroTitle) heroTitle.textContent = profile.title;
+      if (heroBody) heroBody.textContent = profile.body;
+      heroPanes.forEach((pane, index) => {
+        const [label, value] = profile.panes[index] || ["", ""];
+        const labelNode = pane.querySelector("span");
+        const valueNode = pane.querySelector("strong");
+        if (labelNode) labelNode.textContent = label;
+        if (valueNode) valueNode.textContent = value;
+      });
+      if (localBoardStatus) {
+        localBoardStatus.classList.remove("active");
+        localBoardStatus.textContent = "";
+      }
+    }
+
+    function updateNavLens(target = document.querySelector(".nav-btn.active"), shouldScroll = true) {
+      if (!navBar || !target) return;
+      navBar.style.setProperty("--nav-x", `${target.offsetLeft}px`);
+      navBar.style.setProperty("--nav-y", `${target.offsetTop}px`);
+      navBar.style.setProperty("--nav-w", `${target.offsetWidth}px`);
+      navBar.style.setProperty("--nav-h", `${target.offsetHeight}px`);
+      if (shouldScroll) {
+        target.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", inline: "center", block: "nearest" });
+      }
+    }
+
+    function updateNavDensity() {
+      document.body.classList.toggle("nav-condensed", window.scrollY > 28);
+      requestAnimationFrame(() => updateNavLens(document.querySelector(".nav-btn.active"), false));
+    }
+
+    function renderLocalBoardStatus(state) {
+      if (!localBoardStatus) return;
+      localBoardStatus.classList.add("active");
+      if (state === "checking") {
+        localBoardStatus.innerHTML = `
+          <div>
+            <p class="local-board-title"><span class="local-board-dot"></span>正在打开本地看板</p>
+            <p class="local-board-copy">正在检测本地服务。</p>
+          </div>
+        `;
+        return;
+      }
+      if (state === "launching") {
+        localBoardStatus.innerHTML = `
+          <div>
+            <p class="local-board-title"><span class="local-board-dot"></span>本地看板服务未启动</p>
+            <p class="local-board-copy">请双击 <code>启动本地看板.cmd</code> 进入。以后从 <code>打开LifeOS.cmd</code> 启动，页面按钮会直接打开看板。</p>
+          </div>
+        `;
+      }
+    }
+
+    async function openLocalBoard(event) {
+      event?.preventDefault();
+      renderLocalBoardStatus("checking");
+
+      try {
+        await fetch(localBoardHealthUrl, { mode: "no-cors", cache: "no-store" });
+        window.location.href = localBoardUrl;
+      } catch (error) {
+        renderLocalBoardStatus("launching");
+      }
+    }
+
+    localBoardLinks.forEach(link => {
+      link.addEventListener("click", openLocalBoard);
+    });
+
+    function syncPointer(event) {
+      document.documentElement.style.setProperty("--pointer-x", `${event.clientX}px`);
+      document.documentElement.style.setProperty("--pointer-y", `${event.clientY}px`);
+      liquidPointer.x = event.clientX / Math.max(window.innerWidth, 1);
+      liquidPointer.y = event.clientY / Math.max(window.innerHeight, 1);
+      document.documentElement.style.setProperty("--parallax-x", `${(liquidPointer.x - 0.5) * 26}px`);
+      document.documentElement.style.setProperty("--parallax-y", `${(liquidPointer.y - 0.5) * 18}px`);
+    }
+
+    function setVisibleInActiveView() {
+      document.querySelectorAll(".view.active .reveal, .hero.reveal").forEach(item => {
+        item.classList.add("is-visible");
+      });
+    }
+
+    revealTargets.forEach((item, index) => {
+      item.classList.add("reveal");
+      item.style.transitionDelay = `${Math.min(index % 8, 5) * 34}ms`;
+    });
+
+    function roundRect(context, x, y, width, height, radius) {
+      const r = Math.min(radius, width / 2, height / 2);
+      context.beginPath();
+      context.moveTo(x + r, y);
+      context.arcTo(x + width, y, x + width, y + height, r);
+      context.arcTo(x + width, y + height, x, y + height, r);
+      context.arcTo(x, y + height, x, y, r);
+      context.arcTo(x, y, x + width, y, r);
+      context.closePath();
+    }
+
+    function startLiquidCanvas() {
+      if (!liquidCanvas) return;
+      const context = liquidCanvas.getContext("2d");
+      let width = 0;
+      let height = 0;
+      let ratio = 1;
+
+      function resizeCanvas() {
+        ratio = Math.min(window.devicePixelRatio || 1, 2);
+        width = window.innerWidth;
+        height = window.innerHeight;
+        liquidCanvas.width = Math.floor(width * ratio);
+        liquidCanvas.height = Math.floor(height * ratio);
+        liquidCanvas.style.width = `${width}px`;
+        liquidCanvas.style.height = `${height}px`;
+        context.setTransform(ratio, 0, 0, ratio, 0, 0);
+      }
+
+      function drawRibbon(time, base, amplitude, thickness, color, phase) {
+        context.beginPath();
+        for (let x = -80; x <= width + 80; x += 28) {
+          const progress = x / Math.max(width, 1);
+          const pointerPull = (liquidPointer.x - 0.5) * 42 * Math.sin(progress * Math.PI);
+          const y = base + Math.sin(progress * 4.6 + time + phase) * amplitude + Math.cos(progress * 2.2 - time * 0.7) * amplitude * 0.45 + pointerPull;
+          if (x === -80) context.moveTo(x, y);
+          else context.lineTo(x, y);
+        }
+        context.strokeStyle = color;
+        context.lineWidth = thickness;
+        context.lineCap = "round";
+        context.lineJoin = "round";
+        context.shadowColor = color;
+        context.shadowBlur = thickness * 0.55;
+        context.stroke();
+        context.shadowBlur = 0;
+      }
+
+      function drawFrame(now = 0) {
+        const time = now * 0.00028;
+        context.clearRect(0, 0, width, height);
+        context.globalCompositeOperation = "source-over";
+
+        const wash = context.createLinearGradient(0, 0, width, height);
+        wash.addColorStop(0, "rgba(255,255,255,0.36)");
+        wash.addColorStop(0.48, "rgba(240,247,255,0.14)");
+        wash.addColorStop(1, "rgba(255,248,235,0.22)");
+        context.fillStyle = wash;
+        context.fillRect(0, 0, width, height);
+
+        for (let i = 0; i < 5; i += 1) {
+          const x = width * (0.12 + i * 0.19) + Math.sin(time * 2 + i) * 26;
+          const y = height * (0.08 + (i % 3) * 0.22) + Math.cos(time * 1.7 + i) * 22;
+          context.save();
+          context.translate(x, y);
+          context.rotate(-0.28 + i * 0.10 + Math.sin(time + i) * 0.035);
+          const paneGradient = context.createLinearGradient(0, 0, 260, 160);
+          paneGradient.addColorStop(0, "rgba(255,255,255,0.34)");
+          paneGradient.addColorStop(0.52, "rgba(255,255,255,0.06)");
+          paneGradient.addColorStop(1, "rgba(255,255,255,0.22)");
+          roundRect(context, -130, -70, 260, 140, 18);
+          context.fillStyle = paneGradient;
+          context.fill();
+          context.strokeStyle = "rgba(255,255,255,0.28)";
+          context.stroke();
+          context.restore();
+        }
+
+        context.globalCompositeOperation = "lighter";
+        drawRibbon(time * 2.2, height * 0.18 + liquidPointer.y * 44, 46, 72, "rgba(10,102,255,0.15)", 0.2);
+        drawRibbon(time * 2.0, height * 0.36, 58, 92, "rgba(0,166,180,0.12)", 1.8);
+        drawRibbon(time * 1.8, height * 0.58, 52, 84, "rgba(217,79,140,0.10)", 3.2);
+        drawRibbon(time * 1.5, height * 0.76, 34, 58, "rgba(255,255,255,0.22)", 4.8);
+
+        context.globalCompositeOperation = "screen";
+        context.lineWidth = 1;
+        for (let i = 0; i < 12; i += 1) {
+          const y = height * (0.12 + i * 0.072);
+          context.beginPath();
+          context.moveTo(width * 0.08, y);
+          context.bezierCurveTo(width * 0.33, y + Math.sin(time * 4 + i) * 28, width * 0.68, y - Math.cos(time * 3 + i) * 24, width * 0.94, y + Math.sin(time * 2 + i) * 18);
+          context.strokeStyle = `rgba(255,255,255,${0.08 + (i % 3) * 0.025})`;
+          context.stroke();
+        }
+
+        if (!reduceMotion) requestAnimationFrame(drawFrame);
+      }
+
+      resizeCanvas();
+      drawFrame();
+      window.addEventListener("resize", () => {
+        resizeCanvas();
+        drawFrame();
+      }, { passive: true });
+    }
+
+    function attachLiquidHover(root = document) {
+      root.querySelectorAll(".glass, .tile, .btn, .nav-btn, .liquid-pane, nav").forEach(node => {
+        if (node.dataset.liquidHover) return;
+        node.dataset.liquidHover = "true";
+        node.addEventListener("pointermove", event => {
+          const rect = node.getBoundingClientRect();
+          node.style.setProperty("--card-x", `${event.clientX - rect.left}px`);
+          node.style.setProperty("--card-y", `${event.clientY - rect.top}px`);
+        });
+        node.addEventListener("pointerleave", () => {
+          node.style.removeProperty("--card-x");
+          node.style.removeProperty("--card-y");
+        });
+      });
+    }
+
+    startLiquidCanvas();
+    attachLiquidHover();
+
+    if (reduceMotion) {
+      revealTargets.forEach(item => item.classList.add("is-visible"));
+    } else {
+      const revealObserver = new IntersectionObserver(entries => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add("is-visible");
+            revealObserver.unobserve(entry.target);
+          }
+        });
+      }, { threshold: 0.08 });
+
+      revealTargets.forEach(item => revealObserver.observe(item));
+      window.addEventListener("pointermove", syncPointer, { passive: true });
+    }
+
+    function showView(id, options = {}) {
+      const scrollBehavior = options.scrollBehavior || "smooth";
+      views.forEach(view => view.classList.toggle("active", view.id === id));
+      buttons.forEach(button => button.classList.toggle("active", button.dataset.view === id));
+      updateHero(id);
+      updateNavLens(buttons.find(button => button.dataset.view === id));
+      if (location.hash !== "#" + id) {
+        history.replaceState(null, "", "#" + id);
+      }
+      window.scrollTo({ top: 0, behavior: scrollBehavior });
+      requestAnimationFrame(setVisibleInActiveView);
+    }
+
+    buttons.forEach(button => {
+      button.addEventListener("click", () => showView(button.dataset.view));
+      button.addEventListener("pointerenter", () => updateNavLens(button));
+      button.addEventListener("pointerleave", () => updateNavLens());
+    });
+
+    if (navBar) {
+      navBar.addEventListener("scroll", () => requestAnimationFrame(() => updateNavLens(document.querySelector(".nav-btn.active"), false)), { passive: true });
+    }
+
+    window.addEventListener("resize", () => requestAnimationFrame(() => updateNavLens()), { passive: true });
+    window.addEventListener("scroll", updateNavDensity, { passive: true });
+
+    const initial = location.hash.replace("#", "");
+    if (initial && document.getElementById(initial)) {
+      showView(initial, { scrollBehavior: "auto" });
+    } else {
+      updateHero("dashboard");
+    }
+
+    updateNavDensity();
+    requestAnimationFrame(setVisibleInActiveView);
+    requestAnimationFrame(() => updateNavLens());
+  </script>
+</body>
+</html>

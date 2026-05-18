@@ -1,0 +1,140 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://lifeos.local/schemas/finance-dashboard.schema.json",
+  "title": "LifeOS Finance Dashboard Frontmatter",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "schema_version",
+    "type",
+    "period",
+    "status",
+    "personal_cash",
+    "business_cash"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "type": {
+      "const": "finance_dashboard"
+    },
+    "period": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}$"
+    },
+    "status": {
+      "enum": [
+        "active",
+        "paused",
+        "archived"
+      ]
+    },
+    "decision_status": {
+      "description": "Axiom Core decision engine verdict for the current financial snapshot. Optional for backward compatibility.",
+      "enum": [
+        "pending",
+        "approved",
+        "conditional",
+        "rejected",
+        "frozen"
+      ]
+    },
+    "personal_cash": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "cash_on_hand_cny",
+        "income_cny",
+        "expense_cny",
+        "debt_total_estimated_cny",
+        "credit_report_balance_cny",
+        "minimum_repayment_cny",
+        "cashflow_status"
+      ],
+      "properties": {
+        "cash_on_hand_cny": {
+          "type": "number",
+          "minimum": 0
+        },
+        "income_cny": {
+          "type": "number",
+          "minimum": 0
+        },
+        "expense_cny": {
+          "type": "number",
+          "minimum": 0
+        },
+        "debt_total_estimated_cny": {
+          "type": "number",
+          "minimum": 0
+        },
+        "credit_report_balance_cny": {
+          "type": "number",
+          "minimum": 0
+        },
+        "minimum_repayment_cny": {
+          "type": "number",
+          "minimum": 0
+        },
+        "cashflow_status": {
+          "enum": [
+            "green",
+            "yellow",
+            "red"
+          ]
+        }
+      }
+    },
+    "business_cash": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "account_separated",
+        "budget_total_cny",
+        "budget_spent_cny",
+        "budget_committed_cny",
+        "monthly_burn_forecast_cny",
+        "runway_months",
+        "allowed_transfer_to_personal"
+      ],
+      "properties": {
+        "account_separated": {
+          "const": true,
+          "description": "Business cash must be isolated from personal cash."
+        },
+        "budget_total_cny": {
+          "type": "number",
+          "minimum": 0
+        },
+        "budget_spent_cny": {
+          "type": "number",
+          "minimum": 0
+        },
+        "budget_committed_cny": {
+          "type": "number",
+          "minimum": 0
+        },
+        "monthly_burn_forecast_cny": {
+          "type": "number",
+          "minimum": 0
+        },
+        "runway_months": {
+          "type": "number",
+          "minimum": 0
+        },
+        "allowed_transfer_to_personal": {
+          "const": false,
+          "description": "Business surplus must not be treated as personal debt repayment cash by default."
+        }
+      }
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

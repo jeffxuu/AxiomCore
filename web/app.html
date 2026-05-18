@@ -1,0 +1,2926 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Axiom Core 本地看板</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --page: #f7fbff;
+      --panel: rgba(255, 255, 255, 0.52);
+      --panel-soft: rgba(255, 255, 255, 0.34);
+      --line: rgba(44, 58, 82, 0.13);
+      --stroke: rgba(255, 255, 255, 0.72);
+      --text: #111827;
+      --muted: #64748b;
+      --blue: #0a66ff;
+      --cyan: #00a6b4;
+      --green: #14876f;
+      --amber: #b76e00;
+      --red: #c83232;
+      --purple: #7a4bd8;
+      --pink: #d94f8c;
+      --night: #050914;
+      --pointer-x: 50%;
+      --pointer-y: 20%;
+      --shadow: 0 24px 78px rgba(24, 34, 48, 0.15);
+      --inner: inset 0 1px 0 rgba(255,255,255,0.82), inset 0 -1px 0 rgba(255,255,255,0.25);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
+      background:
+        linear-gradient(115deg, rgba(10, 102, 255, 0.16), transparent 34%),
+        linear-gradient(245deg, rgba(0, 166, 180, 0.14), transparent 36%),
+        linear-gradient(35deg, rgba(217, 79, 140, 0.10), transparent 44%),
+        var(--page);
+      background-attachment: fixed;
+      overflow-x: hidden;
+      position: relative;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background:
+        conic-gradient(from 115deg at 50% 38%, rgba(255,255,255,0.32), rgba(10,102,255,0.10), rgba(20,135,111,0.12), rgba(217,79,140,0.08), rgba(255,255,255,0.32)),
+        linear-gradient(rgba(255,255,255,0.18) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.16) 1px, transparent 1px);
+      background-size: 100% 100%, 44px 44px, 44px 44px;
+      mask-image: linear-gradient(to bottom, rgba(0,0,0,0.72), transparent 86%);
+      animation: liquidDrift 18s ease-in-out infinite alternate;
+      z-index: 0;
+    }
+
+    body::after {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background:
+        radial-gradient(circle at var(--pointer-x) var(--pointer-y), rgba(255,255,255,0.50), transparent 24%),
+        linear-gradient(to bottom, rgba(255,255,255,0.24), transparent 34%, rgba(8,18,32,0.06));
+      mix-blend-mode: screen;
+      z-index: 0;
+    }
+
+    .liquid-canvas {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      opacity: 0.95;
+    }
+
+    button,
+    input,
+    select,
+    textarea {
+      font: inherit;
+    }
+
+    button {
+      position: relative;
+      overflow: hidden;
+      min-height: 38px;
+      border: 1px solid rgba(255,255,255,0.58);
+      border-radius: 8px;
+      background: linear-gradient(135deg, rgba(255,255,255,0.74), rgba(255,255,255,0.38));
+      color: var(--text);
+      cursor: pointer;
+      box-shadow: var(--inner);
+      transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease, background 180ms ease;
+    }
+
+    button:hover {
+      border-color: rgba(10, 102, 255, 0.32);
+      background: linear-gradient(135deg, rgba(255,255,255,0.92), rgba(255,255,255,0.56));
+      box-shadow: 0 16px 34px rgba(10, 102, 255, 0.14), var(--inner);
+      transform: translateY(-2px);
+    }
+
+    button.primary {
+      border-color: rgba(10, 102, 255, 0.32);
+      background: linear-gradient(135deg, rgba(10, 102, 255, 0.96), rgba(0, 166, 180, 0.88));
+      color: #fff;
+      font-weight: 700;
+    }
+
+    input,
+    select,
+    textarea {
+      width: 100%;
+      min-height: 38px;
+      border: 1px solid rgba(255,255,255,0.58);
+      border-radius: 8px;
+      background: rgba(255,255,255,0.60);
+      color: var(--text);
+      padding: 8px 10px;
+      box-shadow: var(--inner);
+      transition: border-color 180ms ease, box-shadow 180ms ease, background 180ms ease;
+    }
+
+    input:focus,
+    select:focus,
+    textarea:focus {
+      outline: none;
+      border-color: rgba(10, 102, 255, 0.48);
+      background: rgba(255,255,255,0.78);
+      box-shadow: 0 0 0 4px rgba(10,102,255,0.10), var(--inner);
+    }
+
+    textarea {
+      min-height: 130px;
+      resize: vertical;
+      line-height: 1.55;
+    }
+
+    label {
+      display: grid;
+      gap: 6px;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .app {
+      position: relative;
+      z-index: 1;
+      width: min(1500px, calc(100% - 32px));
+      margin: 16px auto 34px;
+    }
+
+    .topbar {
+      position: sticky;
+      top: 12px;
+      z-index: 20;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      min-height: 68px;
+      padding: 14px 16px;
+      border: 1px solid var(--stroke);
+      border-radius: 8px;
+      background:
+        linear-gradient(135deg, rgba(255,255,255,0.72), rgba(255,255,255,0.34)),
+        var(--panel);
+      box-shadow: var(--shadow), var(--inner);
+      backdrop-filter: blur(28px) saturate(1.55);
+      -webkit-backdrop-filter: blur(28px) saturate(1.55);
+      overflow: hidden;
+      transition: background 260ms ease, box-shadow 260ms ease, border-color 260ms ease, transform 260ms ease;
+    }
+
+    .topbar.is-scrolled {
+      border-color: rgba(255,255,255,0.82);
+      background:
+        linear-gradient(135deg, rgba(255,255,255,0.86), rgba(255,255,255,0.50)),
+        rgba(255,255,255,0.62);
+      box-shadow: 0 30px 92px rgba(10, 20, 36, 0.22), inset 0 1px 0 rgba(255,255,255,0.82);
+      transform: translateY(1px);
+    }
+
+    .topbar.is-energized {
+      animation: glassPulse 520ms cubic-bezier(.2,.9,.2,1);
+    }
+
+    .topbar::before,
+    .glass-dock::before,
+    .stage-lens::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background:
+        linear-gradient(120deg, rgba(255,255,255,0.58), transparent 30%, rgba(255,255,255,0.18) 58%, transparent 74%),
+        radial-gradient(circle at var(--pointer-x) var(--pointer-y), rgba(255,255,255,0.38), transparent 30%);
+      opacity: 0.56;
+      mix-blend-mode: screen;
+    }
+
+    .topbar::after {
+      content: "";
+      position: absolute;
+      right: 18%;
+      top: -72px;
+      width: 360px;
+      height: 210px;
+      border: 1px solid rgba(255,255,255,0.38);
+      border-radius: 8px;
+      background:
+        linear-gradient(115deg, rgba(10,102,255,0.20), transparent 42%),
+        linear-gradient(255deg, rgba(0,166,180,0.18), transparent 54%),
+        rgba(255,255,255,0.18);
+      transform: rotate(-8deg);
+      filter: blur(0.2px);
+      animation: topbarLens 7s ease-in-out infinite alternate;
+      pointer-events: none;
+      z-index: 0;
+      opacity: 0.66;
+      transition: opacity 260ms ease, transform 260ms ease;
+    }
+
+    .topbar.is-scrolled::after {
+      opacity: 0.92;
+    }
+
+    .brand {
+      position: relative;
+      z-index: 1;
+      min-width: 210px;
+    }
+
+    .brand h1 {
+      margin: 0;
+      font-size: 22px;
+      line-height: 1.15;
+      letter-spacing: 0;
+    }
+
+    .brand p {
+      margin: 4px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .toolbar {
+      display: flex;
+      align-items: end;
+      gap: 10px;
+      flex-wrap: wrap;
+      position: relative;
+      z-index: 1;
+    }
+
+    .date-field {
+      width: 170px;
+    }
+
+    .status {
+      min-width: 160px;
+      color: var(--muted);
+      font-size: 13px;
+      text-align: right;
+    }
+
+    .scroll-edge {
+      position: sticky;
+      top: 82px;
+      z-index: 18;
+      height: 34px;
+      margin: -2px 0 -28px;
+      pointer-events: none;
+      opacity: 0;
+      background: linear-gradient(to bottom, rgba(247,251,255,0.88), rgba(247,251,255,0));
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      transition: opacity 220ms ease;
+    }
+
+    .scroll-edge.is-visible {
+      opacity: 1;
+    }
+
+    .action-popover {
+      position: fixed;
+      left: var(--popover-x, 50vw);
+      top: var(--popover-y, 80px);
+      z-index: 80;
+      width: min(310px, calc(100vw - 32px));
+      padding: 14px;
+      border: 1px solid rgba(255,255,255,0.52);
+      border-radius: 8px;
+      background:
+        radial-gradient(circle at var(--card-x, 50%) var(--card-y, 0%), rgba(255,255,255,0.88), transparent 34%),
+        linear-gradient(145deg, rgba(255,255,255,0.38), rgba(255,255,255,0.14)),
+        rgba(255,255,255,0.18);
+      color: #f8fafc;
+      box-shadow: 0 34px 92px rgba(5,9,20,0.32), inset 0 1px 0 rgba(255,255,255,0.62);
+      backdrop-filter: blur(38px) saturate(1.85) contrast(1.05);
+      -webkit-backdrop-filter: blur(38px) saturate(1.85) contrast(1.05);
+      opacity: 0;
+      transform: translate(-50%, -8px) scale(0.72);
+      transform-origin: 50% 0;
+      pointer-events: none;
+      transition: opacity 180ms ease, transform 360ms cubic-bezier(.18,1.2,.2,1);
+    }
+
+    .action-popover.open {
+      opacity: 1;
+      transform: translate(-50%, 0) scale(1);
+      pointer-events: auto;
+    }
+
+    .action-popover strong {
+      display: block;
+      margin-bottom: 6px;
+      color: #ffffff;
+      font-size: 15px;
+      line-height: 1.2;
+    }
+
+    .action-popover p {
+      margin: 0;
+      color: rgba(248,250,252,0.72);
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    .action-popover::after {
+      content: "";
+      position: absolute;
+      top: -8px;
+      left: 50%;
+      width: 18px;
+      height: 18px;
+      border-left: 1px solid rgba(255,255,255,0.48);
+      border-top: 1px solid rgba(255,255,255,0.48);
+      background: rgba(255,255,255,0.20);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      transform: translateX(-50%) rotate(45deg);
+    }
+
+    .summary {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      gap: 12px;
+      margin: 14px 0 18px;
+    }
+
+    .experience-stage {
+      position: relative;
+      min-height: 460px;
+      margin: 18px 0;
+      overflow: hidden;
+      border-radius: 8px;
+      color: #f8fafc;
+      background:
+        radial-gradient(circle at 74% 28%, rgba(10,102,255,0.32), transparent 34%),
+        radial-gradient(circle at 46% 64%, rgba(0,166,180,0.24), transparent 34%),
+        linear-gradient(135deg, #061021, #09111f 46%, #151020);
+      box-shadow: 0 34px 110px rgba(5, 9, 20, 0.34);
+      isolation: isolate;
+    }
+
+    .experience-stage::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        linear-gradient(rgba(255,255,255,0.055) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.045) 1px, transparent 1px);
+      background-size: 46px 46px;
+      mask-image: radial-gradient(circle at 64% 44%, black, transparent 74%);
+      opacity: 0.7;
+      z-index: 1;
+    }
+
+    .experience-stage::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(circle at var(--pointer-x) var(--pointer-y), rgba(255,255,255,0.20), transparent 28%),
+        linear-gradient(to bottom, transparent 64%, rgba(5,9,20,0.72));
+      z-index: 3;
+      pointer-events: none;
+    }
+
+    .experience-canvas {
+      position: absolute;
+      inset: 0;
+      z-index: 2;
+      width: 100%;
+      height: 100%;
+    }
+
+    .stage-copy {
+      position: relative;
+      z-index: 4;
+      display: grid;
+      align-content: end;
+      max-width: 700px;
+      min-height: 460px;
+      padding: 42px;
+    }
+
+    .stage-kicker {
+      display: inline-flex;
+      width: fit-content;
+      min-height: 32px;
+      align-items: center;
+      padding: 5px 12px;
+      border: 1px solid rgba(255,255,255,0.26);
+      border-radius: 999px;
+      color: rgba(255,255,255,0.78);
+      background: rgba(255,255,255,0.08);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .stage-copy h2 {
+      margin: 18px 0 10px;
+      font-size: clamp(42px, 6vw, 84px);
+      line-height: 0.95;
+      letter-spacing: 0;
+    }
+
+    .stage-copy p {
+      max-width: 570px;
+      margin: 0;
+      color: rgba(248,250,252,0.72);
+      font-size: 17px;
+      line-height: 1.7;
+    }
+
+    .stage-meter {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 24px;
+    }
+
+    .stage-meter span {
+      display: inline-flex;
+      min-height: 34px;
+      align-items: center;
+      padding: 6px 11px;
+      border: 1px solid rgba(255,255,255,0.20);
+      border-radius: 999px;
+      color: rgba(255,255,255,0.84);
+      background: rgba(255,255,255,0.08);
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .glass-dock {
+      position: absolute;
+      right: 28px;
+      top: 28px;
+      z-index: 5;
+      display: flex;
+      gap: 6px;
+      padding: 6px;
+      border: 1px solid rgba(255,255,255,0.36);
+      border-radius: 999px;
+      background: rgba(255,255,255,0.14);
+      backdrop-filter: blur(30px) saturate(1.7);
+      -webkit-backdrop-filter: blur(30px) saturate(1.7);
+      box-shadow: 0 26px 72px rgba(0,0,0,0.26), inset 0 1px 0 rgba(255,255,255,0.5);
+      overflow: hidden;
+      transition: transform 260ms ease, box-shadow 260ms ease, background 260ms ease;
+    }
+
+    .glass-dock.is-active {
+      transform: translateY(-2px) scale(1.012);
+      background: rgba(255,255,255,0.18);
+      box-shadow: 0 34px 88px rgba(0,0,0,0.32), inset 0 1px 0 rgba(255,255,255,0.62);
+    }
+
+    .dock-indicator {
+      position: absolute;
+      left: 6px;
+      top: 6px;
+      width: 74px;
+      height: calc(100% - 12px);
+      border-radius: 999px;
+      background:
+        radial-gradient(circle at var(--card-x, 50%) var(--card-y, 50%), rgba(255,255,255,0.86), transparent 38%),
+        rgba(255,255,255,0.22);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.82), 0 16px 34px rgba(255,255,255,0.16);
+      transition: transform 360ms cubic-bezier(.2,.9,.2,1), width 360ms cubic-bezier(.2,.9,.2,1);
+      pointer-events: none;
+    }
+
+    .dock-indicator::after {
+      content: "";
+      position: absolute;
+      inset: -8px;
+      border-radius: inherit;
+      background: radial-gradient(circle, rgba(255,255,255,0.34), transparent 62%);
+      opacity: 0;
+      transform: scale(0.82);
+      transition: opacity 260ms ease, transform 360ms ease;
+    }
+
+    .glass-dock.is-active .dock-indicator::after {
+      opacity: 1;
+      transform: scale(1.08);
+    }
+
+    .dock-btn {
+      position: relative;
+      z-index: 1;
+      min-width: 74px;
+      border: 0;
+      color: rgba(255,255,255,0.84);
+      background: transparent;
+      box-shadow: none;
+      font-size: 13px;
+      font-weight: 900;
+    }
+
+    .dock-btn:hover,
+    .dock-btn.active {
+      color: #ffffff;
+      transform: none;
+      background: transparent;
+      box-shadow: none;
+    }
+
+    .stage-lenses {
+      position: absolute;
+      right: 38px;
+      bottom: 34px;
+      z-index: 4;
+      display: grid;
+      width: min(380px, 34vw);
+      gap: 10px;
+    }
+
+    .stage-lens {
+      position: relative;
+      min-height: 86px;
+      padding: 15px 16px;
+      overflow: hidden;
+      border: 1px solid rgba(255,255,255,0.36);
+      border-radius: 8px;
+      background:
+        linear-gradient(145deg, rgba(255,255,255,0.28), rgba(255,255,255,0.08)),
+        rgba(255,255,255,0.10);
+      backdrop-filter: blur(34px) saturate(1.8);
+      -webkit-backdrop-filter: blur(34px) saturate(1.8);
+      box-shadow: 0 24px 70px rgba(0,0,0,0.24), inset 0 1px 0 rgba(255,255,255,0.52);
+      transform: translateZ(0);
+      transition: transform 240ms ease, box-shadow 240ms ease;
+    }
+
+    .stage-lens:hover {
+      transform: translateY(-5px) scale(1.015);
+      box-shadow: 0 32px 90px rgba(0,0,0,0.30), inset 0 1px 0 rgba(255,255,255,0.64);
+    }
+
+    .stage-lens span {
+      display: block;
+      color: rgba(255,255,255,0.62);
+      font-size: 12px;
+      font-weight: 900;
+    }
+
+    .stage-lens strong {
+      display: block;
+      margin-top: 6px;
+      color: #fff;
+      font-size: 25px;
+      line-height: 1.1;
+    }
+
+    .metric,
+    .panel {
+      position: relative;
+      overflow: hidden;
+      border: 1px solid var(--stroke);
+      border-radius: 8px;
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.86), rgba(255,255,255,0.68)),
+        rgba(255,255,255,0.76);
+      box-shadow: 0 18px 52px rgba(24, 34, 48, 0.10);
+      backdrop-filter: blur(10px) saturate(1.08);
+      -webkit-backdrop-filter: blur(10px) saturate(1.08);
+      transition: transform 190ms ease, border-color 190ms ease, box-shadow 190ms ease;
+    }
+
+    .stage-lens::after,
+    .glass-dock::after,
+    button::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background:
+        radial-gradient(circle at var(--card-x, 50%) var(--card-y, 20%), rgba(255,255,255,0.72), transparent 24%),
+        linear-gradient(120deg, transparent, rgba(255,255,255,0.34), transparent);
+      opacity: 0;
+      transition: opacity 180ms ease;
+      mix-blend-mode: screen;
+    }
+
+    .stage-lens:hover::after,
+    .glass-dock:hover::after,
+    button:hover::after {
+      opacity: 0.72;
+    }
+
+    .metric {
+      min-height: 104px;
+      padding: 14px;
+    }
+
+    .metric:hover {
+      transform: translateY(-3px);
+      border-color: rgba(10, 102, 255, 0.26);
+      box-shadow: 0 30px 90px rgba(24, 34, 48, 0.18);
+    }
+
+    .metric > *,
+    .panel > * {
+      position: relative;
+      z-index: 1;
+    }
+
+    .metric span {
+      display: block;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .metric strong {
+      display: block;
+      margin-top: 8px;
+      font-size: 28px;
+      line-height: 1.05;
+      letter-spacing: 0;
+    }
+
+    .metric small {
+      display: block;
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(420px, 1.2fr) minmax(360px, 0.8fr);
+      gap: 14px;
+      align-items: start;
+    }
+
+    .panel {
+      padding: 16px;
+    }
+
+    .panel + .panel {
+      margin-top: 14px;
+    }
+
+    .panel h2 {
+      margin: 0 0 12px;
+      font-size: 18px;
+      letter-spacing: 0;
+    }
+
+    .task-groups {
+      display: grid;
+      gap: 12px;
+    }
+
+    .group {
+      position: relative;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255,255,255,0.34);
+      overflow: hidden;
+      box-shadow: var(--inner);
+      transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+    }
+
+    .group:hover {
+      transform: translateY(-2px);
+      border-color: rgba(10,102,255,0.22);
+      box-shadow: 0 16px 38px rgba(24, 34, 48, 0.10), var(--inner);
+    }
+
+    .group-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(255,255,255,0.50);
+    }
+
+    .group-name {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+      font-weight: 800;
+    }
+
+    .swatch {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      flex: 0 0 auto;
+      box-shadow: 0 0 18px currentColor;
+    }
+
+    .group-rate {
+      color: var(--muted);
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    .task {
+      position: relative;
+      display: grid;
+      grid-template-columns: 34px minmax(0, 1fr) 108px;
+      gap: 10px;
+      align-items: center;
+      min-height: 54px;
+      padding: 9px 12px;
+      border-top: 1px solid rgba(216, 224, 229, 0.58);
+      transition: background 160ms ease, transform 260ms cubic-bezier(.2,.9,.2,1), box-shadow 260ms ease;
+    }
+
+    .task:hover {
+      background: rgba(255,255,255,0.38);
+    }
+
+    .task.is-lifted {
+      z-index: 2;
+      background: rgba(255,255,255,0.72);
+      transform: translateY(-3px) scale(1.006);
+      box-shadow: 0 18px 46px rgba(10, 102, 255, 0.12), inset 0 1px 0 rgba(255,255,255,0.8);
+    }
+
+    .metric-form label {
+      transition: transform 220ms ease, filter 220ms ease;
+    }
+
+    .metric-form label.is-lifted {
+      transform: translateY(-2px);
+      filter: drop-shadow(0 12px 22px rgba(10,102,255,0.10));
+    }
+
+    .task:first-child {
+      border-top: 0;
+    }
+
+    .task input[type="checkbox"] {
+      width: 22px;
+      height: 22px;
+      min-height: 22px;
+      accent-color: var(--green);
+    }
+
+    .task-title {
+      min-width: 0;
+      font-weight: 700;
+      line-height: 1.35;
+    }
+
+    .task-title.done {
+      color: var(--muted);
+      text-decoration: line-through;
+      text-decoration-thickness: 1px;
+    }
+
+    .task-target {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .task-value {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 4px;
+    }
+
+    .task-value input {
+      min-height: 34px;
+      padding: 6px 8px;
+      text-align: right;
+    }
+
+    .metric-form {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .wide {
+      grid-column: 1 / -1;
+    }
+
+    .add-task {
+      display: grid;
+      grid-template-columns: 150px minmax(0, 1fr) 96px 78px 88px;
+      gap: 8px;
+      align-items: end;
+      margin-top: 12px;
+    }
+
+    .bars {
+      display: grid;
+      gap: 10px;
+    }
+
+    .bar-row {
+      display: grid;
+      grid-template-columns: 88px minmax(0, 1fr) 52px;
+      gap: 10px;
+      align-items: center;
+      min-height: 28px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .bar-track {
+      height: 10px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.48);
+      overflow: hidden;
+      box-shadow: inset 0 1px 3px rgba(17, 24, 39, 0.10);
+    }
+
+    .bar-fill {
+      height: 100%;
+      min-width: 2px;
+      border-radius: inherit;
+      background: var(--blue);
+      transition: width 520ms cubic-bezier(.2,.8,.2,1);
+    }
+
+    .trend {
+      display: grid;
+      grid-template-columns: repeat(14, minmax(0, 1fr));
+      gap: 5px;
+    }
+
+    .trend-day {
+      display: grid;
+      align-content: end;
+      gap: 6px;
+      min-height: 100px;
+      color: var(--muted);
+      font-size: 11px;
+      text-align: center;
+    }
+
+    .trend-bar {
+      width: 100%;
+      min-height: 4px;
+      border-radius: 5px 5px 2px 2px;
+      background: var(--green);
+      box-shadow: 0 8px 18px rgba(20,135,111,0.18);
+      animation: barRise 560ms cubic-bezier(.2,.8,.2,1) both;
+    }
+
+    .history {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    .history th,
+    .history td {
+      padding: 9px 8px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      white-space: nowrap;
+      background: rgba(255,255,255,0.30);
+    }
+
+    .history th {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .empty {
+      padding: 18px;
+      border: 1px dashed var(--line);
+      border-radius: 8px;
+      color: var(--muted);
+      background: rgba(255,255,255,0.42);
+      text-align: center;
+    }
+
+    .notice {
+      min-height: 44px;
+      padding: 11px 12px;
+      border: 1px solid rgba(255,255,255,0.64);
+      border-radius: 8px;
+      background: rgba(255, 248, 234, 0.66);
+      color: #6f3f00;
+      font-size: 13px;
+      box-shadow: var(--inner);
+    }
+
+    .file-mode {
+      margin-top: 14px;
+      padding: 16px;
+      border: 1px solid rgba(255,255,255,0.64);
+      border-radius: 8px;
+      background: rgba(255, 248, 234, 0.66);
+      color: #6f3f00;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(22px) saturate(1.35);
+      -webkit-backdrop-filter: blur(22px) saturate(1.35);
+    }
+
+    .file-mode strong {
+      display: block;
+      margin-bottom: 6px;
+      color: #4f2a00;
+      font-size: 16px;
+    }
+
+    .file-mode a {
+      color: var(--blue);
+      font-weight: 800;
+      text-decoration: none;
+    }
+
+    .chart-wrap {
+      position: relative;
+      min-height: 260px;
+    }
+
+    .chart-wrap canvas {
+      display: block;
+      width: 100%;
+      height: 260px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255,255,255,0.42);
+      box-shadow: var(--inner);
+    }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 14px;
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .legend span {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .legend i {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+
+    .chart-hint {
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .plan-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .plan-card {
+      position: relative;
+      overflow: hidden;
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255,255,255,0.34);
+      box-shadow: var(--inner);
+      transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+    }
+
+    .plan-card:hover {
+      transform: translateY(-2px);
+      border-color: rgba(10,102,255,0.22);
+      box-shadow: 0 16px 38px rgba(24, 34, 48, 0.10), var(--inner);
+    }
+
+    .plan-card strong {
+      display: block;
+      margin-bottom: 8px;
+      color: var(--text);
+      font-size: 15px;
+    }
+
+    .plan-card ul,
+    .plan-card ol {
+      margin: 0;
+      padding-left: 20px;
+      color: #334155;
+    }
+
+    .plan-card li {
+      margin: 5px 0;
+    }
+
+    .plan-tagrow {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+      margin-top: 10px;
+    }
+
+    .plan-tag {
+      padding: 4px 8px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: rgba(255,255,255,0.48);
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .reveal {
+      opacity: 0;
+      transform: translateY(18px) scale(0.985);
+      transition: opacity 560ms cubic-bezier(.2,.8,.2,1), transform 560ms cubic-bezier(.2,.8,.2,1);
+    }
+
+    .reveal.is-visible {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+
+    @keyframes liquidDrift {
+      from { filter: hue-rotate(0deg) brightness(1); transform: translate3d(0, 0, 0) scale(1); }
+      to { filter: hue-rotate(10deg) brightness(1.03); transform: translate3d(0, -12px, 0) scale(1.025); }
+    }
+
+    @keyframes barRise {
+      from { transform: scaleY(0.35); transform-origin: bottom; }
+      to { transform: scaleY(1); transform-origin: bottom; }
+    }
+
+    @keyframes topbarLens {
+      from { transform: rotate(-8deg) translate3d(0, 0, 0); opacity: 0.62; }
+      to { transform: rotate(-4deg) translate3d(-26px, 18px, 0); opacity: 0.9; }
+    }
+
+    @keyframes glassPulse {
+      0% { filter: brightness(1); }
+      42% { filter: brightness(1.12) saturate(1.15); }
+      100% { filter: brightness(1); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        scroll-behavior: auto !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+
+    @media (max-width: 1180px) {
+      .summary {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+
+      .layout {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 760px) {
+      .app {
+        width: min(100% - 20px, 720px);
+        margin-top: 10px;
+      }
+
+      .topbar {
+        align-items: stretch;
+        flex-direction: column;
+      }
+
+      .toolbar {
+        align-items: stretch;
+      }
+
+      .date-field,
+      .toolbar button,
+      .status {
+        width: 100%;
+        text-align: left;
+      }
+
+      .summary,
+      .metric-form,
+      .add-task,
+      .plan-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .experience-stage,
+      .stage-copy {
+        min-height: 560px;
+      }
+
+      .stage-copy {
+        padding: 28px;
+      }
+
+      .glass-dock {
+        left: 18px;
+        right: 18px;
+        justify-content: space-between;
+      }
+
+      .dock-btn {
+        min-width: 0;
+        flex: 1;
+      }
+
+      .stage-lenses {
+        left: 18px;
+        right: 18px;
+        bottom: 22px;
+        width: auto;
+      }
+
+      .task {
+        grid-template-columns: 34px minmax(0, 1fr);
+      }
+
+      .task-value {
+        grid-column: 2;
+      }
+
+      .trend {
+        grid-template-columns: repeat(7, minmax(0, 1fr));
+      }
+    }
+
+    /* Liquid Glass refactor: keep the material alive, but make the board operational first. */
+    :root {
+      --glass-surface: rgba(255, 255, 255, 0.62);
+      --glass-surface-strong: rgba(255, 255, 255, 0.78);
+      --glass-edge: rgba(255, 255, 255, 0.86);
+      --glass-hairline: rgba(40, 54, 78, 0.12);
+      --liquid-shadow: 0 22px 70px rgba(24, 35, 56, 0.14);
+      --liquid-shadow-strong: 0 34px 100px rgba(8, 14, 28, 0.24);
+    }
+
+    body {
+      background:
+        linear-gradient(118deg, rgba(10, 102, 255, 0.12), transparent 30%),
+        linear-gradient(248deg, rgba(0, 166, 180, 0.10), transparent 34%),
+        linear-gradient(32deg, rgba(217, 79, 140, 0.08), transparent 42%),
+        linear-gradient(180deg, #f8fbff 0%, #eef5f7 55%, #f7f3ec 100%);
+    }
+
+    .app {
+      width: min(1480px, calc(100% - 28px));
+      margin-top: 12px;
+    }
+
+    .topbar {
+      min-height: 60px;
+      padding: 10px;
+      border-color: var(--glass-edge);
+      background:
+        linear-gradient(135deg, rgba(255,255,255,0.82), rgba(255,255,255,0.42)),
+        var(--glass-surface);
+      box-shadow: var(--liquid-shadow), var(--inner);
+    }
+
+    .brand h1 {
+      font-size: 21px;
+      line-height: 1.15;
+    }
+
+    .brand p {
+      margin-top: 3px;
+      font-size: 12px;
+    }
+
+    .toolbar {
+      padding: 5px;
+      border: 1px solid rgba(255,255,255,0.66);
+      border-radius: 8px;
+      background: rgba(255,255,255,0.26);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.74);
+    }
+
+    .date-field {
+      min-width: 170px;
+      padding: 0 4px;
+    }
+
+    button,
+    input,
+    select,
+    textarea {
+      border-radius: 8px;
+    }
+
+    button {
+      min-height: 36px;
+      padding-inline: 12px;
+      background:
+        radial-gradient(circle at var(--card-x, 50%) var(--card-y, 0%), rgba(255,255,255,0.86), transparent 34%),
+        linear-gradient(135deg, rgba(255,255,255,0.78), rgba(255,255,255,0.46));
+      border-color: rgba(255,255,255,0.78);
+    }
+
+    button.primary {
+      background:
+        linear-gradient(135deg, rgba(10,102,255,0.96), rgba(0,166,180,0.86));
+    }
+
+    input,
+    select,
+    textarea {
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.78), rgba(255,255,255,0.50));
+      border-color: rgba(255,255,255,0.72);
+    }
+
+    .summary {
+      grid-template-columns: repeat(6, minmax(130px, 1fr));
+      gap: 10px;
+      margin: 12px 0;
+    }
+
+    .metric {
+      min-height: 88px;
+      padding: 13px 14px;
+      border-color: rgba(255,255,255,0.80);
+      background:
+        radial-gradient(circle at var(--card-x, 50%) var(--card-y, 8%), rgba(255,255,255,0.92), transparent 34%),
+        linear-gradient(150deg, rgba(255,255,255,0.88), rgba(255,255,255,0.52)),
+        var(--glass-surface);
+      box-shadow: 0 14px 42px rgba(24, 34, 48, 0.10), var(--inner);
+    }
+
+    .metric::before,
+    .panel::before,
+    .group::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background:
+        linear-gradient(118deg, rgba(255,255,255,0.58), transparent 28%, rgba(255,255,255,0.16) 58%, transparent 78%),
+        radial-gradient(circle at var(--card-x, 50%) var(--card-y, 18%), rgba(255,255,255,0.50), transparent 26%);
+      opacity: 0.58;
+      mix-blend-mode: screen;
+    }
+
+    .metric span {
+      font-size: 12px;
+    }
+
+    .metric strong {
+      margin-top: 6px;
+      font-size: 25px;
+    }
+
+    .metric small {
+      margin-top: 6px;
+    }
+
+    .experience-stage {
+      display: grid;
+      grid-template-columns: minmax(320px, 0.95fr) minmax(360px, 1.05fr);
+      min-height: 258px;
+      margin: 12px 0 14px;
+      border: 1px solid rgba(255,255,255,0.18);
+      background:
+        radial-gradient(circle at 75% 42%, rgba(10,102,255,0.30), transparent 38%),
+        radial-gradient(circle at 45% 78%, rgba(0,166,180,0.22), transparent 34%),
+        linear-gradient(135deg, #07101e, #0b182a 50%, #151421);
+      box-shadow: var(--liquid-shadow-strong);
+    }
+
+    .experience-stage::after {
+      background:
+        radial-gradient(circle at var(--pointer-x) var(--pointer-y), rgba(255,255,255,0.18), transparent 24%),
+        linear-gradient(to right, rgba(5,9,20,0.10), transparent 44%, rgba(5,9,20,0.36));
+    }
+
+    .experience-canvas {
+      grid-column: 2;
+    }
+
+    .stage-copy {
+      grid-column: 1;
+      min-height: 258px;
+      padding: 28px 30px;
+      align-content: center;
+    }
+
+    .stage-kicker {
+      min-height: 28px;
+      padding: 4px 10px;
+      font-size: 12px;
+      background: rgba(255,255,255,0.10);
+    }
+
+    .stage-copy h2 {
+      margin: 14px 0 8px;
+      font-size: 34px;
+      line-height: 1.06;
+    }
+
+    .stage-copy p {
+      max-width: 520px;
+      font-size: 14px;
+      line-height: 1.62;
+    }
+
+    .stage-meter {
+      margin-top: 16px;
+      gap: 8px;
+    }
+
+    .stage-meter span {
+      min-height: 30px;
+      padding: 5px 10px;
+      font-size: 12px;
+    }
+
+    .glass-dock {
+      top: 18px;
+      right: 18px;
+      padding: 5px;
+      border-radius: 8px;
+      background:
+        radial-gradient(circle at var(--card-x, 50%) var(--card-y, 0%), rgba(255,255,255,0.40), transparent 36%),
+        rgba(255,255,255,0.16);
+    }
+
+    .dock-indicator {
+      top: 5px;
+      left: 5px;
+      height: calc(100% - 10px);
+      border-radius: 7px;
+    }
+
+    .dock-btn {
+      min-width: 64px;
+      min-height: 34px;
+      font-size: 12px;
+    }
+
+    .stage-lenses {
+      right: 24px;
+      bottom: 22px;
+      width: min(360px, 36vw);
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .stage-lens {
+      min-height: 78px;
+      padding: 13px 14px;
+      background:
+        radial-gradient(circle at var(--card-x, 50%) var(--card-y, 10%), rgba(255,255,255,0.46), transparent 38%),
+        linear-gradient(145deg, rgba(255,255,255,0.26), rgba(255,255,255,0.09)),
+        rgba(255,255,255,0.10);
+    }
+
+    .stage-lens strong {
+      font-size: 20px;
+    }
+
+    .layout {
+      grid-template-columns: minmax(520px, 1.1fr) minmax(390px, 0.9fr);
+      gap: 12px;
+    }
+
+    .panel {
+      padding: 14px;
+      border-color: rgba(255,255,255,0.82);
+      background:
+        radial-gradient(circle at var(--card-x, 50%) var(--card-y, 0%), rgba(255,255,255,0.90), transparent 36%),
+        linear-gradient(160deg, rgba(255,255,255,0.86), rgba(255,255,255,0.60)),
+        var(--glass-surface);
+      box-shadow: 0 16px 50px rgba(24, 34, 48, 0.10), var(--inner);
+    }
+
+    .panel + .panel {
+      margin-top: 12px;
+    }
+
+    .panel h2 {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 11px;
+      font-size: 17px;
+    }
+
+    .panel h2::before {
+      content: "";
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--blue), var(--cyan));
+      box-shadow: 0 0 18px rgba(10,102,255,0.45);
+      flex: 0 0 auto;
+    }
+
+    .task-groups {
+      gap: 10px;
+    }
+
+    .group {
+      border-color: rgba(40,54,78,0.10);
+      background:
+        linear-gradient(160deg, rgba(255,255,255,0.56), rgba(255,255,255,0.30)),
+        rgba(255,255,255,0.28);
+    }
+
+    .group-head {
+      position: relative;
+      padding: 10px 12px 13px;
+      border-bottom-color: rgba(40,54,78,0.10);
+      background:
+        linear-gradient(135deg, rgba(255,255,255,0.68), rgba(255,255,255,0.38));
+    }
+
+    .group-progress {
+      position: absolute;
+      left: 12px;
+      right: 12px;
+      bottom: 6px;
+      height: 3px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: rgba(40,54,78,0.10);
+    }
+
+    .group-progress span {
+      display: block;
+      width: var(--group-progress, 0%);
+      height: 100%;
+      border-radius: inherit;
+      background:
+        linear-gradient(90deg, var(--group-color, var(--blue)), rgba(255,255,255,0.74), var(--group-color, var(--blue)));
+      box-shadow: 0 0 16px color-mix(in srgb, var(--group-color, var(--blue)) 58%, transparent);
+      transition: width 260ms ease;
+    }
+
+    .task {
+      min-height: 50px;
+      padding: 8px 12px;
+    }
+
+    .task input[type="checkbox"] {
+      border-radius: 6px;
+    }
+
+    .task-value input {
+      min-height: 32px;
+    }
+
+    .add-task,
+    .metric-form {
+      gap: 9px;
+    }
+
+    .chart-hint {
+      color: var(--muted);
+    }
+
+    @supports not ((backdrop-filter: blur(10px)) or (-webkit-backdrop-filter: blur(10px))) {
+      .topbar,
+      .metric,
+      .panel,
+      .group,
+      .glass-dock,
+      .stage-lens {
+        background: rgba(255,255,255,0.92);
+      }
+
+      .experience-stage {
+        background: #0b1727;
+      }
+    }
+
+    @media (max-width: 1180px) {
+      .summary {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+
+      .experience-stage {
+        grid-template-columns: 1fr;
+        min-height: 330px;
+      }
+
+      .experience-canvas,
+      .stage-copy {
+        grid-column: 1;
+        grid-row: 1;
+      }
+
+      .stage-copy {
+        min-height: 330px;
+      }
+
+      .stage-lenses {
+        width: min(420px, calc(100% - 48px));
+      }
+    }
+
+    @media (max-width: 760px) {
+      .app {
+        width: min(100% - 18px, 720px);
+      }
+
+      .toolbar {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .date-field,
+      .status {
+        grid-column: 1 / -1;
+        width: 100%;
+      }
+
+      .summary {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .metric {
+        min-height: 82px;
+      }
+
+      .metric strong {
+        font-size: 22px;
+      }
+
+      .experience-stage {
+        min-height: 380px;
+      }
+
+      .stage-copy {
+        min-height: 380px;
+        padding: 22px;
+        align-content: start;
+      }
+
+      .stage-copy h2 {
+        font-size: 30px;
+      }
+
+      .stage-copy p {
+        font-size: 13px;
+      }
+
+      .glass-dock {
+        top: auto;
+        left: 14px;
+        right: 14px;
+        bottom: 128px;
+        justify-content: stretch;
+      }
+
+      .stage-lenses {
+        left: 14px;
+        right: 14px;
+        bottom: 16px;
+        width: auto;
+      }
+
+      .layout {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 520px) {
+      .summary {
+        grid-template-columns: 1fr;
+      }
+
+      .stage-lenses {
+        grid-template-columns: 1fr;
+      }
+
+      .glass-dock {
+        bottom: 196px;
+      }
+
+      .experience-stage,
+      .stage-copy {
+        min-height: 460px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <canvas id="liquidCanvas" class="liquid-canvas" aria-hidden="true"></canvas>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand">
+        <h1>LifeOS 本地打卡看板</h1>
+        <p>SQLite 数据库 · Markdown 每日镜像</p>
+      </div>
+      <div class="toolbar">
+        <label class="date-field">
+          日期
+          <input id="dateInput" type="date">
+        </label>
+        <button id="todayBtn" type="button">今天</button>
+        <button id="exportBtn" type="button">生成 Markdown</button>
+        <button id="refreshBtn" type="button">刷新</button>
+        <div id="saveStatus" class="status">正在加载</div>
+      </div>
+    </header>
+    <div class="scroll-edge" id="scrollEdge" aria-hidden="true"></div>
+    <div class="action-popover" id="actionPopover" role="status" aria-live="polite">
+      <strong id="actionPopoverTitle">操作</strong>
+      <p id="actionPopoverText">已执行。</p>
+    </div>
+
+    <section class="summary" id="summary"></section>
+
+    <section class="experience-stage reveal" id="lifeStage">
+      <canvas id="experienceCanvas" class="experience-canvas" aria-hidden="true"></canvas>
+      <div class="glass-dock" id="glassDock" aria-label="快速定位">
+        <span class="dock-indicator" aria-hidden="true"></span>
+        <button class="dock-btn active" type="button" data-scroll-target="#taskGroups">任务</button>
+        <button class="dock-btn" type="button" data-scroll-target="#entryForm">记录</button>
+        <button class="dock-btn" type="button" data-scroll-target="#waveChart">趋势</button>
+        <button class="dock-btn" type="button" data-scroll-target="#englishPlan">计划</button>
+      </div>
+      <div class="stage-copy">
+        <div>
+          <span class="stage-kicker">LifeOS Control Surface</span>
+          <h2>今天的主线</h2>
+          <p>把求职、英语、训练和现金流压到同一个操作面上，先看信号，再完成动作，最后沉淀到每日记录。</p>
+          <div class="stage-meter">
+            <span id="stageRate">完成率 --</span>
+            <span id="stageStreak">连续 --</span>
+            <span id="stageSignal">等待加载</span>
+          </div>
+        </div>
+      </div>
+      <div class="stage-lenses" aria-hidden="true">
+        <div class="stage-lens"><span>今日主线</span><strong id="stageFocus">先开工</strong></div>
+        <div class="stage-lens"><span>7天动能</span><strong id="stageMomentum">加载中</strong></div>
+      </div>
+    </section>
+
+    <section id="fileModeBanner" class="file-mode" hidden>
+      <strong>当前是静态文件模式，不能连接数据库。</strong>
+      这个页面必须通过本地服务打开，才能写入 SQLite、生成每日 Markdown 和刷新动态图表。
+      请先在项目根目录运行 <code>python lifeos_server.py</code>，再打开
+      <a href="http://127.0.0.1:8765/app">http://127.0.0.1:8765/app</a>。
+    </section>
+
+    <main class="layout">
+      <section>
+        <div class="panel">
+          <h2>每日任务打卡</h2>
+          <div id="taskGroups" class="task-groups"></div>
+          <form id="addTaskForm" class="add-task">
+            <label>
+              类型
+              <select id="newTaskCategory"></select>
+            </label>
+            <label>
+              任务
+              <input id="newTaskTitle" type="text" placeholder="例如：阅读英文岗位JD">
+            </label>
+            <label>
+              目标
+              <input id="newTaskTarget" type="number" min="0" step="1" value="1">
+            </label>
+            <label>
+              单位
+              <input id="newTaskUnit" type="text" value="次">
+            </label>
+            <button class="primary" type="submit">添加</button>
+          </form>
+        </div>
+
+        <div class="panel">
+          <h2>今日记录</h2>
+          <form id="entryForm" class="metric-form">
+            <label>睡眠小时<input data-entry="sleep_hours" type="number" min="0" max="24" step="0.5"></label>
+            <label>体重 kg<input data-entry="weight_kg" type="number" min="0" step="0.1"></label>
+            <label>情绪 1-10<input data-entry="mood" type="number" min="0" max="10" step="1"></label>
+            <label>精力 1-10<input data-entry="energy" type="number" min="0" max="10" step="1"></label>
+            <label>支出<input data-entry="expense" type="number" min="0" step="0.01"></label>
+            <label>收入<input data-entry="income" type="number" min="0" step="0.01"></label>
+            <label>投递岗位<input data-entry="job_applications" type="number" min="0" step="1"></label>
+            <label>面试/沟通<input data-entry="interviews" type="number" min="0" step="1"></label>
+            <label>英语分钟<input data-entry="english_minutes" type="number" min="0" step="1"></label>
+            <label>运动分钟<input data-entry="exercise_minutes" type="number" min="0" step="1"></label>
+            <label class="wide">今日笔记<textarea data-entry="notes" placeholder="事实、情绪、异常、机会、明天最重要的一件事"></textarea></label>
+          </form>
+        </div>
+
+        <div class="panel">
+          <h2>英语学习规划</h2>
+          <div class="plan-grid" id="englishPlan"></div>
+        </div>
+
+        <div class="panel">
+          <h2>运动健身规划</h2>
+          <div class="plan-grid" id="fitnessPlan"></div>
+        </div>
+      </section>
+
+      <aside>
+        <div class="panel">
+          <h2>30天数据波动</h2>
+          <div class="chart-wrap">
+            <canvas id="waveChart" width="760" height="300"></canvas>
+          </div>
+          <div class="legend" id="waveLegend"></div>
+          <div class="chart-hint">曲线会随每日保存动态刷新：完成率、英语、运动、求职投递分别独立归一化，适合看方向和节奏。</div>
+        </div>
+
+        <div class="panel">
+          <h2>进度看板</h2>
+          <div id="signals" class="notice"></div>
+          <div id="categoryBars" class="bars" style="margin-top: 12px;"></div>
+        </div>
+
+        <div class="panel">
+          <h2>14天趋势</h2>
+          <div id="trend" class="trend"></div>
+        </div>
+
+        <div class="panel">
+          <h2>历史数据</h2>
+          <div style="overflow-x: auto;">
+            <table class="history">
+              <thead>
+                <tr>
+                  <th>日期</th>
+                  <th>完成率</th>
+                  <th>完成</th>
+                  <th>总数</th>
+                </tr>
+              </thead>
+              <tbody id="historyRows"></tbody>
+            </table>
+          </div>
+        </div>
+      </aside>
+    </main>
+  </div>
+
+  <script>
+    const state = {
+      categories: [],
+      day: null,
+      dashboard: null,
+      saveTimer: null,
+      isSaving: false,
+      chartFrame: 0,
+      popoverTimer: 0
+    };
+
+    const englishPlan = [
+      {
+        title: "90天目标",
+        items: [
+          "新概念英语第一册完成60-72课，先吃透基础句型。",
+          "墨墨背单词累计掌握1200-1500个基础词，优先高频词。",
+          "能做1分钟英文自我介绍，能讲清团队规模、职责和项目结果。",
+          "能看懂基础英文岗位要求和供应链常见词。"
+        ],
+        tags: ["新概念英语", "墨墨背单词", "岗位英文"]
+      },
+      {
+        title: "每日120分钟结构",
+        items: [
+          "25分钟：墨墨背单词，复习优先，新词控制在30个以内。",
+          "35分钟：新概念英语精听、跟读、影子朗读。",
+          "20分钟：语法句型，主谓宾、时态、疑问句、介词短语。",
+          "25分钟：把工作经历改写成英文短句并开口复述。",
+          "15分钟：错词、错句、录音回听。"
+        ],
+        tags: ["可打卡", "可复盘", "低门槛"]
+      },
+      {
+        title: "阶段安排",
+        items: [
+          "第1-30天：新概念1册1-24课，建立发音和句型反应。",
+          "第31-60天：25-48课，开始讲简历经历和岗位职责。",
+          "第61-90天：49-72课，做面试问答和供应链场景表达。"
+        ],
+        tags: ["30天一阶段", "先基础", "再输出"]
+      },
+      {
+        title: "每周验收",
+        items: [
+          "默写10个本周高频句型。",
+          "录1段60秒英文自我介绍。",
+          "整理5个供应链/履约/仓储英文表达。",
+          "复盘墨墨遗忘词，减少新词数量而不是硬冲进度。"
+        ],
+        tags: ["录音", "默写", "复盘"]
+      }
+    ];
+
+    const fitnessPlan = [
+      {
+        title: "12周目标",
+        items: [
+          "先建立每周4练习惯，不追求大重量。",
+          "体能目标：连续快走或慢跑30分钟不明显喘。",
+          "力量目标：标准俯卧撑、深蹲、平板支撑逐步增加。",
+          "健康目标：睡眠、饮水、尿酸和血脂风险一起管。"
+        ],
+        tags: ["零成本", "循序渐进", "健康优先"]
+      },
+      {
+        title: "每次训练结构",
+        items: [
+          "8分钟：肩、髋、踝、膝关节热身。",
+          "30分钟：深蹲、俯卧撑、弓步蹲、臀桥、核心训练。",
+          "20分钟：快走、慢跑或低强度有氧。",
+          "10分钟：拉伸恢复，记录膝盖、腰背、心率和疲劳感。"
+        ],
+        tags: ["热身", "力量", "有氧", "拉伸"]
+      },
+      {
+        title: "周计划",
+        items: [
+          "周一：下肢与核心，深蹲、弓步蹲、平板支撑。",
+          "周二：快走或慢跑，保持可对话强度。",
+          "周三：上肢与核心，俯卧撑、肩背激活、卷腹。",
+          "周五：全身循环训练，动作少但做标准。",
+          "周日：低强度散步和身体状态复盘。"
+        ],
+        tags: ["每周4练", "1次恢复", "不过量"]
+      },
+      {
+        title: "升级规则",
+        items: [
+          "连续2周完成率超过80%，每个动作增加1组或增加5分钟有氧。",
+          "睡眠少于6小时，当天只做快走和拉伸。",
+          "出现头晕、胸闷、明显关节痛，停止训练并记录症状。",
+          "体检异常指标相关问题，优先遵医嘱。"
+        ],
+        tags: ["80%再加量", "异常即降级", "记录反馈"]
+      }
+    ];
+
+    const dateInput = document.querySelector("#dateInput");
+    const taskGroups = document.querySelector("#taskGroups");
+    const summary = document.querySelector("#summary");
+    const saveStatus = document.querySelector("#saveStatus");
+    const entryForm = document.querySelector("#entryForm");
+    const addTaskForm = document.querySelector("#addTaskForm");
+    const newTaskCategory = document.querySelector("#newTaskCategory");
+    const newTaskTitle = document.querySelector("#newTaskTitle");
+    const newTaskTarget = document.querySelector("#newTaskTarget");
+    const newTaskUnit = document.querySelector("#newTaskUnit");
+    const waveCanvas = document.querySelector("#waveChart");
+    const waveLegend = document.querySelector("#waveLegend");
+    const experienceCanvas = document.querySelector("#experienceCanvas");
+    const glassDock = document.querySelector("#glassDock");
+    const stageRate = document.querySelector("#stageRate");
+    const stageStreak = document.querySelector("#stageStreak");
+    const stageSignal = document.querySelector("#stageSignal");
+    const stageFocus = document.querySelector("#stageFocus");
+    const stageMomentum = document.querySelector("#stageMomentum");
+    const topbar = document.querySelector(".topbar");
+    const scrollEdge = document.querySelector("#scrollEdge");
+    const actionPopover = document.querySelector("#actionPopover");
+    const actionPopoverTitle = document.querySelector("#actionPopoverTitle");
+    const actionPopoverText = document.querySelector("#actionPopoverText");
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const liquidCanvas = document.querySelector("#liquidCanvas");
+    const liquidPointer = { x: 0.56, y: 0.28 };
+    const revealObserver = reduceMotion ? null : new IntersectionObserver(entries => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add("is-visible");
+          revealObserver.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.08 });
+
+    function syncPointer(event) {
+      document.documentElement.style.setProperty("--pointer-x", `${event.clientX}px`);
+      document.documentElement.style.setProperty("--pointer-y", `${event.clientY}px`);
+      liquidPointer.x = event.clientX / Math.max(window.innerWidth, 1);
+      liquidPointer.y = event.clientY / Math.max(window.innerHeight, 1);
+    }
+
+    function revealNewNodes(root = document) {
+      root.querySelectorAll(".reveal:not(.is-visible)").forEach((node, index) => {
+        node.style.transitionDelay = `${Math.min(index % 8, 5) * 32}ms`;
+        if (reduceMotion) {
+          node.classList.add("is-visible");
+          return;
+        }
+        revealObserver.observe(node);
+      });
+    }
+
+    if (!reduceMotion) {
+      window.addEventListener("pointermove", syncPointer, { passive: true });
+    }
+
+    document.querySelectorAll(".topbar, .panel, .file-mode").forEach(node => {
+      node.classList.add("reveal");
+    });
+
+    function roundRect(context, x, y, width, height, radius) {
+      const r = Math.min(radius, width / 2, height / 2);
+      context.beginPath();
+      context.moveTo(x + r, y);
+      context.arcTo(x + width, y, x + width, y + height, r);
+      context.arcTo(x + width, y + height, x, y + height, r);
+      context.arcTo(x, y + height, x, y, r);
+      context.arcTo(x, y, x + width, y, r);
+      context.closePath();
+    }
+
+    function startLiquidCanvas() {
+      if (!liquidCanvas) return;
+      const context = liquidCanvas.getContext("2d");
+      let width = 0;
+      let height = 0;
+      let ratio = 1;
+
+      function resizeCanvas() {
+        ratio = Math.min(window.devicePixelRatio || 1, 2);
+        width = window.innerWidth;
+        height = window.innerHeight;
+        liquidCanvas.width = Math.floor(width * ratio);
+        liquidCanvas.height = Math.floor(height * ratio);
+        liquidCanvas.style.width = `${width}px`;
+        liquidCanvas.style.height = `${height}px`;
+        context.setTransform(ratio, 0, 0, ratio, 0, 0);
+      }
+
+      function drawRibbon(time, base, amplitude, thickness, color, phase) {
+        context.beginPath();
+        for (let x = -80; x <= width + 80; x += 28) {
+          const progress = x / Math.max(width, 1);
+          const pointerPull = (liquidPointer.x - 0.5) * 42 * Math.sin(progress * Math.PI);
+          const y = base + Math.sin(progress * 4.6 + time + phase) * amplitude + Math.cos(progress * 2.2 - time * 0.7) * amplitude * 0.45 + pointerPull;
+          if (x === -80) context.moveTo(x, y);
+          else context.lineTo(x, y);
+        }
+        context.strokeStyle = color;
+        context.lineWidth = thickness;
+        context.lineCap = "round";
+        context.lineJoin = "round";
+        context.shadowColor = color;
+        context.shadowBlur = thickness * 0.55;
+        context.stroke();
+        context.shadowBlur = 0;
+      }
+
+      function drawFrame(now = 0) {
+        const time = now * 0.00028;
+        context.clearRect(0, 0, width, height);
+        context.globalCompositeOperation = "source-over";
+
+        const wash = context.createLinearGradient(0, 0, width, height);
+        wash.addColorStop(0, "rgba(255,255,255,0.36)");
+        wash.addColorStop(0.48, "rgba(240,247,255,0.14)");
+        wash.addColorStop(1, "rgba(255,248,235,0.22)");
+        context.fillStyle = wash;
+        context.fillRect(0, 0, width, height);
+
+        for (let i = 0; i < 5; i += 1) {
+          const x = width * (0.12 + i * 0.19) + Math.sin(time * 2 + i) * 26;
+          const y = height * (0.08 + (i % 3) * 0.22) + Math.cos(time * 1.7 + i) * 22;
+          context.save();
+          context.translate(x, y);
+          context.rotate(-0.28 + i * 0.10 + Math.sin(time + i) * 0.035);
+          const paneGradient = context.createLinearGradient(0, 0, 260, 160);
+          paneGradient.addColorStop(0, "rgba(255,255,255,0.34)");
+          paneGradient.addColorStop(0.52, "rgba(255,255,255,0.06)");
+          paneGradient.addColorStop(1, "rgba(255,255,255,0.22)");
+          roundRect(context, -130, -70, 260, 140, 18);
+          context.fillStyle = paneGradient;
+          context.fill();
+          context.strokeStyle = "rgba(255,255,255,0.28)";
+          context.stroke();
+          context.restore();
+        }
+
+        context.globalCompositeOperation = "lighter";
+        drawRibbon(time * 2.2, height * 0.18 + liquidPointer.y * 44, 46, 72, "rgba(10,102,255,0.15)", 0.2);
+        drawRibbon(time * 2.0, height * 0.36, 58, 92, "rgba(0,166,180,0.12)", 1.8);
+        drawRibbon(time * 1.8, height * 0.58, 52, 84, "rgba(217,79,140,0.10)", 3.2);
+        drawRibbon(time * 1.5, height * 0.76, 34, 58, "rgba(255,255,255,0.22)", 4.8);
+
+        context.globalCompositeOperation = "screen";
+        context.lineWidth = 1;
+        for (let i = 0; i < 12; i += 1) {
+          const y = height * (0.12 + i * 0.072);
+          context.beginPath();
+          context.moveTo(width * 0.08, y);
+          context.bezierCurveTo(width * 0.33, y + Math.sin(time * 4 + i) * 28, width * 0.68, y - Math.cos(time * 3 + i) * 24, width * 0.94, y + Math.sin(time * 2 + i) * 18);
+          context.strokeStyle = `rgba(255,255,255,${0.08 + (i % 3) * 0.025})`;
+          context.stroke();
+        }
+
+        if (!reduceMotion) requestAnimationFrame(drawFrame);
+      }
+
+      resizeCanvas();
+      drawFrame();
+      window.addEventListener("resize", () => {
+        resizeCanvas();
+        drawFrame();
+      }, { passive: true });
+    }
+
+    function attachLiquidHover(root = document) {
+      root.querySelectorAll(".topbar, .metric, .panel, .group, .plan-card, .stage-lens, .glass-dock, button").forEach(node => {
+        if (node.dataset.liquidHover) return;
+        node.dataset.liquidHover = "true";
+        node.addEventListener("pointermove", event => {
+          const rect = node.getBoundingClientRect();
+          node.style.setProperty("--card-x", `${event.clientX - rect.left}px`);
+          node.style.setProperty("--card-y", `${event.clientY - rect.top}px`);
+        });
+        node.addEventListener("pointerleave", () => {
+          node.style.removeProperty("--card-x");
+          node.style.removeProperty("--card-y");
+        });
+      });
+    }
+
+    startLiquidCanvas();
+    attachLiquidHover();
+
+    function moveDockIndicator(button) {
+      if (!glassDock || !button) return;
+      const indicator = glassDock.querySelector(".dock-indicator");
+      if (!indicator) return;
+      indicator.style.width = `${button.offsetWidth}px`;
+      indicator.style.transform = `translateX(${button.offsetLeft - 6}px)`;
+      glassDock.querySelectorAll(".dock-btn").forEach(item => {
+        item.classList.toggle("active", item === button);
+      });
+      glassDock.classList.add("is-active");
+      clearTimeout(glassDock._activeTimer);
+      glassDock._activeTimer = setTimeout(() => glassDock.classList.remove("is-active"), 620);
+    }
+
+    function setupGlassDock() {
+      if (!glassDock) return;
+      const buttons = Array.from(glassDock.querySelectorAll(".dock-btn"));
+      buttons.forEach(button => {
+        button.addEventListener("click", () => {
+          moveDockIndicator(button);
+          const target = document.querySelector(button.dataset.scrollTarget);
+          if (target) {
+            target.scrollIntoView({ behavior: "smooth", block: "center" });
+          }
+        });
+      });
+      requestAnimationFrame(() => moveDockIndicator(buttons[0]));
+      window.addEventListener("resize", () => moveDockIndicator(glassDock.querySelector(".dock-btn.active")), { passive: true });
+    }
+
+    function setupDockScrollSpy() {
+      if (!glassDock || !("IntersectionObserver" in window)) return;
+      const buttons = Array.from(glassDock.querySelectorAll(".dock-btn"));
+      const targets = buttons.map(button => ({
+        button,
+        target: document.querySelector(button.dataset.scrollTarget)
+      })).filter(item => item.target);
+      const observer = new IntersectionObserver(entries => {
+        const visible = entries
+          .filter(entry => entry.isIntersecting)
+          .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+        if (!visible) return;
+        const match = targets.find(item => item.target === visible.target);
+        if (match && !match.button.classList.contains("active")) {
+          moveDockIndicator(match.button);
+        }
+      }, {
+        root: null,
+        rootMargin: "-35% 0px -45% 0px",
+        threshold: [0.08, 0.2, 0.45, 0.7]
+      });
+      targets.forEach(item => observer.observe(item.target));
+    }
+
+    function startExperienceCanvas() {
+      if (!experienceCanvas) return;
+      const context = experienceCanvas.getContext("2d");
+      let width = 0;
+      let height = 0;
+      let ratio = 1;
+
+      function resizeCanvas() {
+        const rect = experienceCanvas.getBoundingClientRect();
+        ratio = Math.min(window.devicePixelRatio || 1, 2);
+        width = Math.max(320, Math.floor(rect.width || 1200));
+        height = Math.max(360, Math.floor(rect.height || 460));
+        experienceCanvas.width = Math.floor(width * ratio);
+        experienceCanvas.height = Math.floor(height * ratio);
+        context.setTransform(ratio, 0, 0, ratio, 0, 0);
+      }
+
+      function drawNode(x, y, radius, color, labelAlpha) {
+        context.save();
+        context.shadowColor = color;
+        context.shadowBlur = radius * 2.4;
+        context.beginPath();
+        context.fillStyle = color;
+        context.arc(x, y, radius, 0, Math.PI * 2);
+        context.fill();
+        context.shadowBlur = 0;
+        context.globalAlpha = labelAlpha;
+        context.strokeStyle = "rgba(255,255,255,0.22)";
+        context.lineWidth = 1;
+        context.beginPath();
+        context.arc(x, y, radius + 12, 0, Math.PI * 2);
+        context.stroke();
+        context.restore();
+      }
+
+      function drawFrame(now = 0) {
+        const time = now * 0.00055;
+        const dashboard = state.dashboard || {};
+        const categories = dashboard.categories || [];
+        context.clearRect(0, 0, width, height);
+
+        const glow = context.createRadialGradient(width * 0.68, height * 0.42, 20, width * 0.68, height * 0.42, width * 0.55);
+        glow.addColorStop(0, "rgba(255,255,255,0.20)");
+        glow.addColorStop(0.25, "rgba(10,102,255,0.24)");
+        glow.addColorStop(0.58, "rgba(0,166,180,0.12)");
+        glow.addColorStop(1, "rgba(255,255,255,0)");
+        context.fillStyle = glow;
+        context.fillRect(0, 0, width, height);
+
+        context.globalCompositeOperation = "lighter";
+        const cx = width * (0.66 + (liquidPointer.x - 0.5) * 0.035);
+        const cy = height * (0.46 + (liquidPointer.y - 0.5) * 0.04);
+        const count = Math.max(categories.length, 7);
+        const nodes = [];
+        for (let index = 0; index < count; index += 1) {
+          const category = categories[index] || {};
+          const angle = (Math.PI * 2 * index) / count + time * 0.34;
+          const orbit = Math.min(width, height) * (0.20 + (index % 3) * 0.045);
+          const rate = Number(category.rate || 0.34 + (index % 4) * 0.08);
+          const x = cx + Math.cos(angle) * orbit * (1.35 + Math.sin(time + index) * 0.04);
+          const y = cy + Math.sin(angle) * orbit * (0.78 + Math.cos(time + index) * 0.035);
+          const color = category.color || ["#0a66ff", "#00a6b4", "#14876f", "#b76e00", "#d94f8c", "#7a4bd8", "#38bdf8"][index % 7];
+          const radius = 5 + rate * 15;
+          nodes.push({ x, y, radius, color, rate });
+        }
+
+        for (let index = 0; index < nodes.length; index += 1) {
+          const current = nodes[index];
+          const next = nodes[(index + 1) % nodes.length];
+          context.beginPath();
+          context.moveTo(current.x, current.y);
+          context.bezierCurveTo(cx, cy, cx, cy, next.x, next.y);
+          context.strokeStyle = `rgba(255,255,255,${0.08 + current.rate * 0.12})`;
+          context.lineWidth = 1.2 + current.rate * 2.2;
+          context.stroke();
+        }
+
+        nodes.forEach((node, index) => {
+          drawNode(node.x, node.y, node.radius, node.color, 0.5 + (index % 2) * 0.22);
+        });
+
+        context.globalCompositeOperation = "screen";
+        for (let ring = 0; ring < 4; ring += 1) {
+          context.save();
+          context.translate(cx, cy);
+          context.rotate(time * (ring % 2 ? -0.8 : 0.6) + ring);
+          context.strokeStyle = `rgba(255,255,255,${0.10 - ring * 0.015})`;
+          context.lineWidth = 1;
+          context.beginPath();
+          context.ellipse(0, 0, width * (0.18 + ring * 0.045), height * (0.10 + ring * 0.03), 0, 0, Math.PI * 2);
+          context.stroke();
+          context.restore();
+        }
+
+        if (!reduceMotion) requestAnimationFrame(drawFrame);
+      }
+
+      resizeCanvas();
+      drawFrame();
+      window.addEventListener("resize", () => {
+        resizeCanvas();
+        drawFrame();
+      }, { passive: true });
+    }
+
+    function updateExperienceStage() {
+      if (!state.dashboard) return;
+      const dashboard = state.dashboard;
+      const metrics = dashboard.metrics || {};
+      const strongest = dashboard.signals && dashboard.signals.strongest;
+      const weakest = dashboard.signals && dashboard.signals.weakest;
+      if (stageRate) stageRate.textContent = `完成率 ${percent(dashboard.today.rate)}%`;
+      if (stageStreak) stageStreak.textContent = `连续 ${dashboard.streak}天`;
+      if (stageSignal) {
+        stageSignal.textContent = weakest && weakest.total > 0 ? `先补 ${weakest.name}` : "保持主线";
+      }
+      if (stageFocus) {
+        stageFocus.textContent = strongest && strongest.total > 0 ? `${strongest.name} ${percent(strongest.rate)}%` : "先开工";
+      }
+      if (stageMomentum) {
+        stageMomentum.textContent = `英${metrics.english7d || 0}m / 动${metrics.exercise7d || 0}m / 投${metrics.jobs7d || 0}`;
+      }
+    }
+
+    setupGlassDock();
+    setupDockScrollSpy();
+    startExperienceCanvas();
+
+    function todayText() {
+      const now = new Date();
+      const timezoneOffset = now.getTimezoneOffset() * 60000;
+      return new Date(now.getTime() - timezoneOffset).toISOString().slice(0, 10);
+    }
+
+    function percent(value) {
+      return Math.round((Number(value) || 0) * 100);
+    }
+
+    function numberValue(value) {
+      const parsed = Number(value);
+      return Number.isFinite(parsed) ? parsed : 0;
+    }
+
+    function formatNumber(value) {
+      const parsed = Number(value);
+      if (!Number.isFinite(parsed)) return "0";
+      return Number.isInteger(parsed) ? String(parsed) : String(parsed).replace(/0+$/, "").replace(/\.$/, "");
+    }
+
+    function setStatus(text) {
+      saveStatus.textContent = text;
+    }
+
+    function energizeGlass() {
+      if (!topbar) return;
+      topbar.classList.remove("is-energized");
+      requestAnimationFrame(() => topbar.classList.add("is-energized"));
+    }
+
+    function updateScrollEdge() {
+      const active = window.scrollY > 18;
+      topbar?.classList.toggle("is-scrolled", active);
+      scrollEdge?.classList.toggle("is-visible", active);
+    }
+
+    function showActionPopover(source, title, text) {
+      if (!source || !actionPopover) return;
+      const rect = source.getBoundingClientRect();
+      const x = Math.max(164, Math.min(window.innerWidth - 164, rect.left + rect.width / 2));
+      const y = Math.min(window.innerHeight - 160, rect.bottom + 12);
+      actionPopover.style.setProperty("--popover-x", `${x}px`);
+      actionPopover.style.setProperty("--popover-y", `${y}px`);
+      actionPopover.style.setProperty("--card-x", `${rect.width / 2}px`);
+      actionPopover.style.setProperty("--card-y", "0px");
+      actionPopoverTitle.textContent = title;
+      actionPopoverText.textContent = text;
+      actionPopover.classList.add("open");
+      clearTimeout(state.popoverTimer);
+      state.popoverTimer = setTimeout(() => {
+        actionPopover.classList.remove("open");
+      }, 1900);
+      energizeGlass();
+    }
+
+    function liftElement(node) {
+      if (!node) return;
+      node.classList.add("is-lifted");
+      clearTimeout(node._liftTimer);
+      node._liftTimer = setTimeout(() => node.classList.remove("is-lifted"), 650);
+    }
+
+    async function requestJson(url, options) {
+      const response = await fetch(url, options);
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload.error || "请求失败");
+      }
+      return payload;
+    }
+
+    async function load(date) {
+      setStatus("正在加载");
+      const payload = await requestJson(`/api/bootstrap?date=${encodeURIComponent(date)}`);
+      state.categories = payload.categories;
+      state.day = payload.day;
+      state.dashboard = payload.dashboard;
+      render();
+      setStatus("已加载");
+    }
+
+    function categoryById(id) {
+      return state.categories.find(item => item.id === id) || { id, name: id, color: "#64748b" };
+    }
+
+    function groupTasks() {
+      return state.categories.map(category => ({
+        category,
+        tasks: state.day.tasks.filter(task => task.category_id === category.id)
+      })).filter(group => group.tasks.length > 0);
+    }
+
+    function renderSummary() {
+      const dashboard = state.dashboard;
+      const metrics = dashboard.metrics;
+      const items = [
+        ["今日完成率", `${percent(dashboard.today.rate)}%`, `${dashboard.today.done}/${dashboard.today.total}`],
+        ["连续达标", `${dashboard.streak}天`, "按80%完成率计算"],
+        ["7天英语", `${metrics.english7d}分钟`, "英语学习累计"],
+        ["7天运动", `${metrics.exercise7d}分钟`, "训练累计"],
+        ["7天投递", `${metrics.jobs7d}个`, `${metrics.interviews7d}次沟通/面试`],
+        ["30天现金流", `${metrics.income30d - metrics.expense30d}`, `收入${metrics.income30d} / 支出${metrics.expense30d}`]
+      ];
+      summary.textContent = "";
+      for (const [index, item] of items.entries()) {
+        const node = document.createElement("div");
+        node.className = "metric reveal";
+        node.style.setProperty("--metric-index", index);
+        const label = document.createElement("span");
+        label.textContent = item[0];
+        const value = document.createElement("strong");
+        value.textContent = item[1];
+        const detail = document.createElement("small");
+        detail.textContent = item[2];
+        node.append(label, value, detail);
+        summary.append(node);
+      }
+    }
+
+    function renderEntries() {
+      const entry = state.day.entry;
+      entryForm.querySelectorAll("[data-entry]").forEach(input => {
+        input.value = entry[input.dataset.entry] ?? "";
+      });
+    }
+
+    function renderTasks() {
+      taskGroups.textContent = "";
+      const groups = groupTasks();
+      if (!groups.length) {
+        const empty = document.createElement("div");
+        empty.className = "empty";
+        empty.textContent = "当前日期还没有任务";
+        taskGroups.append(empty);
+        return;
+      }
+
+      for (const group of groups) {
+        const done = group.tasks.filter(task => task.done).length;
+        const progress = group.tasks.length ? Math.round((done / group.tasks.length) * 100) : 0;
+        const wrapper = document.createElement("section");
+        wrapper.className = "group reveal";
+        wrapper.style.setProperty("--group-color", group.category.color);
+        wrapper.style.setProperty("--group-progress", `${progress}%`);
+
+        const head = document.createElement("div");
+        head.className = "group-head";
+        const name = document.createElement("div");
+        name.className = "group-name";
+        const swatch = document.createElement("span");
+        swatch.className = "swatch";
+        swatch.style.background = group.category.color;
+        swatch.style.color = group.category.color;
+        const label = document.createElement("span");
+        label.textContent = group.category.name;
+        name.append(swatch, label);
+        const rate = document.createElement("div");
+        rate.className = "group-rate";
+        rate.textContent = `${done}/${group.tasks.length}`;
+        const progressTrack = document.createElement("div");
+        progressTrack.className = "group-progress";
+        progressTrack.setAttribute("aria-hidden", "true");
+        const progressFill = document.createElement("span");
+        progressTrack.append(progressFill);
+        head.append(name, rate);
+        head.append(progressTrack);
+        wrapper.append(head);
+
+        for (const task of group.tasks) {
+          const row = document.createElement("div");
+          row.className = "task";
+
+          const checkbox = document.createElement("input");
+          checkbox.type = "checkbox";
+          checkbox.checked = Boolean(task.done);
+          checkbox.addEventListener("change", () => {
+            task.done = checkbox.checked ? 1 : 0;
+            if (task.done && Number(task.actual_value || 0) === 0) {
+              task.actual_value = task.target_value || 1;
+            }
+            liftElement(row);
+            showActionPopover(row, task.done ? "已完成" : "已取消", task.title);
+            render();
+            queueSave();
+          });
+
+          const titleBox = document.createElement("div");
+          const title = document.createElement("div");
+          title.className = `task-title${task.done ? " done" : ""}`;
+          title.textContent = task.title;
+          const target = document.createElement("div");
+          target.className = "task-target";
+          target.textContent = `目标 ${formatNumber(task.target_value)} ${task.unit || ""}`;
+          titleBox.append(title, target);
+
+          const valueBox = document.createElement("div");
+          valueBox.className = "task-value";
+          const value = document.createElement("input");
+          value.type = "number";
+          value.min = "0";
+          value.step = "1";
+          value.value = task.actual_value || "";
+          value.addEventListener("input", () => {
+            const wasDone = Boolean(task.done);
+            task.actual_value = numberValue(value.value);
+            if (Number(task.target_value || 0) > 0 && task.actual_value >= Number(task.target_value)) {
+              task.done = 1;
+            }
+            if (Boolean(task.done) !== wasDone) {
+              renderTasks();
+            } else {
+              liftElement(row);
+            }
+            queueSave();
+          });
+          valueBox.append(value);
+
+          row.append(checkbox, titleBox, valueBox);
+          wrapper.append(row);
+        }
+
+        taskGroups.append(wrapper);
+      }
+    }
+
+    function renderNewTaskCategories() {
+      newTaskCategory.textContent = "";
+      state.categories.forEach(category => {
+        const option = document.createElement("option");
+        option.value = category.id;
+        option.textContent = category.name;
+        newTaskCategory.append(option);
+      });
+    }
+
+    function renderPlanCards(target, plans) {
+      target.textContent = "";
+      plans.forEach(plan => {
+        const card = document.createElement("article");
+        card.className = "plan-card reveal";
+        const title = document.createElement("strong");
+        title.textContent = plan.title;
+        const list = document.createElement("ul");
+        plan.items.forEach(item => {
+          const line = document.createElement("li");
+          line.textContent = item;
+          list.append(line);
+        });
+        const tags = document.createElement("div");
+        tags.className = "plan-tagrow";
+        plan.tags.forEach(tag => {
+          const node = document.createElement("span");
+          node.className = "plan-tag";
+          node.textContent = tag;
+          tags.append(node);
+        });
+        card.append(title, list, tags);
+        target.append(card);
+      });
+    }
+
+    function renderPlans() {
+      renderPlanCards(document.querySelector("#englishPlan"), englishPlan);
+      renderPlanCards(document.querySelector("#fitnessPlan"), fitnessPlan);
+    }
+
+    function renderWaveLegend(series) {
+      waveLegend.textContent = "";
+      series.forEach(item => {
+        const label = document.createElement("span");
+        const swatch = document.createElement("i");
+        swatch.style.background = item.color;
+        label.append(swatch, document.createTextNode(item.label));
+        waveLegend.append(label);
+      });
+    }
+
+    function drawWaveChart(progress = 1) {
+      if (!waveCanvas) return;
+      const data = state.dashboard ? state.dashboard.timeline || [] : [];
+      const context = waveCanvas.getContext("2d");
+      const rect = waveCanvas.getBoundingClientRect();
+      const ratio = window.devicePixelRatio || 1;
+      const width = Math.max(320, Math.floor(rect.width || 760));
+      const height = 260;
+      waveCanvas.width = Math.floor(width * ratio);
+      waveCanvas.height = Math.floor(height * ratio);
+      context.setTransform(ratio, 0, 0, ratio, 0, 0);
+      context.clearRect(0, 0, width, height);
+
+      const pad = { top: 18, right: 14, bottom: 34, left: 36 };
+      const innerW = width - pad.left - pad.right;
+      const innerH = height - pad.top - pad.bottom;
+      const series = [
+        { key: "rate", label: "完成率", color: "#2457d6", target: 1, value: item => Number(item.rate || 0) },
+        { key: "english", label: "英语分钟", color: "#087f8c", target: 120, value: item => Number(item.englishMinutes || 0) },
+        { key: "exercise", label: "运动分钟", color: "#147d64", target: 70, value: item => Number(item.exerciseMinutes || 0) },
+        { key: "jobs", label: "求职投递", color: "#aa5b00", target: 50, value: item => Number(item.jobApplications || 0) }
+      ];
+
+      const chartFill = context.createLinearGradient(0, 0, width, height);
+      chartFill.addColorStop(0, "rgba(255,255,255,0.78)");
+      chartFill.addColorStop(0.54, "rgba(255,255,255,0.42)");
+      chartFill.addColorStop(1, "rgba(240,247,255,0.70)");
+      context.fillStyle = chartFill;
+      context.fillRect(0, 0, width, height);
+      context.strokeStyle = "rgba(130, 150, 175, 0.24)";
+      context.lineWidth = 1;
+      context.fillStyle = "#7a8798";
+      context.font = "12px -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif";
+
+      for (let i = 0; i <= 4; i += 1) {
+        const y = pad.top + (innerH / 4) * i;
+        context.beginPath();
+        context.moveTo(pad.left, y);
+        context.lineTo(width - pad.right, y);
+        context.stroke();
+        context.fillText(`${100 - i * 25}%`, 4, y + 4);
+      }
+
+      if (!state.dashboard || !data.length) {
+        context.fillStyle = "#64748b";
+        context.fillText("通过本地服务打卡后，这里会显示30天数据波动。", pad.left, height / 2);
+        renderWaveLegend(series);
+        return;
+      }
+
+      const denom = Math.max(data.length - 1, 1);
+      const xFor = index => pad.left + (innerW * index) / denom;
+      const yFor = (item, seriesItem) => {
+        const maxValue = Math.max(seriesItem.target, ...data.map(point => seriesItem.value(point)));
+        const normalized = Math.max(0, Math.min(1, seriesItem.value(item) / (maxValue || 1)));
+        return pad.top + innerH - normalized * innerH;
+      };
+
+      context.fillStyle = "#64748b";
+      [0, 6, 13, 20, 29].forEach(index => {
+        if (!data[index]) return;
+        const x = xFor(index);
+        context.fillText(data[index].date.slice(5), x - 14, height - 10);
+      });
+
+      series.forEach((seriesItem, seriesIndex) => {
+        context.save();
+        context.globalAlpha = seriesIndex === 0 ? 1 : 0.86;
+        context.strokeStyle = seriesItem.color;
+        context.lineWidth = seriesIndex === 0 ? 3 : 2;
+        context.lineJoin = "round";
+        context.lineCap = "round";
+        context.shadowColor = seriesItem.color;
+        context.shadowBlur = seriesIndex === 0 ? 12 : 8;
+        context.beginPath();
+
+        const visiblePoints = data.map((item, index) => {
+          const stepProgress = index / denom;
+          if (stepProgress > progress) return null;
+          return { x: xFor(index), y: yFor(item, seriesItem) };
+        }).filter(Boolean);
+
+        visiblePoints.forEach((point, index) => {
+          if (index === 0) {
+            context.moveTo(point.x, point.y);
+            return;
+          }
+          const prev = visiblePoints[index - 1];
+          const cx = (prev.x + point.x) / 2;
+          context.bezierCurveTo(cx, prev.y, cx, point.y, point.x, point.y);
+        });
+        context.stroke();
+        context.shadowBlur = 0;
+
+        data.forEach((item, index) => {
+          const stepProgress = index / denom;
+          if (stepProgress > progress) return;
+          const x = xFor(index);
+          const y = yFor(item, seriesItem);
+          context.beginPath();
+          context.fillStyle = seriesItem.color;
+          context.arc(x, y, seriesIndex === 0 ? 3 : 2.5, 0, Math.PI * 2);
+          context.fill();
+        });
+        context.restore();
+      });
+
+      renderWaveLegend(series);
+    }
+
+    function animateWaveChart() {
+      cancelAnimationFrame(state.chartFrame);
+      const start = performance.now();
+      const duration = 650;
+      const tick = now => {
+        const progress = Math.min(1, (now - start) / duration);
+        drawWaveChart(progress);
+        if (progress < 1) {
+          state.chartFrame = requestAnimationFrame(tick);
+        }
+      };
+      state.chartFrame = requestAnimationFrame(tick);
+    }
+
+    function renderBars() {
+      const bars = document.querySelector("#categoryBars");
+      bars.textContent = "";
+      state.dashboard.categories.forEach(category => {
+        const row = document.createElement("div");
+        row.className = "bar-row";
+        const name = document.createElement("div");
+        name.textContent = category.name;
+        const track = document.createElement("div");
+        track.className = "bar-track";
+        const fill = document.createElement("div");
+        fill.className = "bar-fill";
+        fill.style.width = `${percent(category.rate)}%`;
+        fill.style.background = category.color;
+        track.append(fill);
+        const value = document.createElement("div");
+        value.textContent = `${percent(category.rate)}%`;
+        row.append(name, track, value);
+        bars.append(row);
+      });
+    }
+
+    function renderSignals() {
+      const signals = document.querySelector("#signals");
+      const strongest = state.dashboard.signals.strongest;
+      const weakest = state.dashboard.signals.weakest;
+      const parts = [];
+      if (state.dashboard.today.done === 0) {
+        parts.push("今天还没开始打卡，先完成英语、求职、运动三条主线。");
+      } else if (strongest && strongest.total > 0) {
+        parts.push(`当前最稳：${strongest.name} ${percent(strongest.rate)}%`);
+      }
+      if (state.dashboard.today.done > 0 && weakest && weakest.total > 0) {
+        parts.push(`优先补齐：${weakest.name} ${percent(weakest.rate)}%`);
+      }
+      if (!parts.length) {
+        parts.push("完成几天打卡后，这里会显示强弱方向。");
+      }
+      signals.textContent = parts.join("；");
+    }
+
+    function renderTrend() {
+      const trend = document.querySelector("#trend");
+      trend.textContent = "";
+      state.dashboard.recentDays.forEach(day => {
+        const cell = document.createElement("div");
+        cell.className = "trend-day";
+        const bar = document.createElement("div");
+        bar.className = "trend-bar";
+        bar.style.height = `${Math.max(6, percent(day.rate))}px`;
+        bar.style.opacity = day.total ? "1" : "0.28";
+        const label = document.createElement("div");
+        label.textContent = day.date.slice(5);
+        cell.append(bar, label);
+        trend.append(cell);
+      });
+    }
+
+    function renderHistory() {
+      const rows = document.querySelector("#historyRows");
+      rows.textContent = "";
+      state.dashboard.recentDays.slice().reverse().forEach(day => {
+        const row = document.createElement("tr");
+        [day.date, `${percent(day.rate)}%`, day.done, day.total].forEach(value => {
+          const cell = document.createElement("td");
+          cell.textContent = value;
+          row.append(cell);
+        });
+        rows.append(row);
+      });
+    }
+
+    function render() {
+      if (!state.day || !state.dashboard) return;
+      dateInput.value = state.day.date;
+      renderSummary();
+      renderEntries();
+      renderTasks();
+      renderNewTaskCategories();
+      renderPlans();
+      renderSignals();
+      renderBars();
+      renderTrend();
+      renderHistory();
+      updateExperienceStage();
+      animateWaveChart();
+      requestAnimationFrame(() => {
+        revealNewNodes(document.querySelector(".app"));
+        attachLiquidHover(document.querySelector(".app"));
+      });
+    }
+
+    function collectPayload() {
+      const entry = { ...state.day.entry };
+      entryForm.querySelectorAll("[data-entry]").forEach(input => {
+        entry[input.dataset.entry] = input.value;
+      });
+      return {
+        date: dateInput.value,
+        entry,
+        tasks: state.day.tasks
+      };
+    }
+
+    async function saveNow() {
+      if (state.isSaving) return;
+      state.isSaving = true;
+      setStatus("保存中");
+      try {
+        const payload = await requestJson("/api/day", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(collectPayload())
+        });
+        state.day = payload.day;
+        state.dashboard = payload.dashboard;
+        renderSummary();
+        renderSignals();
+        renderBars();
+        renderTrend();
+        renderHistory();
+        updateExperienceStage();
+        animateWaveChart();
+        setStatus(`已保存到 ${payload.markdownPath}`);
+      } catch (error) {
+        setStatus(`保存失败：${error.message}`);
+      } finally {
+        state.isSaving = false;
+      }
+    }
+
+    function queueSave() {
+      clearTimeout(state.saveTimer);
+      setStatus("等待保存");
+      state.saveTimer = setTimeout(saveNow, 450);
+    }
+
+    entryForm.addEventListener("input", event => {
+      const field = event.target.dataset.entry;
+      if (field && state.day) {
+        state.day.entry[field] = event.target.value;
+      }
+      const label = event.target.closest("label");
+      liftElement(label);
+      queueSave();
+    });
+
+    dateInput.addEventListener("change", () => {
+      showActionPopover(dateInput, "切换日期", `正在载入 ${dateInput.value} 的打卡数据。`);
+      load(dateInput.value).catch(error => setStatus(`加载失败：${error.message}`));
+    });
+
+    document.querySelector("#todayBtn").addEventListener("click", () => {
+      showActionPopover(document.querySelector("#todayBtn"), "回到今天", "日期切换到今天，并重新载入当天打卡面板。");
+      dateInput.value = todayText();
+      load(dateInput.value).catch(error => setStatus(`加载失败：${error.message}`));
+    });
+
+    document.querySelector("#refreshBtn").addEventListener("click", () => {
+      showActionPopover(document.querySelector("#refreshBtn"), "正在刷新", "从本地 SQLite 重新读取任务、趋势和统计数据。");
+      load(dateInput.value).catch(error => setStatus(`加载失败：${error.message}`));
+    });
+
+    document.querySelector("#exportBtn").addEventListener("click", async () => {
+      try {
+        showActionPopover(document.querySelector("#exportBtn"), "生成 Markdown", "保存今日数据，并同步生成每日记录文件。");
+        await saveNow();
+        const payload = await requestJson(`/api/export?date=${encodeURIComponent(dateInput.value)}`);
+        setStatus(`已生成 ${payload.markdownPath}`);
+      } catch (error) {
+        setStatus(`生成失败：${error.message}`);
+      }
+    });
+
+    addTaskForm.addEventListener("submit", event => {
+      event.preventDefault();
+      const title = newTaskTitle.value.trim();
+      if (!title) return;
+      state.day.tasks.push({
+        task_id: `custom_${Date.now()}_${Math.random().toString(16).slice(2)}`,
+        category_id: newTaskCategory.value,
+        title,
+        target_value: numberValue(newTaskTarget.value) || 1,
+        actual_value: 0,
+        unit: newTaskUnit.value.trim() || "次",
+        done: 0,
+        sort_order: 1000 + state.day.tasks.length
+      });
+      newTaskTitle.value = "";
+      newTaskTarget.value = "1";
+      newTaskUnit.value = "次";
+      showActionPopover(addTaskForm.querySelector("button"), "已添加任务", title);
+      renderTasks();
+      queueSave();
+    });
+
+    function renderFileMode() {
+      document.querySelector("#fileModeBanner").hidden = false;
+      dateInput.value = todayText();
+      dateInput.disabled = true;
+      document.querySelector("#todayBtn").disabled = true;
+      document.querySelector("#exportBtn").disabled = true;
+      document.querySelector("#refreshBtn").disabled = true;
+      setStatus("静态文件模式");
+      summary.textContent = "";
+      [
+        ["服务未连接", "file://", "不能读写数据库"],
+        ["正确入口", "127.0.0.1:8765", "先启动 lifeos_server.py"],
+        ["数据保存", "SQLite", "只能通过本地服务写入"],
+        ["Markdown", "每日镜像", "服务版保存后自动生成"]
+      ].forEach(item => {
+        const node = document.createElement("div");
+        node.className = "metric reveal";
+        const label = document.createElement("span");
+        label.textContent = item[0];
+        const value = document.createElement("strong");
+        value.textContent = item[1];
+        const detail = document.createElement("small");
+        detail.textContent = item[2];
+        node.append(label, value, detail);
+        summary.append(node);
+      });
+      taskGroups.innerHTML = '<div class="empty">当前打开方式无法加载任务。请使用 http://127.0.0.1:8765/app。</div>';
+      document.querySelector("#signals").textContent = "静态文件只适合查看页面结构，真实打卡、历史图表和 Markdown 同步都依赖本地服务。";
+      if (stageRate) stageRate.textContent = "完成率 --";
+      if (stageStreak) stageStreak.textContent = "连续 --";
+      if (stageSignal) stageSignal.textContent = "服务未连接";
+      if (stageFocus) stageFocus.textContent = "启动服务";
+      if (stageMomentum) stageMomentum.textContent = "等待数据";
+      document.querySelector("#categoryBars").textContent = "";
+      document.querySelector("#trend").textContent = "";
+      document.querySelector("#historyRows").textContent = "";
+      renderPlans();
+      drawWaveChart();
+      requestAnimationFrame(() => {
+        revealNewNodes(document.querySelector(".app"));
+        attachLiquidHover(document.querySelector(".app"));
+      });
+    }
+
+    window.addEventListener("resize", () => {
+      if (state.dashboard) drawWaveChart();
+    });
+
+    window.addEventListener("scroll", updateScrollEdge, { passive: true });
+    window.addEventListener("pointerdown", event => {
+      if (actionPopover && !actionPopover.contains(event.target) && !event.target.closest("button")) {
+        actionPopover.classList.remove("open");
+      }
+    });
+    window.addEventListener("keydown", event => {
+      if (event.key === "Escape") {
+        actionPopover?.classList.remove("open");
+      }
+    });
+
+    requestAnimationFrame(() => {
+      revealNewNodes(document.querySelector(".app"));
+      attachLiquidHover(document.querySelector(".app"));
+      updateScrollEdge();
+    });
+
+    if (location.protocol === "file:") {
+      renderFileMode();
+    } else {
+      dateInput.value = todayText();
+      load(dateInput.value).catch(error => setStatus(`加载失败：${error.message}`));
+    }
+  </script>
+</body>
+</html>

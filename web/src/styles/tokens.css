@@ -1,0 +1,140 @@
+/* LifeOS Calm Ops Console tokens. Keep all visual primitives here. */
+
+:root {
+  color-scheme: light;
+
+  --color-bg: #f7f8fa;
+  --color-surface: #ffffff;
+  --color-surface-muted: #f3f5f8;
+  --color-surface-soft: #fafbfc;
+  --color-border: #e5e7eb;
+  --color-border-strong: #d1d5db;
+
+  --color-text: #111827;
+  --color-text-muted: #6b7280;
+  --color-text-soft: #9ca3af;
+  --color-text-inverse: #ffffff;
+
+  --color-primary: #2563eb;
+  --color-primary-hover: #1d4ed8;
+  --color-primary-soft: rgba(37, 99, 235, 0.08);
+
+  --color-success: #16a34a;
+  --color-success-soft: rgba(22, 163, 74, 0.09);
+  --color-warning: #d97706;
+  --color-warning-soft: rgba(217, 119, 6, 0.1);
+  --color-danger: #dc2626;
+  --color-danger-soft: rgba(220, 38, 38, 0.09);
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 14px;
+  --radius-xl: 16px;
+  --radius-2xl: 18px;
+  --radius-pill: 999px;
+
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
+  --shadow-md: 0 6px 18px rgba(15, 23, 42, 0.06);
+  --shadow-lg: 0 10px 28px rgba(15, 23, 42, 0.08);
+
+  --font-xs: 12px;
+  --font-sm: 13px;
+  --font-md: 15px;
+  --font-lg: 17px;
+  --font-xl: 22px;
+  --font-2xl: 26px;
+  --font-3xl: 32px;
+
+  --line-tight: 1.25;
+  --line-base: 1.58;
+  --line-loose: 1.78;
+
+  --z-sticky: 10;
+  --z-nav: 20;
+  --z-modal: 100;
+
+  --duration-fast: 120ms ease;
+  --duration-base: 180ms ease;
+
+  --page-max: 1120px;
+  --nav-bottom-h: 76px;
+
+  /* Compatibility aliases while components migrate. */
+  --c-bg: var(--color-bg);
+  --c-surface: var(--color-surface);
+  --c-surface-2: var(--color-surface-muted);
+  --c-surface-3: var(--color-surface-soft);
+  --c-border: var(--color-border);
+  --c-border-2: var(--color-border-strong);
+  --c-text: var(--color-text);
+  --c-text-2: var(--color-text-muted);
+  --c-text-3: var(--color-text-soft);
+  --c-text-inv: var(--color-text-inverse);
+  --c-primary: var(--color-primary);
+  --c-primary-bg: var(--color-primary-soft);
+  --c-success: var(--color-success);
+  --c-success-bg: var(--color-success-soft);
+  --c-warning: var(--color-warning);
+  --c-warning-bg: var(--color-warning-soft);
+  --c-danger: var(--color-danger);
+  --c-danger-bg: var(--color-danger-soft);
+  --sp-1: var(--space-1);
+  --sp-2: var(--space-2);
+  --sp-3: var(--space-3);
+  --sp-4: var(--space-4);
+  --sp-5: var(--space-5);
+  --sp-6: var(--space-6);
+  --sp-8: var(--space-8);
+  --sp-10: var(--space-10);
+  --r-sm: var(--radius-sm);
+  --r-md: var(--radius-md);
+  --r-lg: var(--radius-lg);
+  --r-xl: var(--radius-xl);
+  --r-pill: var(--radius-pill);
+  --lh-tight: var(--line-tight);
+  --lh-base: var(--line-base);
+  --lh-loose: var(--line-loose);
+  --t-fast: var(--duration-fast);
+  --t-base: var(--duration-base);
+  --panel-bg: var(--color-surface);
+  --panel-border: var(--color-border);
+  --panel-shadow: var(--shadow-sm);
+  --panel-radius: var(--radius-lg);
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --color-bg: #0b1020;
+  --color-surface: #111827;
+  --color-surface-muted: #182033;
+  --color-surface-soft: #151d2e;
+  --color-border: #263244;
+  --color-border-strong: #334155;
+
+  --color-text: #f3f4f6;
+  --color-text-muted: #a1aab8;
+  --color-text-soft: #6b7280;
+
+  --color-primary: #60a5fa;
+  --color-primary-hover: #93c5fd;
+  --color-primary-soft: rgba(96, 165, 250, 0.12);
+
+  --color-success-soft: rgba(22, 163, 74, 0.14);
+  --color-warning-soft: rgba(217, 119, 6, 0.15);
+  --color-danger-soft: rgba(220, 38, 38, 0.15);
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.24);
+  --shadow-md: 0 10px 28px rgba(0, 0, 0, 0.28);
+  --shadow-lg: 0 18px 44px rgba(0, 0, 0, 0.34);
+}

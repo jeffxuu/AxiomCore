@@ -1,0 +1,39 @@
+schema_version: 1
+type: active_context
+status: active
+updated_at: 2026-05-15
+
+current_state:
+  employment_status: unemployed
+  debt_total_cny: 40000
+  circadian_status: day_night_reversed
+  fitness_stage: basic_function_recovery
+  english_level: zero_base
+
+primary_focus:
+  name: survival-and-function-rebuild
+  objective: 先恢复作息、基础身体机能和现金流生存，再考虑长期技能与业务。
+  stage: survival_mode
+
+priority_goals:
+  - rank: 1
+    goal: 强制重置生物钟，恢复基础身体机能。
+  - rank: 2
+    goal: 寻找过渡性工作覆盖最低还款线，保证现金流生存。
+  - rank: 3
+    goal: 每天 15 分钟零成本英语启蒙。
+
+frozen_goals:
+  - 所有需要资金投入的商业计划
+  - 高强度报班学习
+  - 高强度健身
+  - 任何增加固定成本或现金流压力的扩张动作
+
+absolute_constraints:
+  sleep_red_line: 只要作息仍处于日夜颠倒，所有建议必须优先服务于重置生物钟。
+  health_red_line: 若 sleep_quality 为 poor 或 energy_score 连续偏低，禁止高强度力量训练和高强度脑力学习。
+  cashflow_red_line: 负债 40000 元且待业期间，任何需要资金投入的学习、商业或健身计划默认冻结。
+  job_red_line: 过渡性工作目标是覆盖最低还款线和基本生活成本，不追求完美岗位。
+  english_red_line: 英语启蒙必须零成本、低强度、每天 15 分钟，不得挤占求职和作息恢复。
+
+default_mode: survival_mode

@@ -1,0 +1,117 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://lifeos.local/schemas/daily-health.schema.json",
+  "title": "LifeOS Daily Health Log Frontmatter",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "schema_version",
+    "type",
+    "date",
+    "status",
+    "sleep_hours",
+    "energy_score"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "type": {
+      "const": "daily_health_log"
+    },
+    "date": {
+      "type": "string",
+      "format": "date"
+    },
+    "status": {
+      "enum": [
+        "active",
+        "paused",
+        "archived"
+      ]
+    },
+    "source": {
+      "enum": [
+        "web",
+        "feishu",
+        "manual",
+        "imported"
+      ]
+    },
+    "sleep_hours": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 24
+    },
+    "height_cm": {
+      "$ref": "#/$defs/non_negative_number_or_null"
+    },
+    "weight_kg": {
+      "$ref": "#/$defs/non_negative_number_or_null"
+    },
+    "body_fat_pct": {
+      "anyOf": [
+        {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "sleep_quality": {
+      "enum": [
+        "poor",
+        "fair",
+        "good"
+      ]
+    },
+    "mood_score": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 10
+    },
+    "energy_score": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 10
+    },
+    "exercise_minutes": {
+      "$ref": "#/$defs/non_negative_number_or_null"
+    },
+    "water_ml": {
+      "$ref": "#/$defs/non_negative_number_or_null"
+    },
+    "expense_cny": {
+      "$ref": "#/$defs/non_negative_number_or_null"
+    },
+    "symptoms": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "$defs": {
+    "non_negative_number_or_null": {
+      "anyOf": [
+        {
+          "type": "number",
+          "minimum": 0
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  }
+}

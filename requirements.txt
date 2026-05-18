@@ -1,0 +1,6 @@
+altcha>=2.0.0
+fastapi>=0.136
+jsonschema>=4.0
+pydantic>=2.13
+python-frontmatter>=1.1
+uvicorn>=0.46

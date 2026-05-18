@@ -1,0 +1,156 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://lifeos.local/schemas/annual-business-goal.schema.json",
+  "title": "LifeOS Annual Business Goal Frontmatter",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "schema_version",
+    "type",
+    "year",
+    "status",
+    "validation_deadline",
+    "hard_stop_loss_cny",
+    "capital_plan_cny"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "type": {
+      "const": "annual_business_goal"
+    },
+    "year": {
+      "type": "integer",
+      "minimum": 2020,
+      "maximum": 2100
+    },
+    "status": {
+      "enum": [
+        "active",
+        "paused",
+        "archived"
+      ]
+    },
+    "decision_status": {
+      "description": "Axiom Core decision engine verdict for this annual business goal. Optional for backward compatibility.",
+      "enum": [
+        "pending",
+        "approved",
+        "conditional",
+        "rejected",
+        "frozen"
+      ]
+    },
+    "city": {
+      "type": "string"
+    },
+    "business_name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "capital_plan_cny": {
+      "type": "number",
+      "minimum": 0
+    },
+    "capital_status": {
+      "enum": [
+        "planned",
+        "reserved",
+        "partially_available",
+        "available",
+        "spent",
+        "cancelled"
+      ]
+    },
+    "stage": {
+      "enum": [
+        "idea",
+        "validation",
+        "operation",
+        "paused",
+        "archived"
+      ]
+    },
+    "validation_deadline": {
+      "type": "string",
+      "format": "date"
+    },
+    "monthly_burn_limit_cny": {
+      "$ref": "#/$defs/non_negative_number_or_null"
+    },
+    "hard_stop_loss_cny": {
+      "type": "number",
+      "minimum": 0
+    },
+    "target_customers": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "success_metrics": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "revenue_cny": {
+          "$ref": "#/$defs/non_negative_number_or_null"
+        },
+        "paying_customers": {
+          "$ref": "#/$defs/non_negative_integer_or_null"
+        },
+        "gross_margin_pct": {
+          "anyOf": [
+            {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 100
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "risk_level": {
+      "enum": [
+        "low",
+        "medium",
+        "high",
+        "critical"
+      ]
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "$defs": {
+    "non_negative_number_or_null": {
+      "anyOf": [
+        {
+          "type": "number",
+          "minimum": 0
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "non_negative_integer_or_null": {
+      "anyOf": [
+        {
+          "type": "integer",
+          "minimum": 0
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  }
+}

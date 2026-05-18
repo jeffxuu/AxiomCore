@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#f2f2f7" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)"  content="#060608" />
+    <title>Axiom Core 控制台</title>
+    <style>
+      html { scroll-behavior: smooth; }
+      body { margin: 0; }
+    </style>
+  </head>
+  <body>
+    <!-- 防闪烁：React 挂载前先应用主题，避免浅色→深色切换的闪烁 -->
+    <script>
+      (function() {
+        try {
+          var stored = localStorage.getItem('lifeos-theme');
+          var dark = stored === 'dark' || (!stored && window.matchMedia('(prefers-color-scheme: dark)').matches);
+          document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+          document.documentElement.classList.toggle('dark', dark);
+        } catch(e) {}
+      })();
+    </script>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
