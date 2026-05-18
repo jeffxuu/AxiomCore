@@ -85,16 +85,29 @@ if (-not (Test-Path $SshKey)) {
 $SshTarget = "$SshUser@$SshHost"
 $SshOpts   = @('-i', $SshKey, '-o', 'StrictHostKeyChecking=no', '-o', 'BatchMode=yes', '-o', 'ConnectTimeout=15')
 
+# When the SSH user is already root, we run the remote script straight through
+# bash -s. Otherwise (e.g. Tencent's default `ubuntu` user) we wrap it with
+# `sudo -n` so commands like `systemctl`, writes to /etc/, and rm -rf /opt
+# succeed. -n keeps sudo non-interactive — if NOPASSWD is missing the deploy
+# fails fast with a clear error rather than hanging on a password prompt.
+$RemoteShell = if ($SshUser -eq 'root') { '/bin/bash -s' } else { 'sudo -n /bin/bash -s' }
+
 function Invoke-Ssh {
     param([Parameter(Mandatory=$true)][string]$RemoteCommand, [switch]$AllowFail)
     if ($DryRun) {
-        Write-Host "[DryRun] ssh $SshTarget $RemoteCommand" -ForegroundColor DarkGray
+        Write-Host "[DryRun] ssh $SshTarget $RemoteShell <<<EOF" -ForegroundColor DarkGray
+        $RemoteCommand -split "`n" | ForEach-Object { Write-Host "  $_" -ForegroundColor DarkGray }
+        Write-Host "[DryRun] EOF" -ForegroundColor DarkGray
         return $true
     }
-    & ssh @SshOpts $SshTarget $RemoteCommand
+    # Pipe the script over stdin instead of passing it as a single ssh argv
+    # element. Multi-line scripts with quoting hazards (parens, quotes, $)
+    # collapse to one line through ssh's argv path and break bash parsing;
+    # stdin preserves them verbatim.
+    $RemoteCommand | & ssh @SshOpts $SshTarget $RemoteShell
     $ok = ($LASTEXITCODE -eq 0)
     if (-not $ok -and -not $AllowFail) {
-        throw "ssh command failed (exit $LASTEXITCODE): $RemoteCommand"
+        throw "ssh command failed (exit $LASTEXITCODE)"
     }
     return $ok
 }
