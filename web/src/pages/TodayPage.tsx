@@ -25,18 +25,18 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
-import { LifeOSHero } from "@/components/lifeos/LifeOSHero";
-import { MetricSummary } from "@/components/lifeos/MetricSummary";
-import { QuickEntryGroup } from "@/components/lifeos/QuickEntryGroup";
-import { SaveBar } from "@/components/lifeos/SaveBar";
-import { TaskList } from "@/components/lifeos/TaskList";
+import { AxiomHero } from "@/components/axiom/AxiomHero";
+import { MetricSummary } from "@/components/axiom/MetricSummary";
+import { QuickEntryGroup } from "@/components/axiom/QuickEntryGroup";
+import { SaveBar } from "@/components/axiom/SaveBar";
+import { TaskList } from "@/components/axiom/TaskList";
 import type {
   BootstrapPayload,
   Dashboard,
   DocMeta,
   EntryField,
-  LifeOSDay,
-  LifeOSTask,
+  AxiomDay,
+  AxiomTask,
 } from "@/types";
 
 function num(value: unknown): number {
@@ -53,7 +53,7 @@ function pct(value: number): string {
   return `${Math.round(value * 100)}%`;
 }
 
-function taskSummary(day: LifeOSDay): string {
+function taskSummary(day: AxiomDay): string {
   const undone = day.tasks.filter((task) => !task.done);
   if (!undone.length) return "任务已清空，可以进入复盘。";
   const first = undone[0];
@@ -62,8 +62,6 @@ function taskSummary(day: LifeOSDay): string {
 
 function docHref(doc: DocMeta): string {
   if (doc.kind === "daily") return `/daily?doc=${encodeURIComponent(doc.id)}`;
-  if (doc.id === "profile") return "/profile";
-  if (doc.id === "plan-90") return "/plan-90";
   return `/files?doc=${encodeURIComponent(doc.id)}`;
 }
 
@@ -213,7 +211,7 @@ export function TodayPage({
     setSaveMsg("有未保存修改");
   };
 
-  const setTask = (id: string, patch: Partial<LifeOSTask>) => {
+  const setTask = (id: string, patch: Partial<AxiomTask>) => {
     if (!bootstrap) return;
     onBootstrapChange({
       ...bootstrap,
@@ -292,7 +290,7 @@ export function TodayPage({
 
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
         <main className="flex flex-col gap-5">
-          <LifeOSHero
+          <AxiomHero
             eyebrow="Today OS"
             title="今日行动"
             description={`${taskSummary(day)} 先录入关键数据，再处理任务，最后沉淀为复盘。`}

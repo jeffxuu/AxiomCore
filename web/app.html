@@ -1633,7 +1633,7 @@
   <div class="app">
     <header class="topbar">
       <div class="brand">
-        <h1>LifeOS 本地打卡看板</h1>
+        <h1>Axiom Core 本地看板</h1>
         <p>SQLite 数据库 · Markdown 每日镜像</p>
       </div>
       <div class="toolbar">
@@ -1666,7 +1666,7 @@
       </div>
       <div class="stage-copy">
         <div>
-          <span class="stage-kicker">LifeOS Control Surface</span>
+          <span class="stage-kicker">Axiom Core Control Surface</span>
           <h2>今天的主线</h2>
           <p>把求职、英语、训练和现金流压到同一个操作面上，先看信号，再完成动作，最后沉淀到每日记录。</p>
           <div class="stage-meter">
@@ -1685,7 +1685,7 @@
     <section id="fileModeBanner" class="file-mode" hidden>
       <strong>当前是静态文件模式，不能连接数据库。</strong>
       这个页面必须通过本地服务打开，才能写入 SQLite、生成每日 Markdown 和刷新动态图表。
-      请先在项目根目录运行 <code>python lifeos_server.py</code>，再打开
+      请先在项目根目录运行 <code>python axiom_server.py</code>，再打开
       <a href="http://127.0.0.1:8765/app">http://127.0.0.1:8765/app</a>。
     </section>
 
@@ -2860,7 +2860,7 @@
       summary.textContent = "";
       [
         ["服务未连接", "file://", "不能读写数据库"],
-        ["正确入口", "127.0.0.1:8765", "先启动 lifeos_server.py"],
+        ["正确入口", "127.0.0.1:8765", "先启动 axiom_server.py"],
         ["数据保存", "SQLite", "只能通过本地服务写入"],
         ["Markdown", "每日镜像", "服务版保存后自动生成"]
       ].forEach(item => {

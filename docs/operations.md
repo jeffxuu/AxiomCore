@@ -5,38 +5,35 @@
 ### 启动
 
 ```powershell
-# 推荐：双击桌面快捷方式
-打开LifeOS.cmd
-
-# 或本地看板
-启动本地看板.cmd
-
-# 或手动
-python lifeos_server.py
+python axiom_server.py
 ```
+
+入口：http://127.0.0.1:8765/app（或开发模式 5173）。
+
+> 注：旧的 `打开LifeOS.cmd` / `启动本地看板.cmd` 桌面快捷方式在 greenfield 重建时已废弃。需要双击启动的话自行新建 .cmd 即可。
 
 ### 停止
 
 ```powershell
 # Ctrl+C in 终端
 # 或
-Get-Process python | Where-Object { $_.Path -like "*LifeOS*" } | Stop-Process
+Get-Process python | Where-Object { $_.Path -like "*AxiomCore*" } | Stop-Process
 ```
 
 ## 云端服务管理
 
 ```bash
 # 状态
-systemctl status lifeos.service
+systemctl status axiom-core.service
 
 # 重启
-systemctl restart lifeos.service
+systemctl restart axiom-core.service
 
 # 日志
-journalctl -u lifeos.service -f
+journalctl -u axiom-core.service -f
 
 # 仅看错误
-journalctl -u lifeos.service -p err -n 50
+journalctl -u axiom-core.service -p err -n 50
 ```
 
 ## Windows 计划任务
@@ -44,23 +41,23 @@ journalctl -u lifeos.service -p err -n 50
 | 任务名 | 频率 | 用途 |
 |--------|------|------|
 | `PersonalAIProfileGitSync` | 5 分钟 | 检测本地变更，自动 git add+commit+push |
-| `LifeOSCloudPullSync` | 5 分钟 | 拉取云端最新数据到本地 |
+| `AxiomCorePullSync` | 5 分钟 | 拉取云端最新数据到本地 |
 
 查看：
 ```powershell
-Get-ScheduledTask -TaskName PersonalAIProfileGitSync, LifeOSCloudPullSync | Format-Table TaskName, State, LastRunTime
+Get-ScheduledTask -TaskName PersonalAIProfileGitSync, AxiomCorePullSync | Format-Table TaskName, State, LastRunTime
 ```
 
 禁用（临时维护）：
 ```powershell
 Disable-ScheduledTask -TaskName PersonalAIProfileGitSync
-Disable-ScheduledTask -TaskName LifeOSCloudPullSync
+Disable-ScheduledTask -TaskName AxiomCorePullSync
 ```
 
 重新启用：
 ```powershell
 Enable-ScheduledTask -TaskName PersonalAIProfileGitSync
-Enable-ScheduledTask -TaskName LifeOSCloudPullSync
+Enable-ScheduledTask -TaskName AxiomCorePullSync
 ```
 
 ## 数据维护
@@ -70,25 +67,25 @@ Enable-ScheduledTask -TaskName LifeOSCloudPullSync
 本地数据库每天打包：
 ```powershell
 $stamp = Get-Date -Format "yyyyMMdd_HHmmss"
-Copy-Item data/lifeos.db "data/lifeos.db.$stamp.bak"
+Copy-Item data/axiom_core.db "data/axiom_core.db.$stamp.bak"
 ```
 
-git 历史本身就是备份（除了 `data/lifeos.db`，它不进 Git）。
+git 历史本身就是备份（除了 `data/axiom_core.db`，它不进 Git）。
 
 ### 重建 SQLite
 
 如果数据库损坏：
 ```powershell
 # 1. 备份当前文件
-Copy-Item data/lifeos.db data/lifeos.db.corrupted
+Copy-Item data/axiom_core.db data/axiom_core.db.corrupted
 
 # 2. 删除
-Remove-Item data/lifeos.db
+Remove-Item data/axiom_core.db
 
 # 3. 重启服务，会自动 init_db()
-python lifeos_server.py
+python axiom_server.py
 
-# 4. 从 02_每日记录/*.md 重新导入
+# 4. 从 logs/daily/*.md 重新导入
 # （目前还没有 import 脚本，需要从 git 历史恢复）
 ```
 
@@ -99,7 +96,7 @@ python lifeos_server.py
 1. 修改 `data/schemas/*.schema.json` 加入新字段
 2. 修改 `templates/*.md` 加入新字段示例
 3. 运行 `python workflows/validate_frontmatter.py --path templates --verbose`
-4. 修改 `lifeos_server.py` 的 SQLite `CREATE TABLE` 和 Pydantic 模型
+4. 修改 `axiom_server.py` 的 SQLite `CREATE TABLE` 和 Pydantic 模型
 5. 修改前端表单
 6. 部署
 
@@ -127,7 +124,7 @@ python workflows\summarize_fragments.py --dry-run `
 | 来源 | 位置 |
 |------|------|
 | 本地服务 stdout/stderr | 启动终端 |
-| 云端服务 | `journalctl -u lifeos.service` |
+| 云端服务 | `journalctl -u axiom-core.service` |
 | Git sync 历史 | `.sync_logs/` |
 | Playwright 测试 | `output/playwright-run/` |
 | Vite 可视审计 | `output/visual-audit/` |
@@ -144,16 +141,16 @@ python workflows\summarize_fragments.py --dry-run `
 
 ### 飞书机器人不响应
 
-1. 服务端 `journalctl -u lifeos.service -f` 看 `/api/feishu/events` 命中
+1. 服务端 `journalctl -u axiom-core.service -f` 看 `/api/feishu/events` 命中
 2. 检查飞书开放平台「事件与回调」URL 是否正确
 3. 检查 `FEISHU_APP_ID` / `FEISHU_APP_SECRET` / `FEISHU_VERIFICATION_TOKEN` 三个环境变量是否设置且无空白字符
 
 ### 本地和云端不同步
 
-1. 检查 `LifeOSCloudPullSync` 是否在运行（`Get-ScheduledTask`）
+1. 检查 `AxiomCorePullSync` 是否在运行（`Get-ScheduledTask`）
 2. 手动执行一次 `scripts/cloud_to_local_sync.ps1` 看报错
-3. 检查 DPAPI 凭据是否仍然解密成功（`scripts/lifeos_secrets.ps1 -Action show`）
-4. 检查云端是否真的有当天数据（`ssh root@jeffxu.cc ls /opt/lifeos-app/02_每日记录/ | tail -3`）
+3. 检查 DPAPI 凭据是否仍然解密成功（`scripts/axiom_secrets.ps1 -Action show`）
+4. 检查云端是否真的有当天数据（`ssh root@jeffxu.cc ls /opt/axiom-core/logs/daily/ | tail -3`）
 
 ### Git push 失败
 
@@ -165,7 +162,7 @@ python workflows\summarize_fragments.py --dry-run `
 ## 定期审计（建议每月）
 
 - 检查 `git log --since='1 month ago' --stat` 有无意外提交大文件
-- 检查 `data/lifeos.db` 大小（超过 100MB 需要排查）
+- 检查 `data/axiom_core.db` 大小（超过 100MB 需要排查）
 - 检查 `output/` 是否堆积过多测试产物（可定期清空）
 - 检查 `.sync_logs/` 是否有反复出现的同步错误
 - 检查云端磁盘使用 `df -h /opt`

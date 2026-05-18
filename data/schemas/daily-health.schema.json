@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://lifeos.local/schemas/daily-health.schema.json",
-  "title": "LifeOS Daily Health Log Frontmatter",
+  "$id": "https://axiom-core.local/schemas/daily-health.schema.json",
+  "title": "Axiom Core Daily Health Log Frontmatter",
   "type": "object",
   "additionalProperties": true,
   "required": [

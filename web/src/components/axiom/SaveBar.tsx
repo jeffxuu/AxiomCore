@@ -22,9 +22,9 @@ export function SaveBar({
     <section className="sticky top-[4.5rem] z-30 rounded-2xl border border-border/80 bg-background/88 p-2 shadow-sm backdrop-blur-xl">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div className="grid grid-cols-[auto_1fr] items-center gap-2 sm:flex">
-          <Label className="text-xs text-muted-foreground" htmlFor="lifeos-date">日期</Label>
+          <Label className="text-xs text-muted-foreground" htmlFor="axiom-date">日期</Label>
           <Input
-            id="lifeos-date"
+            id="axiom-date"
             type="date"
             value={date}
             onChange={(event) => onDateChange(event.target.value)}

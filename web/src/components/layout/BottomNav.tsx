@@ -12,7 +12,7 @@ const tabs = [
 function isActive(path: string, href: string): boolean {
   if (href === "/app") return path === "/" || path === "/app";
   if (href === "/files") return path === "/files" || path === "/library";
-  if (href === "/more") return path === "/more" || path === "/profile" || path === "/plan-90";
+  if (href === "/more") return path === "/more";
   return path.startsWith(href);
 }
 

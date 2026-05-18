@@ -6,7 +6,7 @@ import type {
   DocPayload,
   DocsPayload,
   ExportPayload,
-  LifeOSDay,
+  AxiomDay,
   SavePayload
 } from "./types";
 
@@ -97,7 +97,7 @@ export function loadBootstrap(date: string): Promise<BootstrapPayload> {
   return requestJson<BootstrapPayload>(`/api/bootstrap?date=${encodeURIComponent(date)}`);
 }
 
-export function saveDay(day: LifeOSDay): Promise<SavePayload> {
+export function saveDay(day: AxiomDay): Promise<SavePayload> {
   return requestJson<SavePayload>("/api/day", {
     method: "POST",
     headers: { "Content-Type": "application/json" },

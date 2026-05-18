@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://lifeos.local/schemas/annual-business-goal.schema.json",
-  "title": "LifeOS Annual Business Goal Frontmatter",
+  "$id": "https://axiom-core.local/schemas/annual-business-goal.schema.json",
+  "title": "Axiom Core Annual Business Goal Frontmatter",
   "type": "object",
   "additionalProperties": true,
   "required": [

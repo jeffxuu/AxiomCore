@@ -37,19 +37,19 @@ from pydantic import BaseModel, ConfigDict, Field
 import altcha as _altcha
 
 
-# Brand identity. BRAND_NAME is what the user sees; INTERNAL_NAME is the legacy
-# code-level name kept for systemd, env vars, CSS classes, type names, monitoring
-# greps, and any infra that already targets "LifeOS". Do not rename the internal
-# one without also touching deploy scripts and Nginx config.
+# Brand identity. Single source of truth — no legacy code name. The product is
+# Axiom Core, full stop. systemd/Nginx/env vars all use AXIOM_* prefixes.
 BRAND_NAME = "Axiom Core"
-INTERNAL_NAME = "LifeOS"
 PRODUCT_TAGLINE = "个人决策智能核心"
 
 ROOT = Path(__file__).resolve().parent
 DATA_DIR = ROOT / "data"
-DB_PATH = DATA_DIR / "lifeos.db"
-DAILY_DIR = ROOT / "02_每日记录"
-LOGS_DAILY_DIR = ROOT / "logs" / "daily"
+DB_PATH = DATA_DIR / "axiom_core.db"
+# Daily entry Markdown mirrors live under logs/daily/, outside the 9 domain
+# directories. They are runtime-generated, gitignored, and reflect the
+# canonical SQLite state at write time.
+DAILY_DIR = ROOT / "logs" / "daily"
+LOGS_DAILY_DIR = DAILY_DIR
 CURRENT_STATE_PATH = ROOT / "profile" / "current-state.md"
 MASTER_SYSTEM_PROMPT_PATH = ROOT / "profile" / "master-system-prompt.md"
 SUMMARY_SCRIPT_PATH = ROOT / "workflows" / "summarize_fragments.py"
@@ -58,10 +58,10 @@ FRONTEND_DIST = ROOT / "web" / "dist"
 FRONTEND_INDEX = FRONTEND_DIST / "index.html"
 DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 DOC_ID_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
-BLOCK_START = "<!-- LIFEOS:BEGIN -->"
-BLOCK_END = "<!-- LIFEOS:END -->"
-SCHEMA_DAILY_BLOCK_START = "<!-- LIFEOS_SCHEMA_DAILY:BEGIN -->"
-SCHEMA_DAILY_BLOCK_END = "<!-- LIFEOS_SCHEMA_DAILY:END -->"
+BLOCK_START = "<!-- AXIOM:BEGIN -->"
+BLOCK_END = "<!-- AXIOM:END -->"
+SCHEMA_DAILY_BLOCK_START = "<!-- AXIOM_SCHEMA_DAILY:BEGIN -->"
+SCHEMA_DAILY_BLOCK_END = "<!-- AXIOM_SCHEMA_DAILY:END -->"
 CRITICAL_WARNING_RE = re.compile(r"\[CRITICAL WARNING:[^\]]+\]")
 FEISHU_API_BASE = "https://open.feishu.cn/open-apis"
 SUMMARY_COMMANDS = {"生成周报", "更新周报", "生成风控汇总", "生成AI周报", "更新AI周报"}
@@ -85,7 +85,7 @@ TEXT_FIELD_PATTERNS = {
     "diet_summary": r"(?:饮食总结|吃得|总体吃得|总体饮食|今天吃粗|今天吃得)[:：]?\s*([^。；;\n]+)",
 }
 FEISHU_TOKEN_CACHE: dict[str, Any] = {"token": "", "expires_at": None}
-SESSION_COOKIE = "lifeos_session"
+SESSION_COOKIE = "axiom_session"
 DEFAULT_SESSION_TTL_SECONDS = 60 * 60 * 8
 MIN_SESSION_SECRET_LENGTH = 32
 
@@ -114,7 +114,7 @@ ALTCHA_CHALLENGE_TTL_SECONDS = 300  # 5 min
 ALTCHA_ALGORITHM = "SHA-256"        # iterated SHA, cost=1 → single SHA-256
 ALTCHA_COST = 1
 
-_login_log = logging.getLogger("lifeos.login")
+_login_log = logging.getLogger("axiom.login")
 _last_altcha_failure: dict[str, Any] = {"reason": None, "at": None, "ip": None}
 
 
@@ -130,49 +130,10 @@ CATEGORIES = [
 
 
 DOC_SPECS = [
-    {
-        "id": "profile",
-        "title": "个人 AI 发展总档案",
-        "section": "总档案",
-        "summary": "长期背景、经历、能力、健康、财务与阶段目标。",
-        "relative_path": Path("00_个人总档案") / "00_个人AI发展档案.md",
-        "sensitive": True,
-    },
-    {
-        "id": "plan-90",
-        "title": "当前处境分析与 90 天行动计划",
-        "section": "90 天计划",
-        "summary": "围绕求职、债务现金流、英语、运动和每日安排的行动方案。",
-        "relative_path": Path("07_AI总结输出") / "2026-05-11_当前处境分析与90天行动计划.md",
-        "sensitive": True,
-    },
-    {
-        "id": "credit-summary",
-        "title": "个人信用报告摘要",
-        "section": "文件与补充",
-        "summary": "只展示征信摘要，不暴露原始报告文件。",
-        "relative_path": Path("00_个人总档案") / "个人信用报告摘要.md",
-        "sensitive": True,
-    },
-    {
-        "id": "health-summary",
-        "title": "体检报告摘要",
-        "section": "文件与补充",
-        "summary": "健康关键指标、风险点和后续跟踪建议。",
-        "relative_path": Path("03_身体健康") / "体检报告摘要.md",
-        "sensitive": True,
-    },
-    {
-        "id": "resume-summary",
-        "title": "简历信息摘要",
-        "section": "文件与补充",
-        "summary": "职业经历、项目成绩、岗位匹配与简历素材。",
-        "relative_path": Path("04_学习与技能") / "简历信息摘要.md",
-        "sensitive": True,
-    },
-    # New Axiom Core documentation set. These supersede the legacy 01_系统说明
-    # documents below; legacy entries are kept (with `legacy-` prefix) until they
-    # are moved into archive/legacy-docs/ in a later cleanup pass.
+    # Axiom Core greenfield documentation set. The 5 LifeOS-era "personal
+    # archive" entries (profile / plan-90 / credit-summary / health-summary /
+    # resume-summary) and the 3 legacy-* archive entries were dropped in the
+    # Phase 0 焦土 pass; their physical files no longer exist in this repo.
     {
         "id": "product-vision",
         "title": "产品愿景",
@@ -261,33 +222,6 @@ DOC_SPECS = [
         "relative_path": Path("docs") / "operations.md",
         "sensitive": False,
     },
-    # Legacy documents archived under archive/legacy-docs/. Ids are prefixed
-    # with `legacy-` so the new canonical ids above can claim the unprefixed
-    # slots (e.g. id="roadmap" now points to docs/roadmap.md).
-    {
-        "id": "legacy-roadmap",
-        "title": "[旧档] 系统路线图",
-        "section": "归档",
-        "summary": "LifeOS 时期的长期目标、记录流程、复盘方式与安全原则（已被 docs/roadmap.md 取代）。",
-        "relative_path": Path("archive") / "legacy-docs" / "系统路线图.md",
-        "sensitive": False,
-    },
-    {
-        "id": "legacy-input-sync",
-        "title": "[旧档] 录入与同步方案",
-        "section": "归档",
-        "summary": "手机、飞书、云端、本地与 GitHub 的同步设计（已被 docs/data-flow.md 取代）。",
-        "relative_path": Path("archive") / "legacy-docs" / "录入与同步方案.md",
-        "sensitive": False,
-    },
-    {
-        "id": "legacy-local-db-web",
-        "title": "[旧档] 本地数据库与网页打卡方案",
-        "section": "归档",
-        "summary": "FastAPI、SQLite、网页打卡和 Markdown 镜像的实现说明（已被 docs/architecture.md 与 docs/data-model.md 取代）。",
-        "relative_path": Path("archive") / "legacy-docs" / "本地数据库与网页打卡方案.md",
-        "sensitive": False,
-    },
 ]
 
 
@@ -315,7 +249,7 @@ TASK_TEMPLATES = [
 ]
 
 
-class LifeOSEntry(BaseModel):
+class AxiomEntry(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
     sleep_hours: float | str | None = 0
@@ -336,7 +270,7 @@ class LifeOSEntry(BaseModel):
     notes: str | None = ""
 
 
-class LifeOSTask(BaseModel):
+class AxiomTask(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
     task_id: str
@@ -353,8 +287,8 @@ class SaveDayPayload(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
     date: str | None = Field(default=None)
-    entry: LifeOSEntry = Field(default_factory=LifeOSEntry)
-    tasks: list[LifeOSTask] = Field(default_factory=list)
+    entry: AxiomEntry = Field(default_factory=AxiomEntry)
+    tasks: list[AxiomTask] = Field(default_factory=list)
 
 
 class FeishuEventPayload(BaseModel):
@@ -1327,7 +1261,7 @@ def is_summary_command(text: str) -> bool:
     return normalized in SUMMARY_COMMANDS
 
 
-def parse_lifeos_text(text: str) -> tuple[dict[str, Any], str]:
+def parse_axiom_text(text: str) -> tuple[dict[str, Any], str]:
     command = re.sub(r"^(?:记录|录入|打卡|新增)\s*", "", text.strip())
     entry: dict[str, Any] = {}
     for field, pattern in FEISHU_FIELD_PATTERNS.items():
@@ -1367,7 +1301,7 @@ FIELD_LABELS = {
 
 def append_feishu_entry(text: str) -> dict[str, Any]:
     day = today_text()
-    parsed_entry, note = parse_lifeos_text(text)
+    parsed_entry, note = parse_axiom_text(text)
     with connect() as conn:
         current = fetch_day(conn, day)
         entry = dict(current["entry"])
@@ -1380,8 +1314,8 @@ def append_feishu_entry(text: str) -> dict[str, Any]:
 
     payload = SaveDayPayload(
         date=day,
-        entry=LifeOSEntry(**entry),
-        tasks=[LifeOSTask(**task) for task in current["tasks"]],
+        entry=AxiomEntry(**entry),
+        tasks=[AxiomTask(**task) for task in current["tasks"]],
     )
     result = save_day(payload, source="feishu")
     return {"day": day, "fields": sorted(parsed_entry), "note": note, "result": result}
@@ -1430,7 +1364,7 @@ def reply_feishu_message(message_id: str, text: str) -> None:
 
 
 def auth_username() -> str:
-    return os.getenv("LIFEOS_WEB_USER", "Jeff")
+    return os.getenv("AXIOM_WEB_USER", "Jeff")
 
 
 def normalize_username(value: str) -> str:
@@ -1438,11 +1372,11 @@ def normalize_username(value: str) -> str:
 
 
 def auth_password() -> str:
-    return os.getenv("LIFEOS_WEB_PASSWORD", "")
+    return os.getenv("AXIOM_WEB_PASSWORD", "")
 
 
 def session_secret() -> str:
-    return os.getenv("LIFEOS_SESSION_SECRET", "")
+    return os.getenv("AXIOM_SESSION_SECRET", "")
 
 
 def altcha_hmac_key() -> str:
@@ -1547,21 +1481,21 @@ def env_flag(name: str) -> bool:
 
 
 def cloud_mode() -> bool:
-    return env_flag("LIFEOS_CLOUD_MODE") or env_flag("LIFEOS_REQUIRE_AUTH")
+    return env_flag("AXIOM_CLOUD_MODE") or env_flag("AXIOM_REQUIRE_AUTH")
 
 
 def validate_security_config() -> None:
     if not auth_enabled():
         if cloud_mode():
-            raise RuntimeError("LIFEOS_WEB_PASSWORD is required when LIFEOS_CLOUD_MODE=1.")
+            raise RuntimeError("AXIOM_WEB_PASSWORD is required when AXIOM_CLOUD_MODE=1.")
         return
 
     if len(session_secret()) < MIN_SESSION_SECRET_LENGTH:
         raise RuntimeError(
-            "LIFEOS_SESSION_SECRET must be set to an independent random value of at least "
+            "AXIOM_SESSION_SECRET must be set to an independent random value of at least "
             f"{MIN_SESSION_SECRET_LENGTH} characters."
         )
-    # ALTCHA uses LIFEOS_SESSION_SECRET as its HMAC key by default; no extra env vars required.
+    # ALTCHA uses AXIOM_SESSION_SECRET as its HMAC key by default; no extra env vars required.
 
 
 def client_key(request: Request) -> str:
@@ -1588,8 +1522,8 @@ def clear_login_failures(key: str) -> None:
 
 
 def session_ttl_seconds() -> int:
-    raw_seconds = os.getenv("LIFEOS_SESSION_TTL_SECONDS", "").strip()
-    raw_hours = os.getenv("LIFEOS_SESSION_TTL_HOURS", "").strip()
+    raw_seconds = os.getenv("AXIOM_SESSION_TTL_SECONDS", "").strip()
+    raw_hours = os.getenv("AXIOM_SESSION_TTL_HOURS", "").strip()
     try:
         value = int(raw_seconds) if raw_seconds else int(float(raw_hours) * 3600) if raw_hours else DEFAULT_SESSION_TTL_SECONDS
     except ValueError:
@@ -1669,9 +1603,9 @@ def create_app() -> FastAPI:
     init_db()
     validate_security_config()
     app = FastAPI(
-        title="LifeOS Local API",
-        version="2.0.0",
-        description="Local-first LifeOS dashboard API backed by SQLite and Markdown mirrors.",
+        title="Axiom Core Local API",
+        version="3.0.0",
+        description="Local-first Axiom Core decision engine backed by SQLite and Markdown mirrors.",
     )
     app.add_middleware(
         CORSMiddleware,
@@ -1747,9 +1681,9 @@ def create_app() -> FastAPI:
     @app.get("/api/altcha/debug")
     def altcha_debug() -> dict[str, Any]:
         """Diagnostic endpoint — exposes config (no secrets), recent failure, server time.
-        Only enabled when LIFEOS_ALTCHA_DEBUG=1 to avoid leaking metadata in production."""
-        if not env_flag("LIFEOS_ALTCHA_DEBUG"):
-            return {"ok": False, "detail": "debug disabled — set LIFEOS_ALTCHA_DEBUG=1"}
+        Only enabled when AXIOM_ALTCHA_DEBUG=1 to avoid leaking metadata in production."""
+        if not env_flag("AXIOM_ALTCHA_DEBUG"):
+            return {"ok": False, "detail": "debug disabled — set AXIOM_ALTCHA_DEBUG=1"}
         return {
             "ok": True,
             "altcha_lib_version": getattr(_altcha, "__version__", "unknown"),
@@ -1758,7 +1692,7 @@ def create_app() -> FastAPI:
             "counter_max": ALTCHA_COUNTER_MAX,
             "challenge_ttl_seconds": ALTCHA_CHALLENGE_TTL_SECONDS,
             "hmac_key_set": bool(altcha_hmac_key()),
-            "hmac_key_source": "ALTCHA_HMAC_KEY" if os.getenv("ALTCHA_HMAC_KEY") else "LIFEOS_SESSION_SECRET",
+            "hmac_key_source": "ALTCHA_HMAC_KEY" if os.getenv("ALTCHA_HMAC_KEY") else "AXIOM_SESSION_SECRET",
             "cloud_mode": cloud_mode(),
             "server_time_iso": datetime.now().isoformat(),
             "server_time_unix": int(datetime.now().timestamp()),
@@ -1802,7 +1736,7 @@ def create_app() -> FastAPI:
             if not username or not password:
                 return _login_redirect("请输入账号和密码。")
             if not auth_enabled():
-                return _login_redirect("登录未配置，请先设置 LIFEOS_WEB_PASSWORD。")
+                return _login_redirect("登录未配置，请先设置 AXIOM_WEB_PASSWORD。")
             if cloud_mode():
                 if not altcha_payload:
                     return _login_redirect("人机验证未完成，请等待校验后重试。")
@@ -1876,7 +1810,6 @@ def create_app() -> FastAPI:
         return {
             "ok": True,
             "service": BRAND_NAME,
-            "code_name": INTERNAL_NAME,
             "time": now_iso(),
         }
 
@@ -1888,7 +1821,6 @@ def create_app() -> FastAPI:
         return {
             "ok": True,
             "brandName": BRAND_NAME,
-            "codeName": INTERNAL_NAME,
             "tagline": PRODUCT_TAGLINE,
         }
 
@@ -2112,8 +2044,11 @@ def create_app() -> FastAPI:
             pass
 
         system_prompt = (
-            "你是用户的个人成长 AI 助手。用户用 LifeOS 追踪求职、健康、学习、财务数据。"
-            "根据数据给出结构化分析：今日亮点、需改进点、明日建议三部分，用中文，500字以内。"
+            "你是 Axiom Core 首席决策官 (CDO)。用户的求职、健康、学习、财务数据"
+            "由系统统一录入，请按 profile/constraints.md 的公理推演当前阶段的"
+            "决策建议：先给 verdict (approve/reject/conditional)，再给数字化的 "
+            "rationale (Burn Rate / runway_months / ROI)，最后给 ≤3 条立即可"
+            "执行的下一步。中文，500 字以内，不安慰、不闲聊。"
         )
         user_message = f"数据（{day}）：\n{json.dumps(context_data, ensure_ascii=False, indent=2)}\n\n{payload.prompt}"
 
@@ -2189,13 +2124,13 @@ app = create_app()
 
 
 def run(host: str, port: int, reload: bool = False) -> None:
-    print(f"LifeOS FastAPI 服务已启动：http://{host}:{port}/app")
+    print(f"Axiom Core FastAPI 服务已启动：http://{host}:{port}/app")
     print("API 文档：http://127.0.0.1:8765/docs")
-    uvicorn.run("lifeos_server:app", host=host, port=port, reload=reload)
+    uvicorn.run("axiom_server:app", host=host, port=port, reload=reload)
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="LifeOS FastAPI 本地数据库与网页打卡服务")
+    parser = argparse.ArgumentParser(description="Axiom Core FastAPI 本地服务（决策引擎 + SQLite + Markdown 镜像）")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", default=8765, type=int)
     parser.add_argument("--reload", action="store_true")

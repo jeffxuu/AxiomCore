@@ -484,7 +484,7 @@ period: {iso_year}-W{iso_week:02d}
 
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Summarize LifeOS fragments and daily logs.")
+    parser = argparse.ArgumentParser(description="Summarize Axiom Core fragments and daily logs.")
     parser.add_argument("--dry-run", action="store_true", help="Print report only; do not write files.")
     parser.add_argument("--daily-dir", default="logs/daily", help="Directory containing daily Markdown logs.")
     parser.add_argument(

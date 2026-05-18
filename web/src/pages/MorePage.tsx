@@ -16,7 +16,7 @@ import {
 import type { LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { PageHeader } from "@/components/lifeos/PageHeader";
+import { PageHeader } from "@/components/axiom/PageHeader";
 import { useBrand } from "@/lib/brandConfig";
 
 type MoreEntry = {

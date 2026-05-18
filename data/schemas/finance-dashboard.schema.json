@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://lifeos.local/schemas/finance-dashboard.schema.json",
-  "title": "LifeOS Finance Dashboard Frontmatter",
+  "$id": "https://axiom-core.local/schemas/finance-dashboard.schema.json",
+  "title": "Axiom Core Finance Dashboard Frontmatter",
   "type": "object",
   "additionalProperties": true,
   "required": [

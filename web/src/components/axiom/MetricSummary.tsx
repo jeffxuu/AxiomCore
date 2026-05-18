@@ -1,5 +1,5 @@
 import { Briefcase, CheckCircle2, CircleDollarSign, Dumbbell, Languages, Moon } from "lucide-react";
-import type { Dashboard, LifeOSDay } from "@/types";
+import type { Dashboard, AxiomDay } from "@/types";
 import { MetricTile } from "./MetricTile";
 
 function num(value: unknown): number {
@@ -16,7 +16,7 @@ function pct(value: number): string {
   return `${Math.round(value * 100)}%`;
 }
 
-export function MetricSummary({ dashboard, day }: { dashboard: Dashboard; day: LifeOSDay }) {
+export function MetricSummary({ dashboard, day }: { dashboard: Dashboard; day: AxiomDay }) {
   const cashflow = num(dashboard.metrics.income30d) - num(dashboard.metrics.expense30d);
 
   return (

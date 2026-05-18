@@ -2,8 +2,6 @@
 
 > 这是 Axiom Core 决策引擎的**硬性公理**。任何建议、Approval、Conditional 都必须能引用其中的具体条款。引擎不能"凭感觉"放行。
 
-> 内部代号：LifeOS Constraints。
-
 ## 设计原则
 
 1. **明文 > 默会**。所有约束都写在这里，引擎不依赖"应该都知道"的常识。
@@ -210,7 +208,7 @@ proposal:
 | 来源 | 信任度 |
 |------|-------|
 | `templates/*.md` 的 frontmatter | 高 |
-| `02_每日记录/*.md` 的 LIFEOS:BEGIN/END 区块 | 高 |
+| `logs/daily/*.md` 的 AXIOM:BEGIN/END 区块 | 高 |
 | `profile/current-state.md` 的自动汇总 | 中（基于上面两者计算） |
 | 使用者对话中的口头陈述 | 低（除非同步写入上面任一文件） |
 

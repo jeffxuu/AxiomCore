@@ -21,11 +21,11 @@
 | 当前状态 | `profile/current-state.md` | 必读 |
 | 约束公理 | `profile/constraints.md` | 必读 |
 | 主提示词 | `profile/master-system-prompt.md` | 必读 |
-| 长期档案 | `00_个人总档案/00_个人AI发展档案.md` | 决策需要时读取 |
+| 长期档案 | `profile/master-system-prompt.md` | 决策需要时读取 |
 | 财务看板 | `templates/finance-dashboard.md` 的 frontmatter | 涉及钱的决策必读 |
 | 业务目标 | `templates/annual-business-goal.md` | 业务决策必读 |
-| 最近 7 天日记 | `02_每日记录/YYYY-MM-DD.md` | 行为基线 |
-| AI 总结 | `07_AI总结输出/` | 参考但不可作为唯一依据 |
+| 最近 7 天日记 | `logs/daily/YYYY-MM-DD.md` | 行为基线 |
+| AI 总结 | `reports/ai/` | 参考但不可作为唯一依据 |
 | Axiom Core 文档 | `docs/*.md` | 解释机制时引用 |
 
 不在以上清单的文件，CDO **不应主动读取**——即使技术上可以。

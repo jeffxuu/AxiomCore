@@ -2,16 +2,15 @@ import { createContext, useContext, useEffect, useMemo, useState, type ReactNode
 import { loadBrandConfig } from "@/api";
 import type { BrandConfigPayload } from "@/types";
 
-// Default values match the constants in lifeos_server.py. If /api/config is
+// Default values match the constants in axiom_server.py. If /api/config is
 // unreachable (offline, error, pre-build static html) the UI still renders the
-// canonical brand instead of falling back to the internal code name.
+// canonical brand strings instead of falling back to "loading…".
 export const DEFAULT_BRAND: Brand = {
   brandName: "Axiom Core",
-  codeName: "LifeOS",
   tagline: "个人决策智能核心",
 };
 
-export type Brand = Pick<BrandConfigPayload, "brandName" | "codeName" | "tagline">;
+export type Brand = Pick<BrandConfigPayload, "brandName" | "tagline">;
 
 const BrandContext = createContext<Brand>(DEFAULT_BRAND);
 
@@ -25,7 +24,6 @@ export function BrandProvider({ children }: { children: ReactNode }) {
         if (cancelled) return;
         setBrand({
           brandName: payload.brandName || DEFAULT_BRAND.brandName,
-          codeName: payload.codeName || DEFAULT_BRAND.codeName,
           tagline: payload.tagline || DEFAULT_BRAND.tagline,
         });
       })

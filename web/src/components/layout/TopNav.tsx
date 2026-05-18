@@ -1,4 +1,4 @@
-import { Archive, BookOpen, CalendarDays, Gauge, LogOut, Moon, Sparkles, Sun, Target } from "lucide-react";
+import { Archive, CalendarDays, Gauge, LogOut, Moon, Sparkles, Sun } from "lucide-react";
 import type { MouseEvent } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -11,12 +11,7 @@ const primaryItems = [
   { href: "/daily", label: "记录", Icon: CalendarDays },
   { href: "/files", label: "文档", Icon: Archive },
   { href: "/ai", label: "AI", Icon: Sparkles },
-] as const;
-
-const secondaryItems = [
-  { href: "/profile", label: "个人档案", Icon: BookOpen },
-  { href: "/plan-90", label: "90 天计划", Icon: Target },
-  { href: "/more", label: "更多入口", Icon: Sparkles },
+  { href: "/more", label: "更多", Icon: Sparkles },
 ] as const;
 
 function isActive(path: string, href: string): boolean {
@@ -59,20 +54,6 @@ export function TopNav({
 
         <nav className="ml-4 hidden items-center gap-1 md:flex" aria-label="主导航">
           {primaryItems.map(({ href, label, Icon }) => (
-            <a
-              key={href}
-              href={href}
-              className={cn(
-                "inline-flex h-9 items-center gap-2 rounded-md px-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
-                isActive(path, href) && "bg-slate-950 text-white hover:bg-slate-900 hover:text-white dark:bg-white dark:text-slate-950"
-              )}
-              onClick={(event) => routeClick(event, href, navigate)}
-            >
-              <Icon className="size-4" />
-              {label}
-            </a>
-          ))}
-          {secondaryItems.map(({ href, label, Icon }) => (
             <a
               key={href}
               href={href}

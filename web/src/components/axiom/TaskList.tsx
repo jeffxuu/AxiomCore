@@ -3,7 +3,7 @@ import type { LucideIcon } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
-import type { Category, LifeOSDay, LifeOSTask } from "@/types";
+import type { Category, AxiomDay, AxiomTask } from "@/types";
 
 const categoryIcons: Record<string, LucideIcon> = {
   career: Briefcase,
@@ -30,8 +30,8 @@ export function TaskList({
   onPatch,
 }: {
   categories: Category[];
-  day: LifeOSDay;
-  onPatch: (id: string, patch: Partial<LifeOSTask>) => void;
+  day: AxiomDay;
+  onPatch: (id: string, patch: Partial<AxiomTask>) => void;
 }) {
   return (
     <div className="space-y-5">

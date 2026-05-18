@@ -5,7 +5,7 @@ export type Category = {
   sort_order: number;
 };
 
-export type LifeOSEntry = {
+export type AxiomEntry = {
   sleep_hours: number | string;
   weight_kg: number | string;
   mood: number | string;
@@ -25,9 +25,9 @@ export type LifeOSEntry = {
   updated_at?: string;
 };
 
-export type EntryField = keyof Omit<LifeOSEntry, "updated_at">;
+export type EntryField = keyof Omit<AxiomEntry, "updated_at">;
 
-export type LifeOSTask = {
+export type AxiomTask = {
   task_id: string;
   category_id: string;
   title: string;
@@ -38,10 +38,10 @@ export type LifeOSTask = {
   sort_order: number;
 };
 
-export type LifeOSDay = {
+export type AxiomDay = {
   date: string;
-  entry: LifeOSEntry;
-  tasks: LifeOSTask[];
+  entry: AxiomEntry;
+  tasks: AxiomTask[];
 };
 
 export type RateStat = {
@@ -95,13 +95,13 @@ export type Dashboard = {
 
 export type BootstrapPayload = {
   categories: Category[];
-  day: LifeOSDay;
+  day: AxiomDay;
   dashboard: Dashboard;
 };
 
 export type SavePayload = {
   ok: true;
-  day: LifeOSDay;
+  day: AxiomDay;
   dashboard: Dashboard;
   markdownPath: string;
   schemaMarkdownPath: string;
@@ -136,7 +136,6 @@ export type AuthConfigPayload = {
 export type BrandConfigPayload = {
   ok: true;
   brandName: string;
-  codeName: string;
   tagline: string;
 };
 

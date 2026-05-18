@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Archive, BookOpen, Target } from "lucide-react";
+import { Archive } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { useBrand } from "@/lib/brandConfig";
 import { loadBootstrap, loadDoc, loadDocs, probeAuth } from "@/api";
@@ -29,15 +29,10 @@ function localDateText(): string {
 
 function sectionOrder(section: string): number {
   const order = [
-    "总档案",
-    "90 天计划",
-    "文件与补充",
     "Axiom Core 产品",
     "Axiom Core 系统",
     "运维与安全",
-    "系统说明",
     "每日记录",
-    "归档",
   ];
   const index = order.indexOf(section);
   return index === -1 ? order.length : index;
@@ -72,7 +67,7 @@ function App() {
   const [authStatus, setAuthStatus] = useState<AuthStatus>("checking");
   const [theme, setTheme] = useState<"light" | "dark">(() => {
     try {
-      const stored = localStorage.getItem("lifeos-theme");
+      const stored = localStorage.getItem("axiom-theme");
       if (stored === "light" || stored === "dark") return stored;
     } catch {
       // Ignore storage failures.
@@ -86,7 +81,7 @@ function App() {
     document.documentElement.setAttribute("data-theme", theme);
     document.documentElement.classList.toggle("dark", theme === "dark");
     try {
-      localStorage.setItem("lifeos-theme", theme);
+      localStorage.setItem("axiom-theme", theme);
     } catch {
       // Ignore storage failures.
     }
@@ -227,14 +222,8 @@ function App() {
       return <DocumentsPage docs={sortedDocs} selectedId={selectedDoc} getDoc={getDoc} navigate={navigate} />;
     }
     if (route.path === "/ai") return <AiPage />;
-    if (route.path === "/profile") {
-      return <DocPage docId="profile" getDoc={getDoc} icon={BookOpen} title="个人总档案" />;
-    }
-    if (route.path === "/plan-90") {
-      return <DocPage docId="plan-90" getDoc={getDoc} icon={Target} title="90 天行动计划" />;
-    }
     if (route.path === "/more") return <MorePage navigate={navigate} />;
-    return <DocPage docId="roadmap" getDoc={getDoc} icon={Archive} title={`${brand.brandName} 系统说明`} />;
+    return <DocPage docId="roadmap" getDoc={getDoc} icon={Archive} title={`${brand.brandName} Roadmap`} />;
   })();
 
   return (

@@ -2,7 +2,7 @@
 
 **Axiom Core — 个人决策智能核心**
 
-> 内部代号：LifeOS。systemd 服务、环境变量、CSS 类名、TypeScript 类型、数据库表等内部标识仍沿用 `lifeos` 以保持部署与监控兼容。
+> 焦土重建版（2026-05）。整套系统所有标识符（systemd、env、CSS、类型、API、数据库表）统一使用 axiom-core / `AXIOM_*`，**不保留 LifeOS 兼容名**。LifeOS 是已被废弃的前身仓库。
 
 ## 这是什么
 

@@ -46,7 +46,7 @@ temp/
 # Local secrets and environment files
 .env
 .env.*
-.lifeos-secrets/
+.axiom-secrets/
 私钥文件
 私钥文件.pub
 *.pem

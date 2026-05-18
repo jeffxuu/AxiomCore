@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-APP_DIR="${APP_DIR:-/opt/lifeos-app}"
+APP_DIR="${APP_DIR:-/opt/axiom-core}"
 BACKUP_ROOT="${BACKUP_ROOT:-/opt/backups}"
 
 cd "$APP_DIR"
@@ -16,7 +16,7 @@ git fetch origin
 git pull --ff-only origin main
 
 timestamp="$(date +%Y%m%d-%H%M%S)"
-backup_dir="$BACKUP_ROOT/lifeos-ui-before-deploy-$timestamp"
+backup_dir="$BACKUP_ROOT/axiom-core-ui-before-deploy-$timestamp"
 sudo mkdir -p "$backup_dir"
 if [ -d "$APP_DIR/web/dist" ]; then
   sudo cp -a "$APP_DIR/web/dist" "$backup_dir/dist"
@@ -31,7 +31,7 @@ sudo nginx -t
 sudo systemctl reload nginx
 
 # Restart the Python backend to pick up any server-side code changes
-sudo systemctl restart lifeos
+sudo systemctl restart axiom-core
 echo "Waiting for backend to come up..."
 for i in $(seq 1 15); do
   if curl -fsS http://127.0.0.1:8765/api/health >/dev/null 2>&1; then

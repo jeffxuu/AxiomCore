@@ -11,7 +11,7 @@
 ```
 .env
 .env.*
-.lifeos-secrets/
+.axiom-secrets/
 私钥文件
 私钥文件.pub
 *.pem
@@ -19,7 +19,7 @@
 **/原始体检报告/
 **/原始简历/
 *.pdf
-data/lifeos.db
+data/axiom_core.db
 *.tgz
 *.zip
 ```
@@ -35,10 +35,10 @@ git status --short --branch
 
 以下文件**已在 Public 仓库内**，使用者需自行评估是否可接受：
 
-- `00_个人总档案/个人信用报告摘要.md` — 来自人行征信报告的脱敏摘要
-- `03_身体健康/体检报告摘要.md` — 来自体检 PDF 的关键指标
-- `04_学习与技能/简历信息摘要.md` — 简历主要经历
-- `00_个人总档案/00_个人AI发展档案.md` — 长期目标与现状
+- `00_*/个人信用报告摘要.md` — 来自人行征信报告的脱敏摘要
+- `01_Health/体检报告摘要.md` — 来自体检 PDF 的关键指标
+- `04_Skills/简历信息摘要.md` — 简历主要经历
+- `profile/master-system-prompt.md` — 长期目标与现状
 
 **判断标准**：如果一个真人能从这份摘要里推断出"你具体住哪、电话多少、银行卡号"，则需要进一步脱敏。当前的实现假设：
 - 不写真实身份证号
@@ -46,7 +46,7 @@ git status --short --branch
 - 不写真实银行账号
 - 不写明文密码
 
-**如果使用者不接受摘要也公开**：把这些文件移到 `.lifeos-secrets/`（已 gitignore）目录下，并修改 `lifeos_server.py` 中 `DOC_SPECS` 的 `relative_path` 指向新位置。
+**如果使用者不接受摘要也公开**：把这些文件移到 `.axiom-secrets/`（已 gitignore）目录下，并修改 `axiom_server.py` 中 `DOC_SPECS` 的 `relative_path` 指向新位置。
 
 ## 本地敏感凭据
 
@@ -54,29 +54,29 @@ git status --short --branch
 
 | 类型 | 存放方式 | 加密手段 |
 |------|---------|---------|
-| 云端服务器 SSH 私钥 | `~/.ssh/lifeos_cloud_ed25519` 或 DPAPI 加密配置 | Windows DPAPI |
+| 云端服务器 SSH 私钥 | `~/.ssh/axiom_core_ed25519` 或 DPAPI 加密配置 | Windows DPAPI |
 | 飞书 App Secret | 服务器环境变量 | 不进仓库 |
-| 云端登录密码 | 服务器环境变量 `LIFEOS_WEB_PASSWORD` | bcrypt（运行时） |
-| 会话密钥 | 服务器环境变量 `LIFEOS_SESSION_SECRET` | ≥ 32 字符 |
+| 云端登录密码 | 服务器环境变量 `AXIOM_WEB_PASSWORD` | bcrypt（运行时） |
+| 会话密钥 | 服务器环境变量 `AXIOM_SESSION_SECRET` | ≥ 32 字符 |
 | ALTCHA HMAC 密钥 | 同上或独立 `ALTCHA_HMAC_KEY` | 独立时更安全 |
-| 个人云端登录账号 | 本地 DPAPI | `scripts/lifeos_secrets.ps1` |
+| 个人云端登录账号 | 本地 DPAPI | `scripts/axiom_secrets.ps1` |
 
 设置本地凭据：
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File scripts\lifeos_secrets.ps1 -Action set
+powershell -ExecutionPolicy Bypass -File scripts\axiom_secrets.ps1 -Action set
 ```
 
 读取（仅显示非敏感字段）：
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File scripts\lifeos_secrets.ps1 -Action show
+powershell -ExecutionPolicy Bypass -File scripts\axiom_secrets.ps1 -Action show
 ```
 
 ## 服务端鉴权机制
 
 1. **登录**：用户名密码 + ALTCHA 工作量证明（PoW）。
-2. **会话**：bcrypt 比对密码后下发 `lifeos_session` cookie，TTL 8 小时。
+2. **会话**：bcrypt 比对密码后下发 `axiom_session` cookie，TTL 8 小时。
 3. **失败锁定**：
    - IP 维度：15 分钟内 8 次失败 → 该 IP 锁定
    - 账号维度：5 次连续错误 → 账号 10 分钟锁定
@@ -108,7 +108,7 @@ powershell -ExecutionPolicy Bypass -File scripts\lifeos_secrets.ps1 -Action show
 ## 数据传输
 
 - 本地 → 云端：SSH（`Cipher`、`KeyExchange` 由 OpenSSH 默认）
-- 云端 → 浏览器：HTTPS（Let's Encrypt 证书，Nginx 配置见 `server-setup/lifeos-nginx.conf`）
+- 云端 → 浏览器：HTTPS（Let's Encrypt 证书，Nginx 配置见 `server-setup/axiom-nginx.conf`）
 - 飞书 → 云端：HTTPS（飞书侧强制）
 
 ## 攻击面与已知风险

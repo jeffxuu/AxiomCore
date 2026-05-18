@@ -34,7 +34,7 @@ DEFAULT_EXCLUDE_DIRS = {
     ".claude",
     ".playwright-cli",
     ".sync_logs",
-    ".lifeos-secrets",
+    ".axiom-secrets",
 }
 
 
@@ -123,7 +123,7 @@ def validate_file(path: Path, verbose: bool) -> bool:
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Validate LifeOS Markdown YAML frontmatter against JSON Schema files."
+        description="Validate Axiom Core Markdown YAML frontmatter against JSON Schema files."
     )
     parser.add_argument(
         "--path",

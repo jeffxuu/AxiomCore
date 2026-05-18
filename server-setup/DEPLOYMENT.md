@@ -1,11 +1,11 @@
-# LifeOS Deployment Notes
+# Axiom Core Deployment Notes
 
 ## Source Of Truth
 
 GitHub `main` is the canonical source for application code. The server working tree should stay clean so deployments can use:
 
 ```bash
-cd /opt/lifeos-app
+cd /opt/axiom-core
 git fetch origin
 git pull --ff-only origin main
 ```
@@ -17,7 +17,7 @@ If `git status --short` shows local changes, stop and inspect them before deploy
 Use `npm ci`, not `npm install`.
 
 ```bash
-cd /opt/lifeos-app/web
+cd /opt/axiom-core/web
 npm ci
 npm run typecheck
 npm run build
@@ -57,7 +57,7 @@ Keep `/api/` proxied to the FastAPI service at `127.0.0.1:8765`.
 Run on the server:
 
 ```bash
-bash /opt/lifeos-app/server-setup/deploy-lifeos-web.sh
+bash /opt/axiom-core/server-setup/deploy-axiom-web.sh
 ```
 
 The script checks for a clean worktree, fast-forwards `main`, builds with `npm ci`, runs TypeScript and production build checks, verifies Nginx, and reloads Nginx.

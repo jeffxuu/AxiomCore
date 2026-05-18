@@ -24,7 +24,7 @@ import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import { LifeOSHero } from "@/components/lifeos/LifeOSHero";
+import { AxiomHero } from "@/components/axiom/AxiomHero";
 import { cn } from "@/lib/utils";
 
 type AiModel = {
@@ -250,7 +250,7 @@ export function AiPage() {
 
   return (
     <div className="space-y-5">
-      <LifeOSHero
+      <AxiomHero
         eyebrow="AI Review"
         title="AI 复盘"
         description="把今日或本周记录整理成可行动的总结。主流程只保留生成总结，高级配置默认收起。"
@@ -266,7 +266,7 @@ export function AiPage() {
           <Badge variant="secondary">{mode === "daily" ? "今日总结" : "本周总结"}</Badge>
           <Badge variant="outline">{selectedModelMeta ? providerLabel(selectedModelMeta.provider) : "当前模型"}</Badge>
         </div>
-      </LifeOSHero>
+      </AxiomHero>
 
       <Card>
         <CardHeader>

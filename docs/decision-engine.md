@@ -104,7 +104,7 @@ proposal:
 | `profile/master-system-prompt.md` | AI 人设与边界 |
 | `templates/finance-dashboard.md` | 个人 + 业务现金流 |
 | `templates/annual-business-goal.md` | 业务里程碑与 validation deadline |
-| 最近 7 天 `02_每日记录/*.md` | 行为基线 |
+| 最近 7 天 `logs/daily/*.md` | 行为基线 |
 
 任何提议如果引用了上述文件之外的"事实"，引擎应标记为**未经证实**，要求用户先把信息写入对应文件。
 

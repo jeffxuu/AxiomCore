@@ -2,9 +2,9 @@ import { useEffect, useState } from "react";
 import type { LucideIcon } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { MarkdownView } from "@/components/lifeos/MarkdownView";
-import { PageHeader } from "@/components/lifeos/PageHeader";
-import { EmptyState } from "@/components/lifeos/EmptyState";
+import { MarkdownView } from "@/components/axiom/MarkdownView";
+import { PageHeader } from "@/components/axiom/PageHeader";
+import { EmptyState } from "@/components/axiom/EmptyState";
 import type { DocPayload } from "@/types";
 
 export function DocPage({
