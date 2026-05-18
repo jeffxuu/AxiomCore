@@ -36,29 +36,58 @@ journalctl -u axiom-core.service -f
 journalctl -u axiom-core.service -p err -n 50
 ```
 
+## 一次性 Bootstrap（首次部署）
+
+```powershell
+# 1. 配置凭据（DPAPI 加密存到 %USERPROFILE%\.axiom-core\secrets.dat）
+powershell -ExecutionPolicy Bypass -File scripts\axiom_secrets.ps1 -Action new-ssh-key
+powershell -ExecutionPolicy Bypass -File scripts\axiom_secrets.ps1 -Action set
+# 输入 AXIOM_SSH_HOST / AXIOM_SSH_USER / AXIOM_REMOTE_APP_DIR 等
+
+# 2. 把新生成的公钥加入服务器 ~/.ssh/authorized_keys（手动）
+
+# 3. 干预式部署（默认会摧毁旧 lifeos.service + /opt/lifeos-app/）
+powershell -ExecutionPolicy Bypass -File scripts\deploy_axiom_cloud.ps1 -DryRun  # 先预览
+powershell -ExecutionPolicy Bypass -File scripts\deploy_axiom_cloud.ps1          # 真跑
+
+# 4. SSH 上去把 /etc/axiom-core/env 里的 placeholders 改成真值
+ssh root@<host>
+vi /etc/axiom-core/env
+systemctl restart axiom-core
+
+# 5. 注册 Windows 计划任务（管理员 PowerShell）
+$repo = "C:\Users\ouc\Desktop\AxiomCore"
+schtasks /Create /TN AxiomCoreGitSync /SC MINUTE /MO 5 /F `
+  /TR "powershell -NoProfile -ExecutionPolicy Bypass -File $repo\scripts\auto_git_sync.ps1"
+schtasks /Create /TN AxiomCorePullSync /SC MINUTE /MO 5 /F `
+  /TR "powershell -NoProfile -ExecutionPolicy Bypass -File $repo\scripts\cloud_to_local_sync.ps1"
+```
+
 ## Windows 计划任务
 
 | 任务名 | 频率 | 用途 |
 |--------|------|------|
-| `PersonalAIProfileGitSync` | 5 分钟 | 检测本地变更，自动 git add+commit+push |
+| `AxiomCoreGitSync` | 5 分钟 | 检测本地变更，自动 git add+commit+push |
 | `AxiomCorePullSync` | 5 分钟 | 拉取云端最新数据到本地 |
 
 查看：
 ```powershell
-Get-ScheduledTask -TaskName PersonalAIProfileGitSync, AxiomCorePullSync | Format-Table TaskName, State, LastRunTime
+Get-ScheduledTask -TaskName AxiomCoreGitSync, AxiomCorePullSync | Format-Table TaskName, State, LastRunTime
 ```
 
 禁用（临时维护）：
 ```powershell
-Disable-ScheduledTask -TaskName PersonalAIProfileGitSync
+Disable-ScheduledTask -TaskName AxiomCoreGitSync
 Disable-ScheduledTask -TaskName AxiomCorePullSync
 ```
 
 重新启用：
 ```powershell
-Enable-ScheduledTask -TaskName PersonalAIProfileGitSync
+Enable-ScheduledTask -TaskName AxiomCoreGitSync
 Enable-ScheduledTask -TaskName AxiomCorePullSync
 ```
+
+每次执行的日志写到 `.sync_logs/auto_git_sync.log` / `.sync_logs/cloud_to_local_sync.log`，目录已 gitignored。
 
 ## 数据维护
 
@@ -159,6 +188,30 @@ python workflows\summarize_fragments.py --dry-run `
 3. 解决冲突后 `git push origin main`
 4. 如果是 `package-lock.json` 冲突 → `git checkout web/package-lock.json` 然后 `npm ci`
 
+## Nginx upstream 改名（从 lifeos_backend 迁移）
+
+如果你的 nginx 配置之前用的是 LifeOS 时期的 `upstream lifeos_backend { ... }`，
+切到 Axiom Core 需要同步改 upstream 名字。`server-setup/axiom-nginx.conf` 已
+经用 `axiom_backend`，所以执行 `deploy_axiom_cloud.ps1` 时会自动覆盖 nginx 配
+置。手动核对：
+
+```bash
+ssh root@<host>
+grep -n upstream /etc/nginx/sites-available/axiom-nginx.conf
+# 期望看到：upstream axiom_backend { server 127.0.0.1:8765; }
+
+# 确认旧 conf 已经清掉
+ls /etc/nginx/sites-enabled/ | grep -i lifeos    # 应该是空
+ls /etc/nginx/sites-available/ | grep -i lifeos  # 应该是空
+
+nginx -t
+systemctl reload nginx
+```
+
+如果不小心 `lifeos-nginx.conf` 还在 `sites-enabled/`，会导致 nginx 启动时
+"upstream lifeos_backend used but not defined" 报错。`deploy_axiom_cloud.ps1`
+的 destructive cleanup 阶段会自动 `rm -f` 这两个文件，正常情况下不会残留。
+
 ## 定期审计（建议每月）
 
 - 检查 `git log --since='1 month ago' --stat` 有无意外提交大文件
@@ -166,3 +219,4 @@ python workflows\summarize_fragments.py --dry-run `
 - 检查 `output/` 是否堆积过多测试产物（可定期清空）
 - 检查 `.sync_logs/` 是否有反复出现的同步错误
 - 检查云端磁盘使用 `df -h /opt`
+- 检查 `/etc/axiom-core/env` 权限 `ls -la /etc/axiom-core/env`（应该是 root:root 0640）

@@ -1,0 +1,40 @@
+[Unit]
+Description=Axiom Core decision engine (FastAPI + SQLite)
+Documentation=https://github.com/jeffxuu/axiom-core
+After=network.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+Group=root
+WorkingDirectory=/opt/axiom-core
+
+# Real secrets live in /etc/axiom-core/env (mode 0640), NOT in this unit file.
+# That file is created from server-setup/env.example on first deploy and the
+# operator edits it with production values. See docs/deployment.md.
+EnvironmentFile=/etc/axiom-core/env
+
+# Uvicorn binds 127.0.0.1:8765; Nginx in front handles TLS + the public 443.
+ExecStart=/usr/bin/python3 /opt/axiom-core/axiom_server.py --host 127.0.0.1 --port 8765
+
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=15
+
+# Stdout/stderr → journalctl -u axiom-core.service
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=axiom-core
+
+# Light hardening. Service still has full write access to /opt/axiom-core/data
+# (for SQLite) and /opt/axiom-core/logs/daily (for Markdown mirrors). Anything
+# else is read-only.
+NoNewPrivileges=true
+ProtectSystem=full
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/opt/axiom-core/data /opt/axiom-core/logs
+
+[Install]
+WantedBy=multi-user.target

@@ -1,10 +1,24 @@
 #!/usr/bin/env bash
+#
+# Server-side incremental redeploy for Axiom Core.
+#
+# This is the GIT-PULL path. It only works after the server has been bootstrapped
+# (axiom-core.service installed, /opt/axiom-core/.git exists). For first-time
+# deploys, run scripts/deploy_axiom_cloud.ps1 from a workstation — that handles
+# the destructive cleanup of legacy LifeOS and the initial bootstrap.
+#
 set -euo pipefail
 
 APP_DIR="${APP_DIR:-/opt/axiom-core}"
 BACKUP_ROOT="${BACKUP_ROOT:-/opt/backups}"
 
 cd "$APP_DIR"
+
+if [ ! -d .git ]; then
+  echo "Refusing to deploy: $APP_DIR is not a git checkout." >&2
+  echo "Run scripts/deploy_axiom_cloud.ps1 from a workstation for the bootstrap path." >&2
+  exit 1
+fi
 
 if [ -n "$(git status --porcelain)" ]; then
   echo "Refusing to deploy: server working tree has local changes." >&2
