@@ -1,6 +1,9 @@
 altcha>=2.0.0
+apscheduler>=3.10
 fastapi>=0.136
 jsonschema>=4.0
+openai>=1.0
 pydantic>=2.13
 python-frontmatter>=1.1
+tzdata>=2024.1
 uvicorn>=0.46

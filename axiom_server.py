@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import asyncio
 import hashlib
 import hmac
 import json
@@ -11,10 +12,12 @@ import secrets
 import sqlite3
 import sys
 import uuid
+from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Annotated, Any
+from typing import Annotated, Any, AsyncIterator
 from urllib.parse import parse_qs, quote
+from zoneinfo import ZoneInfo
 
 try:
     import httpx as _httpx
@@ -23,10 +26,13 @@ except ImportError:
     _HTTPX_AVAILABLE = False
 
 import uvicorn
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.triggers.cron import CronTrigger
 from fastapi import Body, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
+from openai import APIError, APIStatusError, AsyncOpenAI, AuthenticationError
 from pydantic import BaseModel, ConfigDict, Field
 
 import altcha as _altcha
@@ -261,6 +267,19 @@ def init_db() -> None:
                 reviewed_at TEXT,
                 created_at TEXT NOT NULL
             );
+
+            CREATE TABLE IF NOT EXISTS system_settings (
+                config_key TEXT PRIMARY KEY,
+                config_value TEXT NOT NULL DEFAULT ''
+            );
+
+            CREATE TABLE IF NOT EXISTS oracle_reports (
+                id TEXT PRIMARY KEY,
+                kind TEXT NOT NULL DEFAULT 'daily',
+                content TEXT NOT NULL DEFAULT '',
+                created_at DATETIME NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_oracle_reports_created_at ON oracle_reports(created_at DESC);
             """
         )
 
@@ -900,15 +919,243 @@ def _login_redirect(error_message: str = "") -> RedirectResponse:
     return RedirectResponse(url=url, status_code=303)
 
 
+# ─── Oracle engine (4SAPI + APScheduler) ────────────────────────────
+ORACLE_BASE_URL = "https://4sapi.com/v1"
+ORACLE_KEY_NAME = "oracle_api_key"
+ORACLE_MODEL_NAME = "oracle_model"
+ORACLE_TIMEOUT_SECONDS = 60.0
+SHANGHAI_TZ = ZoneInfo("Asia/Shanghai")
+
+_oracle_log = logging.getLogger("axiom.oracle")
+
+
+def mask_api_key(value: str) -> str:
+    """Mask all but first 4 and last 4 chars of an API key for safe display."""
+    if not value:
+        return ""
+    raw = value.strip()
+    if len(raw) <= 8:
+        return "***"
+    return f"{raw[:4]}***{raw[-4:]}"
+
+
+def oracle_read_setting(conn: sqlite3.Connection, key: str) -> str:
+    row = conn.execute("SELECT config_value FROM system_settings WHERE config_key = ?", (key,)).fetchone()
+    if row is None:
+        return ""
+    return str(row["config_value"] or "")
+
+
+def oracle_upsert_setting(conn: sqlite3.Connection, key: str, value: str) -> None:
+    conn.execute(
+        """
+        INSERT INTO system_settings (config_key, config_value)
+        VALUES (?, ?)
+        ON CONFLICT(config_key) DO UPDATE SET config_value = excluded.config_value
+        """,
+        (key, value),
+    )
+
+
+def oracle_load_credentials() -> tuple[str, str]:
+    with connect() as conn:
+        return (
+            oracle_read_setting(conn, ORACLE_KEY_NAME),
+            oracle_read_setting(conn, ORACLE_MODEL_NAME),
+        )
+
+
+def oracle_filter_models(raw_ids: list[str]) -> list[str]:
+    """Keep chat-capable models, drop embedding / tts / image / audio / vision-only IDs."""
+    drop_substrings = (
+        "embedding", "embed", "tts", "whisper", "dall", "image", "vision",
+        "audio", "realtime", "moderation", "search-",
+    )
+    out: list[str] = []
+    seen: set[str] = set()
+    for mid in raw_ids:
+        if not mid or mid in seen:
+            continue
+        lower = mid.lower()
+        if any(token in lower for token in drop_substrings):
+            continue
+        seen.add(mid)
+        out.append(mid)
+    out.sort()
+    return out
+
+
+async def oracle_fetch_models(api_key: str) -> list[str]:
+    """Authenticate against 4SAPI and return the filtered model id list."""
+    client = AsyncOpenAI(api_key=api_key, base_url=ORACLE_BASE_URL, timeout=20.0)
+    try:
+        response = await client.models.list()
+    finally:
+        try:
+            await client.close()
+        except Exception:
+            pass
+    raw_ids = [getattr(m, "id", "") for m in (response.data or [])]
+    return oracle_filter_models([i for i in raw_ids if i])
+
+
+def oracle_today_shanghai() -> str:
+    return datetime.now(SHANGHAI_TZ).strftime("%Y-%m-%d")
+
+
+def oracle_today_has_activity(today_str: str) -> bool:
+    """Return True iff today saw at least one decision or capital transaction."""
+    with connect() as conn:
+        row = conn.execute(
+            """
+            SELECT (
+              (SELECT COUNT(*) FROM decisions  WHERE substr(COALESCE(decided_at, created_at), 1, 10) = ?)
+            + (SELECT COUNT(*) FROM capital_tx WHERE substr(occurred_at, 1, 10) = ?)
+            ) AS hits
+            """,
+            (today_str, today_str),
+        ).fetchone()
+        return int(row["hits"] or 0) > 0
+
+
+def oracle_build_context(today_str: str) -> dict[str, Any]:
+    snapshot = dashboard_snapshot()
+    return {
+        "report_date": today_str,
+        "baseline": snapshot["baseline"],
+        "capital": snapshot["capital"],
+        "active_projects": [
+            {"name": p["name"], "status": p["status"], "risk": p["risk_level"], "roi": p["roi_projection"], "thesis": p["thesis"]}
+            for p in snapshot["projects"]["active"]
+        ],
+        "open_decisions": [
+            {"context": d["context"], "options": d["options"], "rationale": d["rationale"]}
+            for d in snapshot["decisions"]["open"]
+        ],
+        "recent_transactions": snapshot["recent_tx"][:8],
+    }
+
+
+def oracle_persist_report(kind: str, content: str) -> dict[str, Any]:
+    report_id = gen_id("rpt")
+    created_at = datetime.now(SHANGHAI_TZ).strftime("%Y-%m-%d %H:%M:%S")
+    with connect() as conn:
+        conn.execute(
+            "INSERT INTO oracle_reports (id, kind, content, created_at) VALUES (?, ?, ?, ?)",
+            (report_id, kind, content, created_at),
+        )
+        conn.commit()
+    return {"id": report_id, "kind": kind, "content": content, "created_at": created_at}
+
+
+async def oracle_generate_brief(kind: str) -> dict[str, Any]:
+    """Call 4SAPI with the live sandbox snapshot. Persists the resulting Markdown."""
+    api_key, model_name = oracle_load_credentials()
+    if not api_key or not model_name:
+        raise HTTPException(status_code=400, detail="Oracle 未配置 API Key 或模型，请先在控制面板保存。")
+
+    today_str = oracle_today_shanghai()
+    context_data = oracle_build_context(today_str)
+
+    system_prompt = (
+        "你是 Axiom Core 的首席决策官（CDO）。下面是运营者今天的实时商业沙盘 JSON 快照（净头寸、月流水、距离地板的跑道、活跃项目、待决策事项、近期流水）。"
+        "请生成一份冷静、可执行的商业日报，Markdown 格式：\n"
+        "## 今日态势\n## 资金审计（净头寸 / 月度净额 / 跑道 vs 地板）\n## 项目雷达（按风险 × ROI 排序）\n"
+        "## 决策追踪（仍开放的决策与建议）\n## 明日动作（不超过 3 条，必须可立刻执行）\n## 一项应立即停止的事\n"
+        "数据为唯一依据，禁止套话与鸡汤。中文输出，500 字以内。"
+    )
+    user_message = f"Snapshot ({today_str}):\n{json.dumps(context_data, ensure_ascii=False, indent=2)}"
+
+    client = AsyncOpenAI(api_key=api_key, base_url=ORACLE_BASE_URL, timeout=ORACLE_TIMEOUT_SECONDS)
+    try:
+        completion = await client.chat.completions.create(
+            model=model_name,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_message},
+            ],
+            temperature=0.5,
+            max_tokens=1600,
+            stream=False,
+        )
+    finally:
+        try:
+            await client.close()
+        except Exception:
+            pass
+
+    if not completion.choices:
+        raise HTTPException(status_code=502, detail="4SAPI 返回空响应。")
+    content = (completion.choices[0].message.content or "").strip()
+    if not content:
+        raise HTTPException(status_code=502, detail="4SAPI 未返回任何文本。")
+    return oracle_persist_report(kind, content)
+
+
+def oracle_list_reports(limit: int = 50) -> list[dict[str, Any]]:
+    with connect() as conn:
+        rows = conn.execute(
+            "SELECT id, kind, content, created_at FROM oracle_reports ORDER BY created_at DESC, id DESC LIMIT ?",
+            (limit,),
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+
+async def oracle_auto_daily_brief() -> None:
+    """Scheduled at 23:30 Asia/Shanghai. If today saw activity, generate the daily brief."""
+    try:
+        today_str = oracle_today_shanghai()
+        if not oracle_today_has_activity(today_str):
+            _oracle_log.info("auto_daily_brief skipped: no activity for %s", today_str)
+            return
+        api_key, model_name = oracle_load_credentials()
+        if not api_key or not model_name:
+            _oracle_log.warning("auto_daily_brief skipped: oracle credentials not configured")
+            return
+        report = await oracle_generate_brief("daily")
+        _oracle_log.info("auto_daily_brief generated report id=%s len=%d", report["id"], len(report["content"]))
+    except Exception as exc:
+        _oracle_log.exception("auto_daily_brief failed: %r", exc)
+
+
 # ─── App ────────────────────────────────────────────────────────────
 def create_app() -> FastAPI:
     init_db()
     validate_security_config()
+
+    scheduler = AsyncIOScheduler(timezone=SHANGHAI_TZ)
+
+    @asynccontextmanager
+    async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+        scheduler.add_job(
+            oracle_auto_daily_brief,
+            CronTrigger(hour=23, minute=30, timezone=SHANGHAI_TZ),
+            id="oracle_auto_daily_brief",
+            replace_existing=True,
+            coalesce=True,
+            misfire_grace_time=600,
+        )
+        try:
+            scheduler.start()
+            _oracle_log.info("APScheduler started — daily Oracle brief armed at 23:30 Asia/Shanghai")
+        except Exception as exc:
+            _oracle_log.exception("APScheduler failed to start: %r", exc)
+        try:
+            yield
+        finally:
+            try:
+                scheduler.shutdown(wait=False)
+                _oracle_log.info("APScheduler shut down cleanly")
+            except Exception as exc:
+                _oracle_log.exception("APScheduler shutdown failed: %r", exc)
+
     app = FastAPI(
         title="Axiom Core",
         version="4.0.0",
         description="Personal decision intelligence — business sandbox edition.",
+        lifespan=lifespan,
     )
+    app.state.scheduler = scheduler
     app.add_middleware(
         CORSMiddleware,
         allow_origins=["http://127.0.0.1:5173", "http://localhost:5173"],
@@ -1284,6 +1531,76 @@ def create_app() -> FastAPI:
             "provider": provider,
             "context": context_data,
         }
+
+    # ── Oracle 大脑 (4SAPI + APScheduler) ──
+    class OracleVerifyPayload(BaseModel):
+        model_config = ConfigDict(extra="ignore")
+        api_key: str
+
+    class OracleConfigPayload(BaseModel):
+        model_config = ConfigDict(extra="ignore")
+        api_key: str | None = None
+        model_name: str | None = None
+
+    @app.get("/api/oracle/config")
+    def oracle_config_get() -> dict[str, Any]:
+        api_key, model_name = oracle_load_credentials()
+        return {
+            "ok": True,
+            "api_key_masked": mask_api_key(api_key),
+            "api_key_set": bool(api_key),
+            "model_name": model_name,
+            "base_url": ORACLE_BASE_URL,
+            "schedule": "23:30 Asia/Shanghai",
+        }
+
+    @app.post("/api/oracle/verify")
+    async def oracle_config_verify(payload: Annotated[OracleVerifyPayload, Body()]) -> dict[str, Any]:
+        raw_key = (payload.api_key or "").strip()
+        if not raw_key or "***" in raw_key:
+            raise HTTPException(status_code=400, detail="请粘贴完整的 4SAPI 明文 API Key。")
+        try:
+            models = await oracle_fetch_models(raw_key)
+        except AuthenticationError as exc:
+            raise HTTPException(status_code=401, detail="API Key 校验失败（401）：4SAPI 拒绝该密钥。") from exc
+        except APIStatusError as exc:
+            if exc.status_code == 401:
+                raise HTTPException(status_code=401, detail="API Key 校验失败（401）：4SAPI 拒绝该密钥。") from exc
+            raise HTTPException(status_code=502, detail=f"4SAPI 返回错误：HTTP {exc.status_code}") from exc
+        except APIError as exc:
+            raise HTTPException(status_code=502, detail=f"4SAPI 通信失败：{exc!s}") from exc
+        except Exception as exc:
+            raise HTTPException(status_code=500, detail=f"模型拉取失败：{exc!s}") from exc
+        return {"ok": True, "models": models, "total": len(models)}
+
+    @app.post("/api/oracle/config")
+    def oracle_config_save(payload: Annotated[OracleConfigPayload, Body()]) -> dict[str, Any]:
+        raw_key = (payload.api_key or "").strip()
+        model_name = (payload.model_name or "").strip()
+        if not model_name:
+            raise HTTPException(status_code=400, detail="请选择 Model Engine。")
+        with connect() as conn:
+            if raw_key and "***" not in raw_key:
+                oracle_upsert_setting(conn, ORACLE_KEY_NAME, raw_key)
+            oracle_upsert_setting(conn, ORACLE_MODEL_NAME, model_name)
+            conn.commit()
+            stored_key = oracle_read_setting(conn, ORACLE_KEY_NAME)
+            stored_model = oracle_read_setting(conn, ORACLE_MODEL_NAME)
+        return {
+            "ok": True,
+            "api_key_masked": mask_api_key(stored_key),
+            "api_key_set": bool(stored_key),
+            "model_name": stored_model,
+        }
+
+    @app.post("/api/oracle/generate_now")
+    async def oracle_generate_now() -> dict[str, Any]:
+        report = await oracle_generate_brief("manual")
+        return {"ok": True, "report": report}
+
+    @app.get("/api/oracle/reports")
+    def oracle_reports_index(limit: int = Query(default=50, ge=1, le=200)) -> dict[str, Any]:
+        return {"ok": True, "reports": oracle_list_reports(limit)}
 
     # ── App shell catch-all ──
     @app.get("/")
