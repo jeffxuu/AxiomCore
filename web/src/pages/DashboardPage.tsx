@@ -14,34 +14,25 @@ import {
 } from "@/components/ui/dialog";
 import { createTransaction, loadDashboard } from "@/api";
 import { EmptyHint, PageHeader, Panel, StatusDot, formatCNY, netTone } from "@/components/axiom/primitives";
+import { useT } from "@/lib/i18nConfig";
 import type { DashboardPayload, TimelinePoint } from "@/types";
 import { cn } from "@/lib/utils";
 
 type FormState = { kind: "income" | "expense"; amount: string; note: string };
 
 function runwayTone(months: number | null, netPosition: number, floor: number): "positive" | "warning" | "danger" {
-  if (months === null) return "positive"; // cash-flow positive
-  // months below 3 = danger, 3-6 = warning, otherwise OK
+  if (months === null) return "positive";
   if (months <= 3) return "danger";
   if (months <= 6) return "warning";
-  // also red if we're already below floor
   if (netPosition <= floor) return "danger";
   return "positive";
-}
-
-function formatRunway(months: number | null): string {
-  if (months === null) return "∞";
-  if (months >= 99) return "99+";
-  return `${months.toFixed(1)}`;
 }
 
 function Sparkline({ points }: { points: TimelinePoint[] }) {
   const width = 720;
   const height = 90;
   const pad = { top: 8, right: 4, bottom: 8, left: 4 };
-  if (!points.length) {
-    return <div className="h-[90px] w-full" />;
-  }
+  if (!points.length) return <div className="h-[90px] w-full" />;
   const values = points.map((p) => p.net);
   const min = Math.min(...values);
   const max = Math.max(...values);
@@ -55,7 +46,7 @@ function Sparkline({ points }: { points: TimelinePoint[] }) {
   const firstNet = values[0];
   const tone = lastNet >= firstNet ? "var(--positive)" : "var(--danger)";
   return (
-    <svg viewBox={`0 0 ${width} ${height}`} className="h-[90px] w-full" preserveAspectRatio="none" aria-label="30-day net">
+    <svg viewBox={`0 0 ${width} ${height}`} className="h-[90px] w-full" preserveAspectRatio="none" aria-label="net">
       <path d={path} fill="none" stroke={tone} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
@@ -94,6 +85,7 @@ export function DashboardPage({
   navigate: (href: string) => void;
   onStatus: (status: string) => void;
 }) {
+  const t = useT();
   const [data, setData] = useState<DashboardPayload | null>(null);
   const [error, setError] = useState("");
   const [quickOpen, setQuickOpen] = useState(false);
@@ -107,11 +99,11 @@ export function DashboardPage({
       setData(payload);
       onStatus("Live");
     } catch (exc) {
-      const message = exc instanceof Error ? exc.message : "Dashboard fetch failed";
+      const message = exc instanceof Error ? exc.message : t("dashboard.fetch.fail");
       setError(message);
       onStatus("Sync failed");
     }
-  }, [onStatus]);
+  }, [onStatus, t]);
 
   useEffect(() => {
     void refresh();
@@ -120,18 +112,23 @@ export function DashboardPage({
   const submitTx = async () => {
     const amount = Number(form.amount);
     if (!Number.isFinite(amount) || amount <= 0) {
-      toast.error("Amount must be > 0");
+      toast.error(t("dashboard.quick.amount.invalid"));
       return;
     }
     setSubmitting(true);
     try {
       await createTransaction({ kind: form.kind, amount, note: form.note.trim() });
-      toast.success(`${form.kind === "income" ? "Income" : "Expense"} recorded · ${formatCNY(amount)} CNY`);
+      toast.success(
+        t("dashboard.quick.toast", {
+          kind: form.kind === "income" ? t("dashboard.quick.income") : t("dashboard.quick.expense"),
+          x: formatCNY(amount),
+        })
+      );
       setQuickOpen(false);
       setForm({ kind: "expense", amount: "", note: "" });
       void refresh();
     } catch (exc) {
-      toast.error(exc instanceof Error ? exc.message : "Failed to record transaction");
+      toast.error(exc instanceof Error ? exc.message : t("dashboard.quick.fail"));
     } finally {
       setSubmitting(false);
     }
@@ -148,16 +145,16 @@ export function DashboardPage({
   return (
     <div>
       <PageHeader
-        eyebrow="Command Deck"
-        title="Capital snapshot"
-        description="Net position, monthly flow, and distance to the absolute floor. Every action below feeds the next decision."
+        eyebrow={t("dashboard.eyebrow")}
+        title={t("dashboard.title")}
+        description={t("dashboard.desc")}
         actions={
           <Button
             onClick={() => setQuickOpen(true)}
             className="h-9 rounded-lg bg-foreground text-background hover:bg-foreground/90"
           >
             <Plus className="size-4" />
-            Log entry
+            {t("dashboard.action.log")}
           </Button>
         }
       />
@@ -168,12 +165,14 @@ export function DashboardPage({
         </div>
       ) : null}
 
-      {/* Hero capital block */}
       <Panel
-        title="Net position"
+        title={t("dashboard.net.title")}
         subtitle={
           baseline
-            ? `Baseline ${formatCNY(baseline.starting_position, { signed: true })} CNY · since ${baseline.baseline_date}`
+            ? t("dashboard.net.baseline", {
+                x: formatCNY(baseline.starting_position, { signed: true }),
+                date: baseline.baseline_date,
+              })
             : undefined
         }
         actions={
@@ -189,52 +188,63 @@ export function DashboardPage({
           >
             {cap
               ? runwayToneValue === "positive"
-                ? "Cash-flow stable"
+                ? t("dashboard.status.stable")
                 : runwayToneValue === "warning"
-                ? "Watch burn"
-                : "Floor risk"
-              : "Loading"}
+                ? t("dashboard.status.watch")
+                : t("dashboard.status.risk")
+              : t("dashboard.status.loading")}
           </span>
         }
       >
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
           <Stat
-            label="Net position"
+            label={t("dashboard.net.title")}
             value={cap ? `${formatCNY(cap.net_position, { signed: true })}` : "—"}
-            hint="Baseline + Σ(income) − Σ(expense)"
+            hint={t("dashboard.net.formula")}
             tone={cap ? netTone(cap.net_position) : "neutral"}
           />
           <Stat
-            label="Monthly net (30d)"
+            label={t("dashboard.flow.title")}
             value={cap ? `${formatCNY(cap.monthly_net, { signed: true })}` : "—"}
-            hint={cap ? `+${formatCNY(cap.monthly_in)} / −${formatCNY(cap.monthly_out)}` : undefined}
+            hint={
+              cap
+                ? t("dashboard.flow.split", { inflow: formatCNY(cap.monthly_in), outflow: formatCNY(cap.monthly_out) })
+                : undefined
+            }
             tone={cap ? netTone(cap.monthly_net) : "neutral"}
           />
           <Stat
-            label="Runway to floor"
-            value={cap ? `${formatRunway(cap.runway_months)} mo` : "—"}
-            hint={cap ? `Floor ${formatCNY(cap.floor, { signed: true })} CNY` : undefined}
+            label={t("dashboard.runway.title")}
+            value={
+              cap
+                ? cap.runway_months === null
+                  ? t("dashboard.runway.unlimited")
+                  : t("dashboard.runway.unit", { x: cap.runway_months.toFixed(1) })
+                : "—"
+            }
+            hint={cap ? t("dashboard.runway.floor", { x: formatCNY(cap.floor, { signed: true }) }) : undefined}
             tone={runwayToneValue}
           />
           <Stat
-            label="Headroom"
+            label={t("dashboard.headroom.title")}
             value={cap ? `${formatCNY(cap.net_position - cap.floor)} CNY` : "—"}
-            hint="Distance to absolute danger line"
+            hint={t("dashboard.headroom.hint")}
             tone={cap && cap.net_position - cap.floor < 20000 ? "danger" : "neutral"}
           />
         </div>
         <div className="mt-6 border-t border-border pt-4">
           {data ? <Sparkline points={data.timeline} /> : <div className="h-[90px]" />}
-          <p className="mt-1 text-[11px] text-muted-foreground">30-day rolling net position. Last point is today.</p>
+          <p className="mt-1 text-[11px] text-muted-foreground">{t("dashboard.spark.hint")}</p>
         </div>
       </Panel>
 
-      {/* Projects + Decisions side by side */}
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
         <Panel
-          title="Active projects"
+          title={t("dashboard.projects.title")}
           subtitle={
-            data ? `${data.projects.active_count} active / ${data.projects.all_count} total` : "Loading projects…"
+            data
+              ? t("dashboard.projects.subtitle", { active: data.projects.active_count, total: data.projects.all_count })
+              : t("dashboard.projects.loading")
           }
           actions={
             <Button
@@ -243,7 +253,7 @@ export function DashboardPage({
               onClick={() => navigate("/projects")}
               className="h-7 rounded-md text-[12px] text-muted-foreground hover:text-foreground"
             >
-              Open arena
+              {t("dashboard.projects.open")}
               <ArrowRight className="size-3.5" />
             </Button>
           }
@@ -251,7 +261,7 @@ export function DashboardPage({
           {data && data.projects.active.length ? (
             <ul className="divide-y divide-border">
               {data.projects.active.slice(0, 5).map((project) => {
-                const riskTone =
+                const tone =
                   project.risk_level === "extreme"
                     ? "danger"
                     : project.risk_level === "high"
@@ -269,12 +279,12 @@ export function DashboardPage({
                       ) : null}
                     </div>
                     <div className="flex shrink-0 items-center gap-2">
-                      <StatusDot tone={riskTone} />
+                      <StatusDot tone={tone} />
                       <span className="text-[11px] uppercase tracking-wider text-muted-foreground">
-                        {project.risk_level}
+                        {t(`risk.${project.risk_level}`)}
                       </span>
                       <span className="ax-kpi text-[12px] tabular text-foreground">
-                        ROI {project.roi_projection.toFixed(1)}x
+                        {t("projects.roi", { x: project.roi_projection.toFixed(1) })}
                       </span>
                     </div>
                   </li>
@@ -282,16 +292,16 @@ export function DashboardPage({
               })}
             </ul>
           ) : (
-            <EmptyHint title="No active projects" hint="Open the arena to add one." />
+            <EmptyHint title={t("dashboard.projects.empty.title")} hint={t("dashboard.projects.empty.hint")} />
           )}
         </Panel>
 
         <Panel
-          title="Open decisions"
+          title={t("dashboard.decisions.title")}
           subtitle={
             data
-              ? `${data.decisions.open_count} open / ${data.decisions.all_count} logged`
-              : "Loading decisions…"
+              ? t("dashboard.decisions.subtitle", { open: data.decisions.open_count, total: data.decisions.all_count })
+              : t("dashboard.decisions.loading")
           }
           actions={
             <Button
@@ -300,7 +310,7 @@ export function DashboardPage({
               onClick={() => navigate("/decisions")}
               className="h-7 rounded-md text-[12px] text-muted-foreground hover:text-foreground"
             >
-              Open log
+              {t("dashboard.decisions.open")}
               <ArrowRight className="size-3.5" />
             </Button>
           }
@@ -314,25 +324,27 @@ export function DashboardPage({
                     <p className="line-clamp-2 text-[13px] font-medium">{decision.context}</p>
                     {decision.options.length ? (
                       <p className="mt-0.5 text-[11px] text-muted-foreground">
-                        {decision.options.length} option{decision.options.length === 1 ? "" : "s"} · {decision.options.slice(0, 2).join(" · ")}
+                        {t(decision.options.length === 1 ? "dashboard.decisions.optsOne" : "dashboard.decisions.optsMany", {
+                          n: decision.options.length,
+                          preview: decision.options.slice(0, 2).join(" · "),
+                        })}
                       </p>
                     ) : null}
                   </div>
-                  <span className="ax-status ax-status-warning shrink-0">Open</span>
+                  <span className="ax-status ax-status-warning shrink-0">{t("decisions.bucket.open")}</span>
                 </li>
               ))}
             </ul>
           ) : (
-            <EmptyHint title="No open decisions" hint="Log one when you face a non-obvious choice." />
+            <EmptyHint title={t("dashboard.decisions.empty.title")} hint={t("dashboard.decisions.empty.hint")} />
           )}
         </Panel>
       </div>
 
-      {/* Recent transactions */}
       <Panel
         className="mt-6"
-        title="Recent transactions"
-        subtitle="Last 8 ledger entries. Open the Ledger view for the full history."
+        title={t("dashboard.tx.title")}
+        subtitle={t("dashboard.tx.subtitle")}
         actions={
           <Button
             variant="ghost"
@@ -340,7 +352,7 @@ export function DashboardPage({
             onClick={() => navigate("/ledger")}
             className="h-7 rounded-md text-[12px] text-muted-foreground hover:text-foreground"
           >
-            Open ledger
+            {t("dashboard.tx.open")}
             <ArrowRight className="size-3.5" />
           </Button>
         }
@@ -355,8 +367,12 @@ export function DashboardPage({
                 <li key={tx.id} className="flex items-center gap-3 px-5 py-3">
                   <Icon className={cn("size-4 shrink-0", tx.kind === "income" ? "text-[var(--positive)]" : "text-muted-foreground")} />
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-[13px] font-medium">{tx.note || (tx.kind === "income" ? "Income" : "Expense")}</p>
-                    <p className="text-[11px] text-muted-foreground">{tx.occurred_at} · {tx.category || tx.kind}</p>
+                    <p className="truncate text-[13px] font-medium">
+                      {tx.note || (tx.kind === "income" ? t("dashboard.quick.income") : t("dashboard.quick.expense"))}
+                    </p>
+                    <p className="text-[11px] text-muted-foreground">
+                      {tx.occurred_at} · {tx.category || (tx.kind === "income" ? t("dashboard.quick.income") : t("dashboard.quick.expense"))}
+                    </p>
                   </div>
                   <span className={cn("ax-kpi text-[13px] font-medium tabular", valueClass)}>
                     {tx.kind === "income" ? "+" : "−"}
@@ -368,18 +384,17 @@ export function DashboardPage({
           </ul>
         ) : (
           <div className="px-5 py-6">
-            <EmptyHint title="No transactions yet" hint="Log income or expense above to start the curve." />
+            <EmptyHint title={t("dashboard.tx.empty.title")} hint={t("dashboard.tx.empty.hint")} />
           </div>
         )}
       </Panel>
 
-      {/* Quick-log dialog */}
       <Dialog open={quickOpen} onOpenChange={setQuickOpen}>
         <DialogContent className="rounded-xl border-border bg-card">
           <DialogHeader>
-            <DialogTitle className="text-base">Log a transaction</DialogTitle>
+            <DialogTitle className="text-base">{t("dashboard.quick.title")}</DialogTitle>
             <DialogDescription className="text-[12px] text-muted-foreground">
-              One line. This updates the runway calculation instantly.
+              {t("dashboard.quick.desc")}
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-2">
@@ -397,20 +412,20 @@ export function DashboardPage({
                   )}
                 >
                   <span className="block text-[11px] uppercase tracking-wider text-muted-foreground">
-                    {kind === "expense" ? "Outflow" : "Inflow"}
+                    {kind === "expense" ? t("dashboard.quick.outflow") : t("dashboard.quick.inflow")}
                   </span>
-                  {kind === "expense" ? "Expense" : "Income"}
+                  {kind === "expense" ? t("dashboard.quick.expense") : t("dashboard.quick.income")}
                 </button>
               ))}
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="amount" className="text-[11px] uppercase tracking-wider text-muted-foreground">
-                Amount (CNY)
+                {t("dashboard.quick.amount")}
               </Label>
               <Input
                 id="amount"
                 inputMode="decimal"
-                placeholder="e.g. 250"
+                placeholder={t("dashboard.quick.amount.ph")}
                 value={form.amount}
                 onChange={(e) => setForm((s) => ({ ...s, amount: e.target.value }))}
                 className="h-9 rounded-md"
@@ -418,11 +433,11 @@ export function DashboardPage({
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="note" className="text-[11px] uppercase tracking-wider text-muted-foreground">
-                Note
+                {t("dashboard.quick.note")}
               </Label>
               <Input
                 id="note"
-                placeholder="What for?"
+                placeholder={t("dashboard.quick.note.ph")}
                 value={form.note}
                 onChange={(e) => setForm((s) => ({ ...s, note: e.target.value }))}
                 className="h-9 rounded-md"
@@ -431,14 +446,14 @@ export function DashboardPage({
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setQuickOpen(false)} disabled={submitting} className="h-9 rounded-md">
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button
               onClick={submitTx}
               disabled={submitting || !form.amount.trim()}
               className="h-9 rounded-md bg-foreground text-background hover:bg-foreground/90"
             >
-              {submitting ? "Logging…" : "Log"}
+              {submitting ? t("dashboard.quick.submitting") : t("dashboard.quick.confirm")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -448,10 +463,9 @@ export function DashboardPage({
         <div className="mt-6 flex items-start gap-3 rounded-lg border border-[var(--danger)]/40 bg-[var(--danger)]/5 px-4 py-3 text-[13px]">
           <ShieldAlert className="mt-0.5 size-4 text-[var(--danger)]" />
           <div>
-            <p className="font-medium text-[var(--danger)]">Below absolute floor</p>
+            <p className="font-medium text-[var(--danger)]">{t("dashboard.floor.title")}</p>
             <p className="mt-0.5 text-muted-foreground">
-              Net position has crossed the configured floor of {formatCNY(cap.floor, { signed: true })} CNY. Halt commits
-              that increase burn until inflow recovers.
+              {t("dashboard.floor.desc", { x: formatCNY(cap.floor, { signed: true }) })}
             </p>
           </div>
         </div>

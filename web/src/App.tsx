@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { AppShell } from "@/components/layout/AppShell";
 import { probeAuth } from "@/api";
+import { useT } from "@/lib/i18nConfig";
 import { DashboardPage } from "@/pages/DashboardPage";
 import { ProjectsPage } from "@/pages/ProjectsPage";
 import { DecisionsPage } from "@/pages/DecisionsPage";
@@ -14,9 +15,10 @@ type RouteState = { path: string; search: string };
 type AuthStatus = "checking" | "authenticated" | "anonymous";
 
 function AuthSplash() {
+  const t = useT();
   return (
     <div className="flex min-h-screen items-center justify-center bg-background text-muted-foreground">
-      <span className="text-sm">Verifying session…</span>
+      <span className="text-sm">{t("shell.auth.checking")}</span>
     </div>
   );
 }
@@ -30,17 +32,6 @@ function App() {
   const [authStatus, setAuthStatus] = useState<AuthStatus>("checking");
 
   const isLoginRoute = route.path === "/login";
-
-  // Force dark theme; the V4 product is dark-only.
-  useEffect(() => {
-    document.documentElement.setAttribute("data-theme", "dark");
-    document.documentElement.classList.add("dark");
-    try {
-      localStorage.setItem("axiom-theme", "dark");
-    } catch {
-      /* ignore */
-    }
-  }, []);
 
   useEffect(() => {
     const onPop = () => setRoute({ path: window.location.pathname || "/", search: window.location.search });

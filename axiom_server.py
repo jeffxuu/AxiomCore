@@ -38,9 +38,14 @@ PRODUCT_TAGLINE = "Personal Decision Intelligence"
 ROOT = Path(__file__).resolve().parent
 DATA_DIR = ROOT / "data"
 DB_PATH = DATA_DIR / "axiom_core.db"
-LEGACY_APP_FILE = ROOT / "web" / "app.html"
 FRONTEND_DIST = ROOT / "web" / "dist"
 FRONTEND_INDEX = FRONTEND_DIST / "index.html"
+SPA_NOT_BUILT = (
+    "<!doctype html><meta charset='utf-8'><title>Axiom Core</title>"
+    "<pre style='font:13px ui-monospace,monospace;padding:24px;color:#e0525e;'>"
+    "Frontend bundle missing.\n\n"
+    "Run `cd web && npm ci && npm run build` then restart axiom-core.</pre>"
+)
 DOC_ID_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 
 
@@ -950,13 +955,17 @@ def create_app() -> FastAPI:
         app.mount("/assets", StaticFiles(directory=FRONTEND_DIST / "assets"), name="assets")
 
     # ── Static / shell ──
-    @app.get("/login")
-    def login() -> FileResponse:
+    def serve_spa() -> Response:
+        """All HTML routes resolve to the built React bundle — no legacy
+        fallback. If the bundle is missing, we surface a clear operator message
+        instead of silently rendering a stale standalone prototype."""
         if FRONTEND_INDEX.exists():
             return FileResponse(FRONTEND_INDEX, headers={"Cache-Control": "no-store"})
-        if LEGACY_APP_FILE.exists():
-            return FileResponse(LEGACY_APP_FILE, headers={"Cache-Control": "no-store"})
-        return FileResponse(ROOT / "index.html", headers={"Cache-Control": "no-store"})
+        return Response(SPA_NOT_BUILT, status_code=503, media_type="text/html; charset=utf-8")
+
+    @app.get("/login")
+    def login() -> Response:
+        return serve_spa()
 
     @app.get("/api/altcha")
     def altcha_challenge() -> Response:
@@ -1290,12 +1299,8 @@ def create_app() -> FastAPI:
     @app.get("/oracle")
     @app.get("/more")
     @app.get("/settings")
-    def app_shell() -> FileResponse:
-        if FRONTEND_INDEX.exists():
-            return FileResponse(FRONTEND_INDEX, headers={"Cache-Control": "no-store"})
-        if LEGACY_APP_FILE.exists():
-            return FileResponse(LEGACY_APP_FILE, headers={"Cache-Control": "no-store"})
-        return FileResponse(ROOT / "index.html", headers={"Cache-Control": "no-store"})
+    def app_shell() -> Response:
+        return serve_spa()
 
     return app
 

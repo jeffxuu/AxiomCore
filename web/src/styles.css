@@ -6,18 +6,18 @@
 @custom-variant dark (&:is(.dark *, [data-theme="dark"] *));
 
 /*
- * Axiom Core — Linear / Apple visual system.
+ * Axiom Core — Linear / Apple visual system, dual-theme.
  *
- * Type rules:
- *   - Inter as the body face. Comfortable for paragraphs and forms.
- *   - JetBrains Mono only on numerals: financial values, IDs, timestamps,
- *     keyboard keys. Triggered via the `.font-mono` / `.tabular` utility.
+ * Type:
+ *   - Inter as the body face. Comfortable for long-form reading.
+ *   - JetBrains Mono only on numerals — financial values, IDs, timestamps.
+ *     Triggered via `.font-mono`, `.ax-kpi`, `.tabular`.
  *
- * Color rules:
- *   - Two ambient surfaces (page, panel). Borders carry the hierarchy, not
- *     drop-shadows or background washes.
- *   - Status colors (green / amber / red) appear as thin lines or small
- *     dots — never as fills behind text. The eye should glance, not flinch.
+ * Color:
+ *   - Two ambient surfaces per theme (page, panel). Borders carry the
+ *     hierarchy; we don't lean on heavy drop-shadows.
+ *   - Status colors (positive / warning / danger / info) appear only as
+ *     thin lines or tiny dots. Never as fills behind text.
  */
 
 @theme inline {
@@ -68,21 +68,74 @@
   --radius-4xl: 20px;
 }
 
+/* ── LIGHT (default) ─────────────────────────────────────────────── */
 :root,
-.dark,
-[data-theme="dark"],
 [data-theme="light"] {
+  color-scheme: light;
+
+  --background: #ffffff;            /* page */
+  --foreground: #0f1115;            /* primary text */
+  --card: #ffffff;                  /* panel surface */
+  --card-foreground: #0f1115;
+  --popover: #ffffff;
+  --popover-foreground: #0f1115;
+
+  --primary: #0f1115;               /* CTA fill */
+  --primary-foreground: #ffffff;
+
+  --secondary: #f4f5f7;
+  --secondary-foreground: #3a3d44;
+
+  --muted: #f4f5f7;
+  --muted-foreground: #6b7280;
+
+  --accent: #f4f5f7;
+  --accent-foreground: #0f1115;
+
+  --destructive: #d11a2a;
+
+  --border: rgba(15, 17, 21, 0.08);
+  --input: rgba(15, 17, 21, 0.10);
+  --ring: rgba(15, 17, 21, 0.18);
+
+  --positive: #16a34a;
+  --warning: #d97706;
+  --danger:  #d11a2a;
+  --info:    #2563eb;
+
+  --chart-1: var(--positive);
+  --chart-2: var(--info);
+  --chart-3: var(--warning);
+  --chart-4: #7c3aed;
+  --chart-5: var(--danger);
+
+  --radius: 8px;
+
+  --sidebar: #fafbfc;
+  --sidebar-foreground: #3a3d44;
+  --sidebar-primary: #0f1115;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #f0f1f3;
+  --sidebar-accent-foreground: #0f1115;
+  --sidebar-border: rgba(15, 17, 21, 0.06);
+  --sidebar-ring: rgba(15, 17, 21, 0.12);
+
+  --shadow-panel: 0 1px 2px rgba(15, 17, 21, 0.04), 0 1px 0 rgba(15, 17, 21, 0.03);
+}
+
+/* ── DARK ────────────────────────────────────────────────────────── */
+.dark,
+[data-theme="dark"] {
   color-scheme: dark;
 
-  /* Deep, calm neutrals. Two surfaces and a sharper edge for layering. */
-  --background: #08090b;            /* page */
-  --foreground: #ececef;            /* primary text */
-  --card: #0f1115;                  /* panel surface */
+  --background: #08090b;
+  --foreground: #ececef;
+  --card: #0f1115;
   --card-foreground: #ececef;
   --popover: #14171c;
   --popover-foreground: #ececef;
 
-  --primary: #ececef;               /* high-contrast neutral CTA */
+  --primary: #ececef;
   --primary-foreground: #08090b;
 
   --secondary: #14171c;
@@ -100,7 +153,6 @@
   --input: rgba(255, 255, 255, 0.09);
   --ring: rgba(255, 255, 255, 0.16);
 
-  /* Status — used only as 2px lines, dots, or single-glyph icons. */
   --positive: #2ec27e;
   --warning: #e1a83d;
   --danger:  #e0525e;
@@ -112,8 +164,6 @@
   --chart-4: #9b7bff;
   --chart-5: var(--danger);
 
-  --radius: 8px;
-
   --sidebar: #0c0e12;
   --sidebar-foreground: #c8cbd1;
   --sidebar-primary: #ececef;
@@ -122,6 +172,8 @@
   --sidebar-accent-foreground: #ececef;
   --sidebar-border: rgba(255, 255, 255, 0.06);
   --sidebar-ring: rgba(255, 255, 255, 0.12);
+
+  --shadow-panel: 0 0 0 1px rgba(255, 255, 255, 0.02);
 }
 
 @layer base {
@@ -158,10 +210,18 @@
     background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.08);
+    background: rgba(15, 17, 21, 0.12);
     border-radius: 6px;
   }
   ::-webkit-scrollbar-thumb:hover {
+    background: rgba(15, 17, 21, 0.22);
+  }
+  .dark ::-webkit-scrollbar-thumb,
+  [data-theme="dark"] ::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.08);
+  }
+  .dark ::-webkit-scrollbar-thumb:hover,
+  [data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
     background: rgba(255, 255, 255, 0.16);
   }
 
@@ -193,14 +253,22 @@
   input::placeholder,
   textarea::placeholder {
     color: var(--muted-foreground);
-    opacity: 0.65;
+    opacity: 0.7;
   }
 
   input:focus,
   textarea:focus,
   select:focus {
     outline: none;
-    border-color: rgba(255, 255, 255, 0.18);
+    border-color: var(--ring);
+    box-shadow: 0 0 0 3px rgba(15, 17, 21, 0.06);
+  }
+  .dark input:focus,
+  .dark textarea:focus,
+  .dark select:focus,
+  [data-theme="dark"] input:focus,
+  [data-theme="dark"] textarea:focus,
+  [data-theme="dark"] select:focus {
     box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.04);
   }
 
@@ -210,8 +278,12 @@
   }
 
   ::selection {
-    background: rgba(91, 141, 239, 0.32);
+    background: rgba(37, 99, 235, 0.18);
     color: var(--foreground);
+  }
+  .dark ::selection,
+  [data-theme="dark"] ::selection {
+    background: rgba(91, 141, 239, 0.32);
   }
 
   button:not(:disabled),
@@ -231,14 +303,13 @@
 }
 
 @layer components {
-  /* Soft surface card — minimal, only a hairline border. */
   .ax-card {
     background: var(--card);
     border: 1px solid var(--border);
     border-radius: 10px;
+    box-shadow: var(--shadow-panel);
   }
 
-  /* Section heading — small caps would be overkill; just steady, tight type. */
   .ax-eyebrow {
     font-size: 11px;
     line-height: 1.4;
@@ -248,7 +319,6 @@
     text-transform: uppercase;
   }
 
-  /* A pill that uses color only on its leading dot. */
   .ax-status {
     display: inline-flex;
     align-items: center;
@@ -272,7 +342,6 @@
   .ax-status-danger::before   { background: var(--danger); }
   .ax-status-info::before     { background: var(--info); }
 
-  /* A KPI number — display weight, monospace numerics. */
   .ax-kpi {
     font-family: var(--font-mono);
     font-variant-numeric: tabular-nums;
@@ -280,7 +349,6 @@
     letter-spacing: -0.02em;
   }
 
-  /* Subtle key shortcut bubble. */
   .ax-kbd {
     display: inline-flex;
     align-items: center;
@@ -295,7 +363,6 @@
     color: var(--muted-foreground);
   }
 
-  /* Sonner overrides to fit the new aesthetic. */
   [data-sonner-toaster] {
     --normal-bg: var(--card);
     --normal-text: var(--foreground);

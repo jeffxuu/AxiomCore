@@ -14,7 +14,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { createDecision, deleteDecision, loadDecisions, updateDecision, type DecisionInput } from "@/api";
-import { EmptyHint, PageHeader, Panel, formatCNY as _formatCNY } from "@/components/axiom/primitives";
+import { EmptyHint, PageHeader, Panel } from "@/components/axiom/primitives";
+import { useT } from "@/lib/i18nConfig";
 import type { Decision, DecisionStatus } from "@/types";
 import { cn } from "@/lib/utils";
 
@@ -34,9 +35,8 @@ const EMPTY_FORM: DecisionInput & { reviewed_outcome?: string } = {
   status: "open",
 };
 
-void _formatCNY;
-
 export function DecisionsPage({ onStatus }: { onStatus: (status: string) => void }) {
+  const t = useT();
   const [items, setItems] = useState<Decision[]>([]);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Decision | null>(null);
@@ -52,9 +52,9 @@ export function DecisionsPage({ onStatus }: { onStatus: (status: string) => void
       onStatus("Live");
     } catch (exc) {
       onStatus("Sync failed");
-      toast.error(exc instanceof Error ? exc.message : "Failed to load decisions");
+      toast.error(exc instanceof Error ? exc.message : t("decisions.toast.loadFail"));
     }
-  }, [onStatus]);
+  }, [onStatus, t]);
 
   useEffect(() => {
     void refresh();
@@ -84,7 +84,7 @@ export function DecisionsPage({ onStatus }: { onStatus: (status: string) => void
 
   const submit = async () => {
     if (!form.context.trim()) {
-      toast.error("Context is required");
+      toast.error(t("decisions.form.context.required"));
       return;
     }
     const opts = optionsInput
@@ -95,39 +95,42 @@ export function DecisionsPage({ onStatus }: { onStatus: (status: string) => void
     try {
       if (editing) {
         await updateDecision(editing.id, { ...form, options: opts });
-        toast.success("Decision updated");
+        toast.success(t("decisions.toast.updated"));
       } else {
         await createDecision({ ...form, options: opts });
-        toast.success("Decision logged");
+        toast.success(t("decisions.toast.created"));
       }
       setOpen(false);
       void refresh();
     } catch (exc) {
-      toast.error(exc instanceof Error ? exc.message : "Save failed");
+      toast.error(exc instanceof Error ? exc.message : t("decisions.toast.saveFail"));
     } finally {
       setSubmitting(false);
     }
   };
 
   const remove = async (d: Decision) => {
-    if (!window.confirm("Delete this decision entry?")) return;
+    if (!window.confirm(t("decisions.confirm.delete"))) return;
     try {
       await deleteDecision(d.id);
-      toast.success("Decision deleted");
+      toast.success(t("decisions.toast.deleted"));
       void refresh();
     } catch (exc) {
-      toast.error(exc instanceof Error ? exc.message : "Delete failed");
+      toast.error(exc instanceof Error ? exc.message : t("decisions.toast.deleteFail"));
     }
   };
 
   const advance = async (d: Decision) => {
     const next: DecisionStatus = d.status === "open" ? "committed" : "reviewed";
     try {
-      await updateDecision(d.id, { status: next, ...(next === "reviewed" ? { reviewed_at: new Date().toISOString().slice(0, 10) } : {}) });
-      toast.success(`Decision moved to ${next}`);
+      await updateDecision(d.id, {
+        status: next,
+        ...(next === "reviewed" ? { reviewed_at: new Date().toISOString().slice(0, 10) } : {}),
+      });
+      toast.success(t("decisions.toast.advance", { x: t(`decisions.status.${next}`) }));
       void refresh();
     } catch (exc) {
-      toast.error(exc instanceof Error ? exc.message : "Update failed");
+      toast.error(exc instanceof Error ? exc.message : t("decisions.toast.updateFail"));
     }
   };
 
@@ -142,13 +145,13 @@ export function DecisionsPage({ onStatus }: { onStatus: (status: string) => void
   return (
     <div>
       <PageHeader
-        eyebrow="Sandbox"
-        title="Decision audit"
-        description="Every meaningful choice becomes a row here. Capture the context, the options, the rationale, and the expected outcome — review later, honestly."
+        eyebrow={t("decisions.eyebrow")}
+        title={t("decisions.title")}
+        description={t("decisions.desc")}
         actions={
           <Button onClick={openNew} className="h-9 rounded-lg bg-foreground text-background hover:bg-foreground/90">
             <Plus className="size-4" />
-            Log decision
+            {t("decisions.action.new")}
           </Button>
         }
       />
@@ -157,13 +160,16 @@ export function DecisionsPage({ onStatus }: { onStatus: (status: string) => void
         {(["open", "committed", "reviewed"] as const).map((bucket) => (
           <Panel
             key={bucket}
-            title={bucket.charAt(0).toUpperCase() + bucket.slice(1)}
-            subtitle={`${grouped[bucket].length} entr${grouped[bucket].length === 1 ? "y" : "ies"}`}
+            title={t(`decisions.bucket.${bucket}`)}
+            subtitle={t(
+              grouped[bucket].length === 1 ? "decisions.bucket.count.one" : "decisions.bucket.count.other",
+              { n: grouped[bucket].length }
+            )}
             contentClassName="px-0 py-0"
           >
             {grouped[bucket].length === 0 ? (
               <div className="p-5">
-                <EmptyHint title="Empty" hint={bucket === "open" ? "Log decisions as they appear." : undefined} />
+                <EmptyHint title={t("decisions.empty")} hint={bucket === "open" ? t("decisions.empty.hint") : undefined} />
               </div>
             ) : (
               <ul className="divide-y divide-border">
@@ -180,12 +186,14 @@ export function DecisionsPage({ onStatus }: { onStatus: (status: string) => void
                             · {o}
                           </li>
                         ))}
-                        {d.options.length > 4 ? <li className="text-[11px]">+{d.options.length - 4} more</li> : null}
+                        {d.options.length > 4 ? (
+                          <li className="text-[11px]">{t("decisions.row.more", { n: d.options.length - 4 })}</li>
+                        ) : null}
                       </ul>
                     ) : null}
                     {d.choice ? (
                       <p className="pl-6 text-[12px] text-[var(--info)]">
-                        Choice: <span className="text-foreground">{d.choice}</span>
+                        {t("decisions.row.choice", { choice: d.choice })}
                       </p>
                     ) : null}
                     {d.rationale ? (
@@ -193,16 +201,16 @@ export function DecisionsPage({ onStatus }: { onStatus: (status: string) => void
                     ) : null}
                     {d.expected_outcome ? (
                       <p className="line-clamp-2 pl-6 text-[12px] text-muted-foreground">
-                        <span className="text-foreground">Expected:</span> {d.expected_outcome}
+                        {t("decisions.row.expected", { x: d.expected_outcome })}
                       </p>
                     ) : null}
                     {d.reviewed_outcome ? (
                       <p className="line-clamp-2 pl-6 text-[12px] text-[var(--positive)]">
-                        <span className="text-foreground">Actual:</span> {d.reviewed_outcome}
+                        {t("decisions.row.actual", { x: d.reviewed_outcome })}
                       </p>
                     ) : null}
                     <div className="flex items-center justify-between pl-6 pt-1">
-                      <span className={cn("ax-status", STATUS_TONE[d.status])}>{d.status}</span>
+                      <span className={cn("ax-status", STATUS_TONE[d.status])}>{t(`decisions.status.${d.status}`)}</span>
                       <div className="flex items-center gap-1">
                         {d.status !== "reviewed" ? (
                           <Button
@@ -211,18 +219,18 @@ export function DecisionsPage({ onStatus }: { onStatus: (status: string) => void
                             onClick={() => advance(d)}
                             className="h-7 rounded-md text-[12px] text-muted-foreground hover:text-foreground"
                           >
-                            {d.status === "open" ? "Commit" : "Mark reviewed"}
+                            {d.status === "open" ? t("decisions.row.advance.commit") : t("decisions.row.advance.review")}
                             {d.status === "open" ? <ArrowRight className="size-3.5" /> : <CheckCircle2 className="size-3.5" />}
                           </Button>
                         ) : null}
-                        <Button variant="ghost" size="icon-sm" onClick={() => openEdit(d)} aria-label="Edit">
+                        <Button variant="ghost" size="icon-sm" onClick={() => openEdit(d)} aria-label={t("common.edit")}>
                           <Pencil className="size-3.5" />
                         </Button>
                         <Button
                           variant="ghost"
                           size="icon-sm"
                           onClick={() => remove(d)}
-                          aria-label="Delete"
+                          aria-label={t("common.delete")}
                           className="text-muted-foreground hover:text-[var(--danger)]"
                         >
                           <Trash2 className="size-3.5" />
@@ -240,81 +248,96 @@ export function DecisionsPage({ onStatus }: { onStatus: (status: string) => void
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-lg rounded-xl border-border bg-card">
           <DialogHeader>
-            <DialogTitle className="text-base">{editing ? "Edit decision" : "Log a decision"}</DialogTitle>
+            <DialogTitle className="text-base">
+              {editing ? t("decisions.form.title.edit") : t("decisions.form.title.new")}
+            </DialogTitle>
             <DialogDescription className="text-[12px] text-muted-foreground">
-              The honest pre-mortem: write what you saw, what you considered, what you chose, and why.
+              {t("decisions.form.desc")}
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-2">
             <div className="space-y-1.5">
-              <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">Context</Label>
+              <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">
+                {t("decisions.form.context")}
+              </Label>
               <Textarea
                 value={form.context}
                 onChange={(e) => setForm((s) => ({ ...s, context: e.target.value }))}
-                placeholder="What choice are you facing?"
+                placeholder={t("decisions.form.context.ph")}
                 className="min-h-20 rounded-md text-[13px]"
               />
             </div>
             <div className="space-y-1.5">
               <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">
-                Options (one per line)
+                {t("decisions.form.options")}
               </Label>
               <Textarea
                 value={optionsInput}
                 onChange={(e) => setOptionsInput(e.target.value)}
-                placeholder={"Option A\nOption B\nOption C"}
+                placeholder={t("decisions.form.options.ph")}
                 className="min-h-20 rounded-md text-[13px]"
               />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">Choice</Label>
+              <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">
+                {t("decisions.form.choice")}
+              </Label>
               <Input
                 value={form.choice ?? ""}
                 onChange={(e) => setForm((s) => ({ ...s, choice: e.target.value }))}
-                placeholder="The option you picked"
+                placeholder={t("decisions.form.choice.ph")}
                 className="h-9 rounded-md"
               />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">Rationale</Label>
+              <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">
+                {t("decisions.form.rationale")}
+              </Label>
               <Textarea
                 value={form.rationale ?? ""}
                 onChange={(e) => setForm((s) => ({ ...s, rationale: e.target.value }))}
-                placeholder="Why this option?"
+                placeholder={t("decisions.form.rationale.ph")}
                 className="min-h-16 rounded-md text-[13px]"
               />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">Expected outcome</Label>
+              <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">
+                {t("decisions.form.expected")}
+              </Label>
               <Textarea
                 value={form.expected_outcome ?? ""}
                 onChange={(e) => setForm((s) => ({ ...s, expected_outcome: e.target.value }))}
-                placeholder="If this works, what does success look like in 30/90 days?"
+                placeholder={t("decisions.form.expected.ph")}
                 className="min-h-16 rounded-md text-[13px]"
               />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">Status</Label>
+                <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">
+                  {t("decisions.form.status")}
+                </Label>
                 <select
+                  aria-label={t("decisions.form.status")}
                   value={form.status}
                   onChange={(e) => setForm((s) => ({ ...s, status: e.target.value as DecisionStatus }))}
                   className="h-9 w-full rounded-md border border-border bg-background px-2 text-[13px]"
                 >
                   {STATUS_OPTIONS.map((s) => (
                     <option key={s} value={s}>
-                      {s}
+                      {t(`decisions.status.${s}`)}
                     </option>
                   ))}
                 </select>
               </div>
               {form.status === "reviewed" ? (
                 <div className="space-y-1.5">
-                  <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">Actual outcome</Label>
+                  <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">
+                    {t("decisions.form.actual")}
+                  </Label>
                   <Input
                     value={form.reviewed_outcome ?? ""}
                     onChange={(e) => setForm((s) => ({ ...s, reviewed_outcome: e.target.value }))}
-                    placeholder="What actually happened?"
+                    placeholder={t("decisions.form.actual.ph")}
                     className="h-9 rounded-md"
                   />
                 </div>
@@ -323,14 +346,14 @@ export function DecisionsPage({ onStatus }: { onStatus: (status: string) => void
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setOpen(false)} disabled={submitting} className="h-9 rounded-md">
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button
               onClick={submit}
               disabled={submitting || !form.context.trim()}
               className="h-9 rounded-md bg-foreground text-background hover:bg-foreground/90"
             >
-              {submitting ? "Saving…" : editing ? "Save" : "Log"}
+              {submitting ? t("common.saving") : editing ? t("common.save") : t("decisions.form.submit.new")}
             </Button>
           </DialogFooter>
         </DialogContent>

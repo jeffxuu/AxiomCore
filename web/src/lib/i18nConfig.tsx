@@ -1,0 +1,670 @@
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+
+export type Lang = "en" | "zh";
+const STORAGE_KEY = "axiom-lang";
+
+type Dict = Record<string, string>;
+type Replacements = Record<string, string | number>;
+
+/**
+ * Translation dictionary. Keep keys in dotted-section form so we can move
+ * around the UI without renaming every call site. {var} placeholders are
+ * interpolated by `t()`.
+ *
+ * The Chinese translations follow the operator's lexicon: cold,
+ * decision-sandbox vocabulary — not casual UI copy.
+ */
+const DICT: Record<Lang, Dict> = {
+  en: {
+    // ── Brand & nav
+    "brand.tagline": "Personal Decision Intelligence",
+    "nav.section.sandbox": "Sandbox",
+    "nav.section.knowledge": "Knowledge",
+    "nav.section.system": "System",
+    "nav.dashboard": "Dashboard",
+    "nav.dashboard.hint": "Capital & runway",
+    "nav.projects": "Projects",
+    "nav.projects.hint": "Active arena",
+    "nav.decisions": "Decisions",
+    "nav.decisions.hint": "Audit log",
+    "nav.ledger": "Ledger",
+    "nav.ledger.hint": "Income & expense",
+    "nav.vault": "Vault",
+    "nav.vault.hint": "Docs",
+    "nav.oracle": "Oracle",
+    "nav.oracle.hint": "AI brief",
+    "nav.settings": "Settings",
+    "footer.version": "v4.1 · sandbox",
+
+    // ── Shell
+    "shell.status.live": "Live",
+    "shell.status.sync": "Sync",
+    "shell.status.fail": "Sync failed",
+    "shell.signout": "Sign out",
+    "shell.auth.checking": "Verifying session…",
+    "shell.menu.open": "Open menu",
+    "shell.menu.close": "Close menu",
+    "shell.theme.toggle.light": "Switch to light mode",
+    "shell.theme.toggle.dark": "Switch to dark mode",
+    "shell.lang.toggle": "Switch language",
+
+    // ── Common
+    "common.cancel": "Cancel",
+    "common.save": "Save",
+    "common.saving": "Saving…",
+    "common.delete": "Delete",
+    "common.edit": "Edit",
+    "common.create": "Create",
+    "common.loading": "Loading…",
+    "common.search": "Search",
+    "common.untitled": "Untitled",
+
+    // ── Dashboard
+    "dashboard.eyebrow": "Command Deck",
+    "dashboard.title": "Capital snapshot",
+    "dashboard.desc":
+      "Net position, monthly flow, and distance to the absolute floor. Every entry below feeds the next decision.",
+    "dashboard.action.log": "Log entry",
+    "dashboard.net.title": "Net position",
+    "dashboard.net.baseline": "Baseline {x} CNY · since {date}",
+    "dashboard.net.formula": "Baseline + Σ(income) − Σ(expense)",
+    "dashboard.flow.title": "Monthly net (30d)",
+    "dashboard.flow.split": "+{inflow} / −{outflow}",
+    "dashboard.runway.title": "Runway to floor",
+    "dashboard.runway.unit": "{x} mo",
+    "dashboard.runway.unlimited": "∞ mo",
+    "dashboard.runway.floor": "Floor {x} CNY",
+    "dashboard.headroom.title": "Headroom",
+    "dashboard.headroom.hint": "Distance to absolute danger line",
+    "dashboard.status.stable": "Cash-flow stable",
+    "dashboard.status.watch": "Watch burn",
+    "dashboard.status.risk": "Floor risk",
+    "dashboard.status.loading": "Loading",
+    "dashboard.spark.hint": "30-day rolling net position. Last point is today.",
+    "dashboard.projects.title": "Active projects",
+    "dashboard.projects.subtitle": "{active} active / {total} total",
+    "dashboard.projects.loading": "Loading projects…",
+    "dashboard.projects.empty.title": "No active projects",
+    "dashboard.projects.empty.hint": "Open the arena to add one.",
+    "dashboard.projects.open": "Open arena",
+    "dashboard.decisions.title": "Open decisions",
+    "dashboard.decisions.subtitle": "{open} open / {total} logged",
+    "dashboard.decisions.loading": "Loading decisions…",
+    "dashboard.decisions.empty.title": "No open decisions",
+    "dashboard.decisions.empty.hint": "Log one when you face a non-obvious choice.",
+    "dashboard.decisions.open": "Open log",
+    "dashboard.decisions.optsOne": "{n} option · {preview}",
+    "dashboard.decisions.optsMany": "{n} options · {preview}",
+    "dashboard.tx.title": "Recent transactions",
+    "dashboard.tx.subtitle": "Last 8 ledger entries. Open the Ledger view for the full history.",
+    "dashboard.tx.open": "Open ledger",
+    "dashboard.tx.empty.title": "No transactions yet",
+    "dashboard.tx.empty.hint": "Log income or expense above to start the curve.",
+    "dashboard.quick.title": "Log a transaction",
+    "dashboard.quick.desc": "One line. This updates the runway calculation instantly.",
+    "dashboard.quick.outflow": "Outflow",
+    "dashboard.quick.inflow": "Inflow",
+    "dashboard.quick.expense": "Expense",
+    "dashboard.quick.income": "Income",
+    "dashboard.quick.amount": "Amount (CNY)",
+    "dashboard.quick.amount.ph": "e.g. 250",
+    "dashboard.quick.note": "Note",
+    "dashboard.quick.note.ph": "What for?",
+    "dashboard.quick.confirm": "Log",
+    "dashboard.quick.submitting": "Logging…",
+    "dashboard.quick.amount.invalid": "Amount must be > 0",
+    "dashboard.quick.toast": "{kind} recorded · {x} CNY",
+    "dashboard.quick.fail": "Failed to record transaction",
+    "dashboard.floor.title": "Below absolute floor",
+    "dashboard.floor.desc":
+      "Net position has crossed the configured floor of {x} CNY. Halt commits that increase burn until inflow recovers.",
+    "dashboard.fetch.fail": "Dashboard fetch failed",
+
+    // ── Projects
+    "projects.eyebrow": "Sandbox",
+    "projects.title": "Project arena",
+    "projects.desc":
+      "The commercial bets currently in flight. Each row carries its thesis, ROI target, risk level and kill criteria.",
+    "projects.action.new": "New project",
+    "projects.empty.title": "No projects yet",
+    "projects.empty.hint": "Open “New project” to record your first bet.",
+    "projects.kill": "Kill if:",
+    "projects.risk.suffix": "{level} risk",
+    "projects.roi": "ROI target {x}x",
+    "projects.spent": "Spent {spent} / {committed} CNY",
+    "projects.confirm.delete": "Delete “{name}”? This cannot be undone.",
+    "projects.toast.created": "Project added",
+    "projects.toast.updated": "Project updated",
+    "projects.toast.deleted": "Project deleted",
+    "projects.toast.saveFail": "Save failed",
+    "projects.toast.deleteFail": "Delete failed",
+    "projects.toast.loadFail": "Failed to load projects",
+    "projects.form.title.new": "New project",
+    "projects.form.title.edit": "Edit project",
+    "projects.form.desc": "Name and thesis are mandatory in the operator's head; the form only checks name.",
+    "projects.form.name": "Name",
+    "projects.form.name.required": "Name is required",
+    "projects.form.name.ph": "e.g. Cross-border supply chain dropship",
+    "projects.form.thesis": "Thesis",
+    "projects.form.thesis.ph": "Why this should work.",
+    "projects.form.status": "Status",
+    "projects.form.risk": "Risk",
+    "projects.form.roi": "ROI target (x)",
+    "projects.form.committed": "Committed (CNY)",
+    "projects.form.kill": "Kill criteria",
+    "projects.form.kill.ph": "What signal, if observed, kills this project?",
+    "projects.status.active": "active",
+    "projects.status.paused": "paused",
+    "projects.status.killed": "killed",
+    "projects.status.shipped": "shipped",
+    "risk.low": "low",
+    "risk.medium": "medium",
+    "risk.high": "high",
+    "risk.extreme": "extreme",
+
+    // ── Decisions
+    "decisions.eyebrow": "Sandbox",
+    "decisions.title": "Decision audit",
+    "decisions.desc":
+      "Every meaningful choice becomes a row here. Capture the context, options, rationale, and expected outcome — review later, honestly.",
+    "decisions.action.new": "Log decision",
+    "decisions.bucket.open": "Open",
+    "decisions.bucket.committed": "Committed",
+    "decisions.bucket.reviewed": "Reviewed",
+    "decisions.bucket.count.one": "{n} entry",
+    "decisions.bucket.count.other": "{n} entries",
+    "decisions.empty": "Empty",
+    "decisions.empty.hint": "Log decisions as they appear.",
+    "decisions.row.choice": "Choice: {choice}",
+    "decisions.row.expected": "Expected: {x}",
+    "decisions.row.actual": "Actual: {x}",
+    "decisions.row.more": "+{n} more",
+    "decisions.row.advance.commit": "Commit",
+    "decisions.row.advance.review": "Mark reviewed",
+    "decisions.confirm.delete": "Delete this decision entry?",
+    "decisions.toast.created": "Decision logged",
+    "decisions.toast.updated": "Decision updated",
+    "decisions.toast.deleted": "Decision deleted",
+    "decisions.toast.advance": "Decision moved to {x}",
+    "decisions.toast.saveFail": "Save failed",
+    "decisions.toast.loadFail": "Failed to load decisions",
+    "decisions.toast.updateFail": "Update failed",
+    "decisions.toast.deleteFail": "Delete failed",
+    "decisions.form.title.new": "Log a decision",
+    "decisions.form.title.edit": "Edit decision",
+    "decisions.form.desc":
+      "The honest pre-mortem: write what you saw, what you considered, what you chose, and why.",
+    "decisions.form.context": "Context",
+    "decisions.form.context.required": "Context is required",
+    "decisions.form.context.ph": "What choice are you facing?",
+    "decisions.form.options": "Options (one per line)",
+    "decisions.form.options.ph": "Option A\nOption B\nOption C",
+    "decisions.form.choice": "Choice",
+    "decisions.form.choice.ph": "The option you picked",
+    "decisions.form.rationale": "Rationale",
+    "decisions.form.rationale.ph": "Why this option?",
+    "decisions.form.expected": "Expected outcome",
+    "decisions.form.expected.ph": "If this works, what does success look like in 30/90 days?",
+    "decisions.form.actual": "Actual outcome",
+    "decisions.form.actual.ph": "What actually happened?",
+    "decisions.form.status": "Status",
+    "decisions.form.submit.new": "Log",
+    "decisions.status.open": "open",
+    "decisions.status.committed": "committed",
+    "decisions.status.reviewed": "reviewed",
+
+    // ── Ledger
+    "ledger.eyebrow": "Sandbox",
+    "ledger.title": "Ledger",
+    "ledger.desc":
+      "Every yuan in or out. The baseline at the top sets your starting net position; transactions are the diff.",
+    "ledger.action.editBaseline": "Edit baseline",
+    "ledger.action.new": "New transaction",
+    "ledger.empty.title": "No transactions yet",
+    "ledger.empty.hint": "Log an entry to start your runway.",
+    "ledger.baseline.title": "Baseline",
+    "ledger.baseline.subtitle": "Set on {date}",
+    "ledger.baseline.starting": "Starting position",
+    "ledger.tx.form.title": "New transaction",
+    "ledger.tx.toast": "Transaction recorded",
+    "ledger.tx.fail": "Failed",
+    "ledger.tx.confirm.delete": "Delete this transaction?",
+    "ledger.tx.toast.deleted": "Deleted",
+    "ledger.tx.toast.deleteFail": "Delete failed",
+    "ledger.tx.field.amount": "Amount (CNY)",
+    "ledger.tx.field.date": "Date",
+    "ledger.tx.field.note": "Note",
+    "ledger.tx.field.category": "Category",
+    "ledger.tx.field.category.ph": "rent, freelance, ad spend…",
+    "ledger.baseline.form.title": "Edit baseline",
+    "ledger.baseline.form.starting": "Starting position (CNY, negative if in debt)",
+    "ledger.baseline.form.startingNum": "Starting position must be a number",
+    "ledger.baseline.form.date": "Baseline date",
+    "ledger.baseline.form.note": "Note",
+    "ledger.baseline.form.note.ph": "Why this baseline?",
+    "ledger.baseline.toast": "Baseline updated",
+    "ledger.toast.loadFail": "Failed to load ledger",
+
+    // ── Vault
+    "vault.eyebrow": "Knowledge",
+    "vault.title": "Vault",
+    "vault.desc": "Strategy documents. Authoritative copies live in markdown.",
+    "vault.index": "Index",
+    "vault.index.count": "{visible} of {total}",
+    "vault.empty": "Vault empty",
+    "vault.read.fail": "Document read failed",
+    "vault.updated": "Updated {x}",
+    "vault.load.fail": "Failed to load vault",
+
+    // ── Oracle
+    "oracle.eyebrow": "Knowledge",
+    "oracle.title": "Oracle",
+    "oracle.desc":
+      "Hand the live snapshot (capital, projects, decisions, recent transactions) to a model and ask for a brief.",
+    "oracle.run": "Run brief",
+    "oracle.running": "Analyzing…",
+    "oracle.prompt": "Prompt",
+    "oracle.prompt.desc": "Plain English. The server prepends the live snapshot.",
+    "oracle.prompt.default":
+      "Given the snapshot, name the top three actions for the next 7 days, and one thing I should stop doing immediately.",
+    "oracle.prompt.question": "Question",
+    "oracle.model": "Model",
+    "oracle.model.desc": "Picked once, remembered locally.",
+    "oracle.apikey": "API key (optional)",
+    "oracle.apikey.hint": "Stored only in this browser. Overrides server env key.",
+    "oracle.output": "Output",
+    "oracle.output.empty": "Run a brief to see the response here.",
+    "oracle.toast.ok": "Brief generated",
+    "oracle.toast.timeout": "Request timed out",
+    "oracle.toast.failed": "Failed",
+    "oracle.empty.title": "No output yet",
+
+    // ── Settings
+    "settings.eyebrow": "System",
+    "settings.title": "Settings",
+    "settings.desc": "Low-frequency switches for {brand}. The dashboard stays clean.",
+    "settings.rows.aiKey.title": "AI key & model",
+    "settings.rows.aiKey.hint": "Configure Oracle credentials in the Oracle view.",
+    "settings.rows.aiKey.action": "Open Oracle",
+    "settings.rows.ledger.title": "Baseline & ledger",
+    "settings.rows.ledger.hint": "Edit starting position and review every transaction.",
+    "settings.rows.ledger.action": "Open Ledger",
+    "settings.rows.security.title": "Security playbook",
+    "settings.rows.security.hint": "Sensitive-data rules for this public repo.",
+    "settings.rows.security.action": "Read doc",
+    "settings.rows.deploy.title": "Deployment notes",
+    "settings.rows.deploy.hint": "Operator-facing deploy + rollback playbook.",
+    "settings.rows.deploy.action": "Read doc",
+    "settings.account.title": "Account",
+    "settings.account.signout.title": "Sign out",
+    "settings.account.signout.hint": "Returns you to the login screen.",
+    "settings.account.signout.action": "Sign out",
+
+    // ── Login
+    "login.username": "Username",
+    "login.password": "Password",
+    "login.submit": "Sign in",
+    "login.session": "Session lives for {x}.",
+    "login.error.fallback": "Could not read auth config",
+  },
+  zh: {
+    // ── 品牌与导航
+    "brand.tagline": "个人决策智能核心",
+    "nav.section.sandbox": "沙盘",
+    "nav.section.knowledge": "知识库",
+    "nav.section.system": "系统",
+    "nav.dashboard": "指挥台",
+    "nav.dashboard.hint": "资金与跑道",
+    "nav.projects": "项目沙盘",
+    "nav.projects.hint": "活跃押注",
+    "nav.decisions": "决策审计",
+    "nav.decisions.hint": "审计日志",
+    "nav.ledger": "资金账本",
+    "nav.ledger.hint": "收入与支出",
+    "nav.vault": "知识库",
+    "nav.vault.hint": "战略文档",
+    "nav.oracle": "Oracle",
+    "nav.oracle.hint": "AI 简报",
+    "nav.settings": "设置",
+    "footer.version": "v4.1 · 商业沙盘",
+
+    // ── 应用外壳
+    "shell.status.live": "在线",
+    "shell.status.sync": "同步中",
+    "shell.status.fail": "同步失败",
+    "shell.signout": "退出登录",
+    "shell.auth.checking": "校验会话中…",
+    "shell.menu.open": "打开菜单",
+    "shell.menu.close": "关闭菜单",
+    "shell.theme.toggle.light": "切换到日间模式",
+    "shell.theme.toggle.dark": "切换到夜间模式",
+    "shell.lang.toggle": "切换语言",
+
+    // ── 通用
+    "common.cancel": "取消",
+    "common.save": "保存",
+    "common.saving": "保存中…",
+    "common.delete": "删除",
+    "common.edit": "编辑",
+    "common.create": "新建",
+    "common.loading": "加载中…",
+    "common.search": "搜索",
+    "common.untitled": "未命名",
+
+    // ── 指挥台
+    "dashboard.eyebrow": "指挥台",
+    "dashboard.title": "资金快照",
+    "dashboard.desc": "净仓位、月度净流、距离绝对地板的余量。每一条录入都会喂入下一次决策。",
+    "dashboard.action.log": "录入流水",
+    "dashboard.net.title": "净仓位",
+    "dashboard.net.baseline": "基线 {x} CNY · 自 {date}",
+    "dashboard.net.formula": "基线 + Σ(收入) − Σ(支出)",
+    "dashboard.flow.title": "月度净流 (30D)",
+    "dashboard.flow.split": "+{inflow} / −{outflow}",
+    "dashboard.runway.title": "资金跑道",
+    "dashboard.runway.unit": "{x} 月",
+    "dashboard.runway.unlimited": "∞ 月",
+    "dashboard.runway.floor": "地板 {x} CNY",
+    "dashboard.headroom.title": "安全垫",
+    "dashboard.headroom.hint": "距离绝对红线",
+    "dashboard.status.stable": "现金流稳定",
+    "dashboard.status.watch": "警戒消耗",
+    "dashboard.status.risk": "触底风险",
+    "dashboard.status.loading": "加载中",
+    "dashboard.spark.hint": "30 日滚动净仓位。最右点为今日。",
+    "dashboard.projects.title": "活跃项目",
+    "dashboard.projects.subtitle": "{active} 活跃 / {total} 总数",
+    "dashboard.projects.loading": "加载项目中…",
+    "dashboard.projects.empty.title": "暂无活跃项目",
+    "dashboard.projects.empty.hint": "进入项目沙盘添加一个。",
+    "dashboard.projects.open": "进入沙盘",
+    "dashboard.decisions.title": "待决策项",
+    "dashboard.decisions.subtitle": "{open} 待决 / {total} 已记录",
+    "dashboard.decisions.loading": "加载决策中…",
+    "dashboard.decisions.empty.title": "暂无待决策项",
+    "dashboard.decisions.empty.hint": "遇到非显而易见的选择时即时录入。",
+    "dashboard.decisions.open": "打开日志",
+    "dashboard.decisions.optsOne": "{n} 个选项 · {preview}",
+    "dashboard.decisions.optsMany": "{n} 个选项 · {preview}",
+    "dashboard.tx.title": "近期流水",
+    "dashboard.tx.subtitle": "最近 8 条流水。完整历史在「资金账本」视图。",
+    "dashboard.tx.open": "进入账本",
+    "dashboard.tx.empty.title": "暂无流水",
+    "dashboard.tx.empty.hint": "点击上方「录入」开始记账。",
+    "dashboard.quick.title": "录入一笔流水",
+    "dashboard.quick.desc": "单行录入。跑道立即重算。",
+    "dashboard.quick.outflow": "流出",
+    "dashboard.quick.inflow": "流入",
+    "dashboard.quick.expense": "支出",
+    "dashboard.quick.income": "收入",
+    "dashboard.quick.amount": "金额 (CNY)",
+    "dashboard.quick.amount.ph": "例如 250",
+    "dashboard.quick.note": "备注",
+    "dashboard.quick.note.ph": "用途？",
+    "dashboard.quick.confirm": "录入",
+    "dashboard.quick.submitting": "录入中…",
+    "dashboard.quick.amount.invalid": "金额必须大于 0",
+    "dashboard.quick.toast": "{kind} 已录入 · {x} CNY",
+    "dashboard.quick.fail": "流水录入失败",
+    "dashboard.floor.title": "已跌破绝对地板",
+    "dashboard.floor.desc": "净仓位已穿越配置的地板 {x} CNY。在收入回升前，禁止任何放大消耗的承诺。",
+    "dashboard.fetch.fail": "仪表板拉取失败",
+
+    // ── 项目
+    "projects.eyebrow": "沙盘",
+    "projects.title": "项目沙盘",
+    "projects.desc": "当前在投的商业押注。每一行携带其项目论点、预期回报、风险级别与止损红线。",
+    "projects.action.new": "新建项目",
+    "projects.empty.title": "暂无项目",
+    "projects.empty.hint": "点击「新建项目」录入第一笔押注。",
+    "projects.kill": "止损条件：",
+    "projects.risk.suffix": "{level}风险",
+    "projects.roi": "预期回报 {x}x",
+    "projects.spent": "已花 {spent} / {committed} CNY",
+    "projects.confirm.delete": "删除「{name}」？此操作不可撤销。",
+    "projects.toast.created": "项目已新增",
+    "projects.toast.updated": "项目已更新",
+    "projects.toast.deleted": "项目已删除",
+    "projects.toast.saveFail": "保存失败",
+    "projects.toast.deleteFail": "删除失败",
+    "projects.toast.loadFail": "项目加载失败",
+    "projects.form.title.new": "新建项目",
+    "projects.form.title.edit": "编辑项目",
+    "projects.form.desc": "名称与论点在操作员心中是必填的；表单只校验名称。",
+    "projects.form.name": "名称",
+    "projects.form.name.required": "名称为必填项",
+    "projects.form.name.ph": "例如 跨境供应链一件代发",
+    "projects.form.thesis": "项目论点",
+    "projects.form.thesis.ph": "为何此项目能成立。",
+    "projects.form.status": "状态",
+    "projects.form.risk": "风险",
+    "projects.form.roi": "预期回报 (×)",
+    "projects.form.committed": "已承诺 (CNY)",
+    "projects.form.kill": "止损红线",
+    "projects.form.kill.ph": "出现什么信号即终止该项目？",
+    "projects.status.active": "活跃",
+    "projects.status.paused": "暂停",
+    "projects.status.killed": "终止",
+    "projects.status.shipped": "出货",
+    "risk.low": "低",
+    "risk.medium": "中",
+    "risk.high": "高",
+    "risk.extreme": "极",
+
+    // ── 决策
+    "decisions.eyebrow": "沙盘",
+    "decisions.title": "决策审计",
+    "decisions.desc": "每一次有意义的选择都成为这里的一行。记录上下文、可选项、理由、预期结果——日后诚实复盘。",
+    "decisions.action.new": "录入决策",
+    "decisions.bucket.open": "待决",
+    "decisions.bucket.committed": "已承诺",
+    "decisions.bucket.reviewed": "已复盘",
+    "decisions.bucket.count.one": "{n} 条",
+    "decisions.bucket.count.other": "{n} 条",
+    "decisions.empty": "暂无",
+    "decisions.empty.hint": "决策出现时即时录入。",
+    "decisions.row.choice": "选择：{choice}",
+    "decisions.row.expected": "预期：{x}",
+    "decisions.row.actual": "实际：{x}",
+    "decisions.row.more": "还有 {n} 项",
+    "decisions.row.advance.commit": "承诺",
+    "decisions.row.advance.review": "标记已复盘",
+    "decisions.confirm.delete": "删除这条决策记录？",
+    "decisions.toast.created": "决策已录入",
+    "decisions.toast.updated": "决策已更新",
+    "decisions.toast.deleted": "决策已删除",
+    "decisions.toast.advance": "决策已移至「{x}」",
+    "decisions.toast.saveFail": "保存失败",
+    "decisions.toast.loadFail": "决策加载失败",
+    "decisions.toast.updateFail": "更新失败",
+    "decisions.toast.deleteFail": "删除失败",
+    "decisions.form.title.new": "录入决策",
+    "decisions.form.title.edit": "编辑决策",
+    "decisions.form.desc": "诚实的事前剖析：写下你所看到的、所考虑的、所选择的，以及为什么。",
+    "decisions.form.context": "上下文",
+    "decisions.form.context.required": "上下文为必填项",
+    "decisions.form.context.ph": "你正在面临什么选择？",
+    "decisions.form.options": "可选项（每行一个）",
+    "decisions.form.options.ph": "选项 A\n选项 B\n选项 C",
+    "decisions.form.choice": "选择",
+    "decisions.form.choice.ph": "你最终选择的方案",
+    "decisions.form.rationale": "理由",
+    "decisions.form.rationale.ph": "为何选这一项？",
+    "decisions.form.expected": "预期结果",
+    "decisions.form.expected.ph": "若成立，30/90 天的成功是什么样？",
+    "decisions.form.actual": "实际结果",
+    "decisions.form.actual.ph": "实际发生了什么？",
+    "decisions.form.status": "状态",
+    "decisions.form.submit.new": "录入",
+    "decisions.status.open": "待决",
+    "decisions.status.committed": "已承诺",
+    "decisions.status.reviewed": "已复盘",
+
+    // ── 资金账本
+    "ledger.eyebrow": "沙盘",
+    "ledger.title": "资金账本",
+    "ledger.desc": "每一元进出。顶部基线设定起始净仓位，流水即为差值。",
+    "ledger.action.editBaseline": "编辑基线",
+    "ledger.action.new": "新建流水",
+    "ledger.empty.title": "暂无流水",
+    "ledger.empty.hint": "录入一条以启动资金跑道。",
+    "ledger.baseline.title": "基线",
+    "ledger.baseline.subtitle": "设定于 {date}",
+    "ledger.baseline.starting": "起始净仓位",
+    "ledger.tx.form.title": "新建流水",
+    "ledger.tx.toast": "流水已录入",
+    "ledger.tx.fail": "失败",
+    "ledger.tx.confirm.delete": "删除这条流水？",
+    "ledger.tx.toast.deleted": "已删除",
+    "ledger.tx.toast.deleteFail": "删除失败",
+    "ledger.tx.field.amount": "金额 (CNY)",
+    "ledger.tx.field.date": "日期",
+    "ledger.tx.field.note": "备注",
+    "ledger.tx.field.category": "分类",
+    "ledger.tx.field.category.ph": "房租、自由职业、广告投放…",
+    "ledger.baseline.form.title": "编辑基线",
+    "ledger.baseline.form.starting": "起始净仓位 (CNY，负债为负)",
+    "ledger.baseline.form.startingNum": "起始净仓位必须为数字",
+    "ledger.baseline.form.date": "基线日期",
+    "ledger.baseline.form.note": "备注",
+    "ledger.baseline.form.note.ph": "这条基线的备注？",
+    "ledger.baseline.toast": "基线已更新",
+    "ledger.toast.loadFail": "账本加载失败",
+
+    // ── 知识库
+    "vault.eyebrow": "知识库",
+    "vault.title": "战略文档",
+    "vault.desc": "战略文档。权威副本以 Markdown 形式存档。",
+    "vault.index": "索引",
+    "vault.index.count": "{visible} / {total}",
+    "vault.empty": "知识库为空",
+    "vault.read.fail": "文档读取失败",
+    "vault.updated": "更新于 {x}",
+    "vault.load.fail": "知识库加载失败",
+
+    // ── Oracle
+    "oracle.eyebrow": "知识库",
+    "oracle.title": "Oracle",
+    "oracle.desc": "把实时沙盘快照（资金、项目、决策、近期流水）交给模型，请求一份决策简报。",
+    "oracle.run": "生成简报",
+    "oracle.running": "分析中…",
+    "oracle.prompt": "提示",
+    "oracle.prompt.desc": "用普通语言。服务端会在你的提示前拼接实时沙盘快照。",
+    "oracle.prompt.default": "根据快照，给出未来 7 天最重要的三个动作；并指出一件我应立即停止的事。",
+    "oracle.prompt.question": "问题",
+    "oracle.model": "模型",
+    "oracle.model.desc": "选一次，浏览器记住。",
+    "oracle.apikey": "API 密钥 (可选)",
+    "oracle.apikey.hint": "仅存于当前浏览器。会覆盖服务端环境变量。",
+    "oracle.output": "输出",
+    "oracle.output.empty": "生成简报后，结果显示于此。",
+    "oracle.toast.ok": "简报已生成",
+    "oracle.toast.timeout": "请求超时",
+    "oracle.toast.failed": "失败",
+    "oracle.empty.title": "暂无输出",
+
+    // ── 设置
+    "settings.eyebrow": "系统",
+    "settings.title": "设置",
+    "settings.desc": "{brand} 的低频开关。仪表板保持干净。",
+    "settings.rows.aiKey.title": "AI 密钥与模型",
+    "settings.rows.aiKey.hint": "在 Oracle 视图配置凭据。",
+    "settings.rows.aiKey.action": "进入 Oracle",
+    "settings.rows.ledger.title": "基线与账本",
+    "settings.rows.ledger.hint": "编辑起始净仓位与流水。",
+    "settings.rows.ledger.action": "进入账本",
+    "settings.rows.security.title": "安全手册",
+    "settings.rows.security.hint": "公开仓库下的敏感数据规则。",
+    "settings.rows.security.action": "查看文档",
+    "settings.rows.deploy.title": "部署说明",
+    "settings.rows.deploy.hint": "运维视角的部署与回滚手册。",
+    "settings.rows.deploy.action": "查看文档",
+    "settings.account.title": "账户",
+    "settings.account.signout.title": "退出登录",
+    "settings.account.signout.hint": "退出后返回登录页。",
+    "settings.account.signout.action": "退出",
+
+    // ── 登录
+    "login.username": "账号",
+    "login.password": "密码",
+    "login.submit": "登录",
+    "login.session": "会话有效期 {x}。",
+    "login.error.fallback": "无法读取登录配置",
+  },
+};
+
+function format(template: string, vars?: Replacements): string {
+  if (!vars) return template;
+  return template.replace(/\{(\w+)\}/g, (m, key: string) => {
+    if (key in vars) {
+      const value = vars[key];
+      return value === undefined || value === null ? "" : String(value);
+    }
+    return m;
+  });
+}
+
+type LangCtx = {
+  lang: Lang;
+  setLang: (lang: Lang) => void;
+  toggle: () => void;
+  t: (key: string, vars?: Replacements) => string;
+};
+
+const LangContext = createContext<LangCtx>({
+  lang: "en",
+  setLang: () => undefined,
+  toggle: () => undefined,
+  t: (key) => key,
+});
+
+function readStoredLang(): Lang | null {
+  try {
+    const value = localStorage.getItem(STORAGE_KEY);
+    return value === "en" || value === "zh" ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+function browserDefault(): Lang {
+  if (typeof navigator === "undefined") return "en";
+  const navLang = (navigator.language || "en").toLowerCase();
+  return navLang.startsWith("zh") ? "zh" : "en";
+}
+
+export function I18nProvider({ children }: { children: ReactNode }) {
+  const [lang, setLangState] = useState<Lang>(() => readStoredLang() ?? browserDefault());
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, lang);
+    } catch {
+      /* ignore */
+    }
+    document.documentElement.setAttribute("lang", lang === "zh" ? "zh-CN" : "en");
+  }, [lang]);
+
+  const setLang = useCallback((next: Lang) => setLangState(next), []);
+  const toggle = useCallback(() => setLangState((prev) => (prev === "en" ? "zh" : "en")), []);
+
+  const t = useCallback(
+    (key: string, vars?: Replacements) => {
+      const dict = DICT[lang] || DICT.en;
+      const template = dict[key] ?? DICT.en[key] ?? key;
+      return format(template, vars);
+    },
+    [lang]
+  );
+
+  const value = useMemo(() => ({ lang, setLang, toggle, t }), [lang, setLang, toggle, t]);
+  return <LangContext.Provider value={value}>{children}</LangContext.Provider>;
+}
+
+export function useI18n(): LangCtx {
+  return useContext(LangContext);
+}
+
+export function useT(): LangCtx["t"] {
+  return useContext(LangContext).t;
+}

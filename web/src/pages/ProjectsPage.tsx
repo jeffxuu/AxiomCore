@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import { createProject, deleteProject, loadProjects, updateProject, type ProjectInput } from "@/api";
 import { EmptyHint, PageHeader, Panel, StatusDot, formatCNY } from "@/components/axiom/primitives";
+import { useT } from "@/lib/i18nConfig";
 import type { Project, ProjectStatus, RiskLevel } from "@/types";
 import { cn } from "@/lib/utils";
 
@@ -43,6 +44,7 @@ function riskTone(level: RiskLevel): "positive" | "info" | "warning" | "danger" 
 }
 
 export function ProjectsPage({ onStatus }: { onStatus: (status: string) => void }) {
+  const t = useT();
   const [projects, setProjects] = useState<Project[]>([]);
   const [editing, setEditing] = useState<Project | null>(null);
   const [open, setOpen] = useState(false);
@@ -57,9 +59,9 @@ export function ProjectsPage({ onStatus }: { onStatus: (status: string) => void 
       onStatus("Live");
     } catch (exc) {
       onStatus("Sync failed");
-      toast.error(exc instanceof Error ? exc.message : "Failed to load projects");
+      toast.error(exc instanceof Error ? exc.message : t("projects.toast.loadFail"));
     }
-  }, [onStatus]);
+  }, [onStatus, t]);
 
   useEffect(() => {
     void refresh();
@@ -88,48 +90,48 @@ export function ProjectsPage({ onStatus }: { onStatus: (status: string) => void 
 
   const submit = async () => {
     if (!form.name.trim()) {
-      toast.error("Name is required");
+      toast.error(t("projects.form.name.required"));
       return;
     }
     setSubmitting(true);
     try {
       if (editing) {
         await updateProject(editing.id, form);
-        toast.success("Project updated");
+        toast.success(t("projects.toast.updated"));
       } else {
         await createProject(form);
-        toast.success("Project added");
+        toast.success(t("projects.toast.created"));
       }
       setOpen(false);
       void refresh();
     } catch (exc) {
-      toast.error(exc instanceof Error ? exc.message : "Save failed");
+      toast.error(exc instanceof Error ? exc.message : t("projects.toast.saveFail"));
     } finally {
       setSubmitting(false);
     }
   };
 
   const remove = async (p: Project) => {
-    if (!window.confirm(`Delete "${p.name}"? This cannot be undone.`)) return;
+    if (!window.confirm(t("projects.confirm.delete", { name: p.name }))) return;
     try {
       await deleteProject(p.id);
-      toast.success("Project deleted");
+      toast.success(t("projects.toast.deleted"));
       void refresh();
     } catch (exc) {
-      toast.error(exc instanceof Error ? exc.message : "Delete failed");
+      toast.error(exc instanceof Error ? exc.message : t("projects.toast.deleteFail"));
     }
   };
 
   return (
     <div>
       <PageHeader
-        eyebrow="Sandbox"
-        title="Project arena"
-        description="The commercial bets currently in flight. Each row carries its thesis, ROI target, risk level and kill criteria."
+        eyebrow={t("projects.eyebrow")}
+        title={t("projects.title")}
+        description={t("projects.desc")}
         actions={
           <Button onClick={openNew} className="h-9 rounded-lg bg-foreground text-background hover:bg-foreground/90">
             <Plus className="size-4" />
-            New project
+            {t("projects.action.new")}
           </Button>
         }
       />
@@ -137,7 +139,7 @@ export function ProjectsPage({ onStatus }: { onStatus: (status: string) => void 
       <Panel contentClassName="px-0 py-0">
         {projects.length === 0 ? (
           <div className="p-6">
-            <EmptyHint title="No projects yet" hint="Open “New project” to record your first bet." />
+            <EmptyHint title={t("projects.empty.title")} hint={t("projects.empty.hint")} />
           </div>
         ) : (
           <ul className="divide-y divide-border">
@@ -159,37 +161,39 @@ export function ProjectsPage({ onStatus }: { onStatus: (status: string) => void 
                           : "ax-status-info"
                       )}
                     >
-                      {p.status}
+                      {t(`projects.status.${p.status}`)}
                     </span>
                   </div>
                   {p.thesis ? <p className="mt-2 text-[13px] leading-6 text-muted-foreground">{p.thesis}</p> : null}
                   {p.kill_criteria ? (
                     <p className="mt-1 text-[12px] text-muted-foreground">
-                      <span className="text-foreground">Kill if:</span> {p.kill_criteria}
+                      <span className="text-foreground">{t("projects.kill")}</span> {p.kill_criteria}
                     </p>
                   ) : null}
                   <div className="mt-3 flex flex-wrap items-center gap-3 text-[12px]">
                     <span className="flex items-center gap-1.5">
                       <StatusDot tone={riskTone(p.risk_level)} />
-                      <span className="text-muted-foreground uppercase tracking-wider">{p.risk_level} risk</span>
+                      <span className="text-muted-foreground uppercase tracking-wider">
+                        {t("projects.risk.suffix", { level: t(`risk.${p.risk_level}`) })}
+                      </span>
                     </span>
                     <span className="text-muted-foreground">·</span>
-                    <span className="ax-kpi tabular text-foreground">ROI target {p.roi_projection.toFixed(1)}x</span>
+                    <span className="ax-kpi tabular text-foreground">{t("projects.roi", { x: p.roi_projection.toFixed(1) })}</span>
                     <span className="text-muted-foreground">·</span>
                     <span className="ax-kpi tabular text-muted-foreground">
-                      Spent {formatCNY(p.capital_spent)} / {formatCNY(p.capital_committed)} CNY
+                      {t("projects.spent", { spent: formatCNY(p.capital_spent), committed: formatCNY(p.capital_committed) })}
                     </span>
                   </div>
                 </div>
                 <div className="flex items-center gap-1">
-                  <Button variant="ghost" size="icon-sm" onClick={() => openEdit(p)} aria-label="Edit">
+                  <Button variant="ghost" size="icon-sm" onClick={() => openEdit(p)} aria-label={t("common.edit")}>
                     <Pencil className="size-4" />
                   </Button>
                   <Button
                     variant="ghost"
                     size="icon-sm"
                     onClick={() => remove(p)}
-                    aria-label="Delete"
+                    aria-label={t("common.delete")}
                     className="text-muted-foreground hover:text-[var(--danger)]"
                   >
                     <Trash2 className="size-4" />
@@ -204,55 +208,57 @@ export function ProjectsPage({ onStatus }: { onStatus: (status: string) => void 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-lg rounded-xl border-border bg-card">
           <DialogHeader>
-            <DialogTitle className="text-base">{editing ? "Edit project" : "New project"}</DialogTitle>
+            <DialogTitle className="text-base">{editing ? t("projects.form.title.edit") : t("projects.form.title.new")}</DialogTitle>
             <DialogDescription className="text-[12px] text-muted-foreground">
-              Name and thesis are mandatory in the operator's head; the form only checks name.
+              {t("projects.form.desc")}
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-2">
             <div className="space-y-1.5">
-              <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">Name</Label>
+              <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">{t("projects.form.name")}</Label>
               <Input
                 value={form.name}
                 onChange={(e) => setForm((s) => ({ ...s, name: e.target.value }))}
-                placeholder="e.g. Cross-border supply chain dropship"
+                placeholder={t("projects.form.name.ph")}
                 className="h-9 rounded-md"
               />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">Thesis</Label>
+              <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">{t("projects.form.thesis")}</Label>
               <Textarea
                 value={form.thesis ?? ""}
                 onChange={(e) => setForm((s) => ({ ...s, thesis: e.target.value }))}
-                placeholder="Why this should work."
+                placeholder={t("projects.form.thesis.ph")}
                 className="min-h-20 rounded-md text-[13px]"
               />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">Status</Label>
+                <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">{t("projects.form.status")}</Label>
                 <select
+                  aria-label={t("projects.form.status")}
                   value={form.status}
                   onChange={(e) => setForm((s) => ({ ...s, status: e.target.value as ProjectStatus }))}
                   className="h-9 w-full rounded-md border border-border bg-background px-2 text-[13px]"
                 >
                   {STATUS_OPTIONS.map((s) => (
                     <option key={s} value={s}>
-                      {s}
+                      {t(`projects.status.${s}`)}
                     </option>
                   ))}
                 </select>
               </div>
               <div className="space-y-1.5">
-                <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">Risk</Label>
+                <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">{t("projects.form.risk")}</Label>
                 <select
+                  aria-label={t("projects.form.risk")}
                   value={form.risk_level}
                   onChange={(e) => setForm((s) => ({ ...s, risk_level: e.target.value as RiskLevel }))}
                   className="h-9 w-full rounded-md border border-border bg-background px-2 text-[13px]"
                 >
                   {RISK_OPTIONS.map((r) => (
                     <option key={r} value={r}>
-                      {r}
+                      {t(`risk.${r}`)}
                     </option>
                   ))}
                 </select>
@@ -260,7 +266,7 @@ export function ProjectsPage({ onStatus }: { onStatus: (status: string) => void 
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">ROI target (x)</Label>
+                <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">{t("projects.form.roi")}</Label>
                 <Input
                   inputMode="decimal"
                   value={String(form.roi_projection ?? 0)}
@@ -269,7 +275,7 @@ export function ProjectsPage({ onStatus }: { onStatus: (status: string) => void 
                 />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">Committed (CNY)</Label>
+                <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">{t("projects.form.committed")}</Label>
                 <Input
                   inputMode="decimal"
                   value={String(form.capital_committed ?? 0)}
@@ -279,25 +285,25 @@ export function ProjectsPage({ onStatus }: { onStatus: (status: string) => void 
               </div>
             </div>
             <div className="space-y-1.5">
-              <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">Kill criteria</Label>
+              <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">{t("projects.form.kill")}</Label>
               <Textarea
                 value={form.kill_criteria ?? ""}
                 onChange={(e) => setForm((s) => ({ ...s, kill_criteria: e.target.value }))}
-                placeholder="What signal, if observed, kills this project?"
+                placeholder={t("projects.form.kill.ph")}
                 className="min-h-16 rounded-md text-[13px]"
               />
             </div>
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setOpen(false)} disabled={submitting} className="h-9 rounded-md">
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button
               onClick={submit}
               disabled={submitting || !form.name.trim()}
               className="h-9 rounded-md bg-foreground text-background hover:bg-foreground/90"
             >
-              {submitting ? "Saving…" : editing ? "Save" : "Create"}
+              {submitting ? t("common.saving") : editing ? t("common.save") : t("common.create")}
             </Button>
           </DialogFooter>
         </DialogContent>

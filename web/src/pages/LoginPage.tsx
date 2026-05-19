@@ -5,12 +5,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useBrand } from "@/lib/brandConfig";
+import { useT } from "@/lib/i18nConfig";
 import "altcha";
 
 export function LoginPage() {
+  const t = useT();
   const brand = useBrand();
   const [altchaEnabled, setAltchaEnabled] = useState(false);
-  const [sessionTtlLabel, setSessionTtlLabel] = useState("8 小时");
+  const [sessionTtlLabel, setSessionTtlLabel] = useState("8h");
   const [configError, setConfigError] = useState("");
 
   const urlError = new URLSearchParams(window.location.search).get("error") ?? "";
@@ -22,9 +24,9 @@ export function LoginPage() {
         setSessionTtlLabel(payload.sessionTtlLabel);
       })
       .catch((exc: unknown) => {
-        setConfigError(exc instanceof Error ? exc.message : "Could not read auth config");
+        setConfigError(exc instanceof Error ? exc.message : t("login.error.fallback"));
       });
-  }, []);
+  }, [t]);
 
   const errorMessage = configError || urlError;
 
@@ -36,20 +38,20 @@ export function LoginPage() {
         </span>
         <div>
           <h1 className="text-base font-semibold tracking-tight">{brand.brandName}</h1>
-          <p className="text-[12px] text-muted-foreground">{brand.tagline}</p>
+          <p className="text-[12px] text-muted-foreground">{t("brand.tagline")}</p>
         </div>
       </div>
 
       <form method="post" action="/api/login" className="mt-6 space-y-4">
         <div className="space-y-1.5">
           <Label htmlFor="username" className="text-[11px] uppercase tracking-wider text-muted-foreground">
-            Username
+            {t("login.username")}
           </Label>
           <Input id="username" name="username" autoComplete="username" required autoFocus className="h-9 rounded-md" />
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="password" className="text-[11px] uppercase tracking-wider text-muted-foreground">
-            Password
+            {t("login.password")}
           </Label>
           <Input id="password" name="password" type="password" autoComplete="current-password" required className="h-9 rounded-md" />
         </div>
@@ -75,12 +77,12 @@ export function LoginPage() {
           </div>
         ) : null}
         <Button type="submit" className="h-9 w-full rounded-md bg-foreground text-background hover:bg-foreground/90">
-          Sign in
+          {t("login.submit")}
         </Button>
       </form>
 
       <p className="mt-4 text-center text-[11px] text-muted-foreground">
-        Session lives for {sessionTtlLabel}.
+        {t("login.session", { x: sessionTtlLabel })}
       </p>
     </div>
   );

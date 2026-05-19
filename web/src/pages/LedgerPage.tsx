@@ -19,6 +19,7 @@ import {
   updateBaseline,
 } from "@/api";
 import { EmptyHint, PageHeader, Panel, formatCNY } from "@/components/axiom/primitives";
+import { useT } from "@/lib/i18nConfig";
 import type { Baseline, Transaction } from "@/types";
 import { cn } from "@/lib/utils";
 
@@ -29,6 +30,7 @@ function todayIso() {
 }
 
 export function LedgerPage({ onStatus }: { onStatus: (status: string) => void }) {
+  const t = useT();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [baseline, setBaseline] = useState<Baseline | null>(null);
   const [open, setOpen] = useState(false);
@@ -50,9 +52,9 @@ export function LedgerPage({ onStatus }: { onStatus: (status: string) => void })
       onStatus("Live");
     } catch (exc) {
       onStatus("Sync failed");
-      toast.error(exc instanceof Error ? exc.message : "Failed to load ledger");
+      toast.error(exc instanceof Error ? exc.message : t("ledger.toast.loadFail"));
     }
-  }, [onStatus]);
+  }, [onStatus, t]);
 
   useEffect(() => {
     void refresh();
@@ -61,7 +63,7 @@ export function LedgerPage({ onStatus }: { onStatus: (status: string) => void })
   const submitTx = async () => {
     const amount = Number(form.amount);
     if (!Number.isFinite(amount) || amount <= 0) {
-      toast.error("Amount must be > 0");
+      toast.error(t("dashboard.quick.amount.invalid"));
       return;
     }
     setSubmitting(true);
@@ -73,25 +75,25 @@ export function LedgerPage({ onStatus }: { onStatus: (status: string) => void })
         note: form.note,
         category: form.category,
       });
-      toast.success("Transaction recorded");
+      toast.success(t("ledger.tx.toast"));
       setOpen(false);
       setForm({ kind: "expense", amount: "", occurred_at: todayIso(), note: "", category: "" });
       void refresh();
     } catch (exc) {
-      toast.error(exc instanceof Error ? exc.message : "Failed");
+      toast.error(exc instanceof Error ? exc.message : t("ledger.tx.fail"));
     } finally {
       setSubmitting(false);
     }
   };
 
   const remove = async (id: string) => {
-    if (!window.confirm("Delete this transaction?")) return;
+    if (!window.confirm(t("ledger.tx.confirm.delete"))) return;
     try {
       await deleteTransaction(id);
-      toast.success("Deleted");
+      toast.success(t("ledger.tx.toast.deleted"));
       void refresh();
     } catch (exc) {
-      toast.error(exc instanceof Error ? exc.message : "Delete failed");
+      toast.error(exc instanceof Error ? exc.message : t("ledger.tx.toast.deleteFail"));
     }
   };
 
@@ -109,17 +111,17 @@ export function LedgerPage({ onStatus }: { onStatus: (status: string) => void })
   const submitBaseline = async () => {
     const sp = Number(baselineForm.starting_position);
     if (!Number.isFinite(sp)) {
-      toast.error("Starting position must be a number");
+      toast.error(t("ledger.baseline.form.startingNum"));
       return;
     }
     setSubmitting(true);
     try {
       await updateBaseline({ starting_position: sp, baseline_date: baselineForm.baseline_date, note: baselineForm.note });
-      toast.success("Baseline updated");
+      toast.success(t("ledger.baseline.toast"));
       setBaselineOpen(false);
       void refresh();
     } catch (exc) {
-      toast.error(exc instanceof Error ? exc.message : "Failed");
+      toast.error(exc instanceof Error ? exc.message : t("ledger.tx.fail"));
     } finally {
       setSubmitting(false);
     }
@@ -128,28 +130,40 @@ export function LedgerPage({ onStatus }: { onStatus: (status: string) => void })
   return (
     <div>
       <PageHeader
-        eyebrow="Sandbox"
-        title="Ledger"
-        description="Every yuan in or out. The baseline at the top sets your starting net position; transactions are the diff."
+        eyebrow={t("ledger.eyebrow")}
+        title={t("ledger.title")}
+        description={t("ledger.desc")}
         actions={
           <div className="flex items-center gap-2">
             <Button variant="ghost" onClick={openBaseline} className="h-9 rounded-md text-[12px]">
-              Edit baseline
+              {t("ledger.action.editBaseline")}
             </Button>
-            <Button onClick={() => setOpen(true)} className="h-9 rounded-lg bg-foreground text-background hover:bg-foreground/90">
+            <Button
+              onClick={() => setOpen(true)}
+              className="h-9 rounded-lg bg-foreground text-background hover:bg-foreground/90"
+            >
               <Plus className="size-4" />
-              New transaction
+              {t("ledger.action.new")}
             </Button>
           </div>
         }
       />
 
       {baseline ? (
-        <Panel className="mb-6" title="Baseline" subtitle={`Set on ${baseline.baseline_date}`}>
+        <Panel
+          className="mb-6"
+          title={t("ledger.baseline.title")}
+          subtitle={t("ledger.baseline.subtitle", { date: baseline.baseline_date })}
+        >
           <div className="flex flex-wrap items-center gap-6">
             <div>
-              <p className="ax-eyebrow">Starting position</p>
-              <p className={cn("ax-kpi mt-1 text-[20px] font-semibold", baseline.starting_position < 0 ? "text-[var(--danger)]" : "text-[var(--positive)]")}>
+              <p className="ax-eyebrow">{t("ledger.baseline.starting")}</p>
+              <p
+                className={cn(
+                  "ax-kpi mt-1 text-[20px] font-semibold",
+                  baseline.starting_position < 0 ? "text-[var(--danger)]" : "text-[var(--positive)]"
+                )}
+              >
                 {formatCNY(baseline.starting_position, { signed: true })} CNY
               </p>
             </div>
@@ -161,7 +175,7 @@ export function LedgerPage({ onStatus }: { onStatus: (status: string) => void })
       <Panel contentClassName="px-0 py-0">
         {transactions.length === 0 ? (
           <div className="p-6">
-            <EmptyHint title="No transactions yet" hint="Log an entry to start your runway." />
+            <EmptyHint title={t("ledger.empty.title")} hint={t("ledger.empty.hint")} />
           </div>
         ) : (
           <ul className="divide-y divide-border">
@@ -176,9 +190,13 @@ export function LedgerPage({ onStatus }: { onStatus: (status: string) => void })
                     )}
                   />
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-[13px] font-medium">{tx.note || (tx.kind === "income" ? "Income" : "Expense")}</p>
+                    <p className="truncate text-[13px] font-medium">
+                      {tx.note || (tx.kind === "income" ? t("dashboard.quick.income") : t("dashboard.quick.expense"))}
+                    </p>
                     <p className="text-[11px] text-muted-foreground">
-                      {tx.occurred_at} · {tx.category || tx.kind}
+                      {tx.occurred_at} ·{" "}
+                      {tx.category ||
+                        (tx.kind === "income" ? t("dashboard.quick.income") : t("dashboard.quick.expense"))}
                     </p>
                   </div>
                   <span
@@ -194,7 +212,7 @@ export function LedgerPage({ onStatus }: { onStatus: (status: string) => void })
                     variant="ghost"
                     size="icon-sm"
                     onClick={() => remove(tx.id)}
-                    aria-label="Delete"
+                    aria-label={t("common.delete")}
                     className="text-muted-foreground hover:text-[var(--danger)]"
                   >
                     <Trash2 className="size-3.5" />
@@ -210,7 +228,7 @@ export function LedgerPage({ onStatus }: { onStatus: (status: string) => void })
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="rounded-xl border-border bg-card">
           <DialogHeader>
-            <DialogTitle className="text-base">New transaction</DialogTitle>
+            <DialogTitle className="text-base">{t("ledger.tx.form.title")}</DialogTitle>
           </DialogHeader>
           <div className="grid gap-4 py-2">
             <div className="grid grid-cols-2 gap-2">
@@ -227,15 +245,17 @@ export function LedgerPage({ onStatus }: { onStatus: (status: string) => void })
                   )}
                 >
                   <span className="block text-[11px] uppercase tracking-wider text-muted-foreground">
-                    {kind === "expense" ? "Outflow" : "Inflow"}
+                    {kind === "expense" ? t("dashboard.quick.outflow") : t("dashboard.quick.inflow")}
                   </span>
-                  {kind === "expense" ? "Expense" : "Income"}
+                  {kind === "expense" ? t("dashboard.quick.expense") : t("dashboard.quick.income")}
                 </button>
               ))}
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">Amount (CNY)</Label>
+                <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">
+                  {t("ledger.tx.field.amount")}
+                </Label>
                 <Input
                   inputMode="decimal"
                   value={form.amount}
@@ -244,7 +264,9 @@ export function LedgerPage({ onStatus }: { onStatus: (status: string) => void })
                 />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">Date</Label>
+                <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">
+                  {t("ledger.tx.field.date")}
+                </Label>
                 <Input
                   type="date"
                   value={form.occurred_at}
@@ -254,30 +276,34 @@ export function LedgerPage({ onStatus }: { onStatus: (status: string) => void })
               </div>
             </div>
             <div className="space-y-1.5">
-              <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">Note</Label>
+              <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">
+                {t("ledger.tx.field.note")}
+              </Label>
               <Input
                 value={form.note}
                 onChange={(e) => setForm((s) => ({ ...s, note: e.target.value }))}
-                placeholder="What for?"
+                placeholder={t("dashboard.quick.note.ph")}
                 className="h-9 rounded-md"
               />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">Category</Label>
+              <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">
+                {t("ledger.tx.field.category")}
+              </Label>
               <Input
                 value={form.category}
                 onChange={(e) => setForm((s) => ({ ...s, category: e.target.value }))}
-                placeholder="rent, freelance, ad spend…"
+                placeholder={t("ledger.tx.field.category.ph")}
                 className="h-9 rounded-md"
               />
             </div>
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setOpen(false)} disabled={submitting} className="h-9 rounded-md">
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button onClick={submitTx} disabled={submitting} className="h-9 rounded-md bg-foreground text-background hover:bg-foreground/90">
-              {submitting ? "Saving…" : "Save"}
+              {submitting ? t("common.saving") : t("common.save")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -287,11 +313,13 @@ export function LedgerPage({ onStatus }: { onStatus: (status: string) => void })
       <Dialog open={baselineOpen} onOpenChange={setBaselineOpen}>
         <DialogContent className="rounded-xl border-border bg-card">
           <DialogHeader>
-            <DialogTitle className="text-base">Edit baseline</DialogTitle>
+            <DialogTitle className="text-base">{t("ledger.baseline.form.title")}</DialogTitle>
           </DialogHeader>
           <div className="grid gap-4 py-2">
             <div className="space-y-1.5">
-              <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">Starting position (CNY, negative if in debt)</Label>
+              <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">
+                {t("ledger.baseline.form.starting")}
+              </Label>
               <Input
                 inputMode="decimal"
                 value={baselineForm.starting_position}
@@ -301,7 +329,9 @@ export function LedgerPage({ onStatus }: { onStatus: (status: string) => void })
               />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">Baseline date</Label>
+              <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">
+                {t("ledger.baseline.form.date")}
+              </Label>
               <Input
                 type="date"
                 value={baselineForm.baseline_date}
@@ -310,21 +340,23 @@ export function LedgerPage({ onStatus }: { onStatus: (status: string) => void })
               />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">Note</Label>
+              <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">
+                {t("ledger.baseline.form.note")}
+              </Label>
               <Input
                 value={baselineForm.note}
                 onChange={(e) => setBaselineForm((s) => ({ ...s, note: e.target.value }))}
-                placeholder="Why this baseline?"
+                placeholder={t("ledger.baseline.form.note.ph")}
                 className="h-9 rounded-md"
               />
             </div>
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setBaselineOpen(false)} disabled={submitting} className="h-9 rounded-md">
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button onClick={submitBaseline} disabled={submitting} className="h-9 rounded-md bg-foreground text-background hover:bg-foreground/90">
-              {submitting ? "Saving…" : "Save"}
+              {submitting ? t("common.saving") : t("common.save")}
             </Button>
           </DialogFooter>
         </DialogContent>

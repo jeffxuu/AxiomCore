@@ -9,35 +9,36 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useBrand } from "@/lib/brandConfig";
+import { useT } from "@/lib/i18nConfig";
 import { cn } from "@/lib/utils";
 
 type NavItem = {
   href: string;
-  label: string;
+  labelKey: string;
+  hintKey: string;
   Icon: LucideIcon;
-  hint?: string;
 };
 
-const sections: { title: string; items: NavItem[] }[] = [
+const SECTIONS: { titleKey: string; items: NavItem[] }[] = [
   {
-    title: "Sandbox",
+    titleKey: "nav.section.sandbox",
     items: [
-      { href: "/app", label: "Dashboard", Icon: LayoutDashboard, hint: "Capital & runway" },
-      { href: "/projects", label: "Projects", Icon: GitBranch, hint: "Active arena" },
-      { href: "/decisions", label: "Decisions", Icon: Scale, hint: "Audit log" },
-      { href: "/ledger", label: "Ledger", Icon: Receipt, hint: "Income & expense" },
+      { href: "/app", labelKey: "nav.dashboard", hintKey: "nav.dashboard.hint", Icon: LayoutDashboard },
+      { href: "/projects", labelKey: "nav.projects", hintKey: "nav.projects.hint", Icon: GitBranch },
+      { href: "/decisions", labelKey: "nav.decisions", hintKey: "nav.decisions.hint", Icon: Scale },
+      { href: "/ledger", labelKey: "nav.ledger", hintKey: "nav.ledger.hint", Icon: Receipt },
     ],
   },
   {
-    title: "Knowledge",
+    titleKey: "nav.section.knowledge",
     items: [
-      { href: "/vault", label: "Vault", Icon: BookOpen, hint: "Docs" },
-      { href: "/oracle", label: "Oracle", Icon: Sparkles, hint: "AI brief" },
+      { href: "/vault", labelKey: "nav.vault", hintKey: "nav.vault.hint", Icon: BookOpen },
+      { href: "/oracle", labelKey: "nav.oracle", hintKey: "nav.oracle.hint", Icon: Sparkles },
     ],
   },
   {
-    title: "System",
-    items: [{ href: "/settings", label: "Settings", Icon: Settings }],
+    titleKey: "nav.section.system",
+    items: [{ href: "/settings", labelKey: "nav.settings", hintKey: "", Icon: Settings }],
   },
 ];
 
@@ -52,15 +53,14 @@ function isActive(path: string, href: string): boolean {
 export function Sidebar({
   path,
   navigate,
-  status: _status,
   hideHeader,
 }: {
   path: string;
   navigate: (href: string) => void;
-  status: string;
   hideHeader?: boolean;
 }) {
   const brand = useBrand();
+  const t = useT();
   return (
     <div className="flex h-full w-full flex-col bg-[var(--sidebar)] text-[var(--sidebar-foreground)]">
       {hideHeader ? null : (
@@ -74,17 +74,17 @@ export function Sidebar({
           </span>
           <span className="min-w-0">
             <span className="block truncate text-sm font-semibold tracking-tight text-foreground">{brand.brandName}</span>
-            <span className="block truncate text-[11px] text-muted-foreground">{brand.tagline}</span>
+            <span className="block truncate text-[11px] text-muted-foreground">{t("brand.tagline")}</span>
           </span>
         </button>
       )}
 
       <nav className="flex flex-1 flex-col gap-6 overflow-y-auto px-3 py-5" aria-label="Primary">
-        {sections.map((section) => (
-          <div key={section.title} className="space-y-1.5">
-            <p className="px-2 ax-eyebrow">{section.title}</p>
+        {SECTIONS.map((section) => (
+          <div key={section.titleKey} className="space-y-1.5">
+            <p className="px-2 ax-eyebrow">{t(section.titleKey)}</p>
             <ul className="space-y-0.5">
-              {section.items.map(({ href, label, Icon, hint }) => {
+              {section.items.map(({ href, labelKey, hintKey, Icon }) => {
                 const active = isActive(path, href);
                 return (
                   <li key={href}>
@@ -105,10 +105,10 @@ export function Sidebar({
                         )}
                         strokeWidth={1.8}
                       />
-                      <span className="min-w-0 flex-1 truncate">{label}</span>
-                      {hint ? (
+                      <span className="min-w-0 flex-1 truncate">{t(labelKey)}</span>
+                      {hintKey ? (
                         <span className="hidden truncate text-[11px] text-muted-foreground/80 group-hover:text-muted-foreground lg:inline">
-                          {hint}
+                          {t(hintKey)}
                         </span>
                       ) : null}
                     </button>
@@ -121,7 +121,7 @@ export function Sidebar({
       </nav>
 
       <div className="border-t border-[var(--sidebar-border)] px-4 py-3 text-[11px] text-muted-foreground">
-        <span>v4.0 · sandbox</span>
+        <span>{t("footer.version")}</span>
       </div>
     </div>
   );

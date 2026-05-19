@@ -1,22 +1,46 @@
 <!doctype html>
-<html lang="zh-CN" data-theme="dark" class="dark">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#08090b" />
-    <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#08090b" />
     <title>Axiom Core</title>
     <style>
-      html, body { background: #08090b; }
-      body { margin: 0; color: #ececef; font-family: "Inter Variable", "SF Pro Display", system-ui, sans-serif; }
+      :root { color-scheme: light dark; }
+      html, body { margin: 0; }
+      body {
+        font-family: "Inter Variable", "SF Pro Display", system-ui, sans-serif;
+        background: #ffffff;
+        color: #0a0a0a;
+      }
+      html.dark, html[data-theme="dark"] {
+        background: #08090b;
+        color-scheme: dark;
+      }
+      html.dark body, html[data-theme="dark"] body {
+        background: #08090b;
+        color: #ececef;
+      }
     </style>
   </head>
   <body>
     <script>
+      // Pre-paint theme: read stored preference, otherwise fall back to the
+      // OS color scheme. This prevents a light→dark flash on first paint.
       (function () {
-        try { localStorage.setItem('axiom-theme', 'dark'); } catch (_) {}
-        document.documentElement.setAttribute('data-theme', 'dark');
-        document.documentElement.classList.add('dark');
+        try {
+          var stored = localStorage.getItem('axiom-theme');
+          var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+          var theme = stored === 'light' || stored === 'dark' ? stored : (prefersDark ? 'dark' : 'light');
+          document.documentElement.setAttribute('data-theme', theme);
+          document.documentElement.classList.toggle('dark', theme === 'dark');
+          document.documentElement.style.colorScheme = theme;
+        } catch (_) {}
+        try {
+          var lang = localStorage.getItem('axiom-lang');
+          if (lang === 'zh') document.documentElement.setAttribute('lang', 'zh-CN');
+        } catch (_) {}
       })();
     </script>
     <div id="root"></div>

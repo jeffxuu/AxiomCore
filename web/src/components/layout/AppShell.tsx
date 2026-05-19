@@ -1,11 +1,19 @@
 import { useState, type ReactNode } from "react";
-import { LogOut, Menu, X } from "lucide-react";
+import { Languages, LogOut, Menu, Moon, Sun, X } from "lucide-react";
 import { Toaster } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
+import { TooltipProvider, Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { useBrand } from "@/lib/brandConfig";
+import { useTheme } from "@/lib/themeConfig";
+import { useI18n } from "@/lib/i18nConfig";
 import { cn } from "@/lib/utils";
 import { Sidebar } from "./Sidebar";
+
+function statusKey(status: string): { token: string; tone: "positive" | "warning" | "danger" } {
+  if (/fail|error|fail/i.test(status)) return { token: "shell.status.fail", tone: "danger" };
+  if (/sync|loading|saving/i.test(status)) return { token: "shell.status.sync", tone: "warning" };
+  return { token: "shell.status.live", tone: "positive" };
+}
 
 export function AppShell({
   children,
@@ -21,6 +29,8 @@ export function AppShell({
   navigate: (href: string) => void;
 }) {
   const brand = useBrand();
+  const { theme, toggle: toggleTheme } = useTheme();
+  const { lang, toggle: toggleLang, t } = useI18n();
   const [open, setOpen] = useState(false);
 
   if (isLogin) {
@@ -30,28 +40,33 @@ export function AppShell({
           <main className="mx-auto flex min-h-screen max-w-md items-center justify-center px-4 py-10">
             {children}
           </main>
-          <Toaster position="top-right" theme="dark" />
+          <Toaster position="top-right" theme={theme} />
         </div>
       </TooltipProvider>
     );
   }
+
+  const statusInfo = statusKey(status);
+  const statusLabel = t(statusInfo.token);
+  const themeLabel = theme === "dark" ? t("shell.theme.toggle.light") : t("shell.theme.toggle.dark");
+  const langLabel = t("shell.lang.toggle");
 
   return (
     <TooltipProvider delayDuration={150}>
       <div className="flex min-h-screen w-full bg-background text-foreground">
         {/* Desktop sidebar */}
         <aside className="hidden w-60 shrink-0 border-r border-border md:flex">
-          <Sidebar path={path} navigate={navigate} status={status} />
+          <Sidebar path={path} navigate={navigate} />
         </aside>
 
         {/* Mobile sidebar overlay */}
         {open ? (
           <div className="fixed inset-0 z-50 md:hidden">
-            <div className="absolute inset-0 bg-black/60" onClick={() => setOpen(false)} />
+            <div className="absolute inset-0 bg-black/40" onClick={() => setOpen(false)} />
             <aside className="absolute left-0 top-0 h-full w-64 border-r border-border bg-[var(--sidebar)] shadow-xl">
               <div className="flex h-14 items-center justify-between px-4">
                 <span className="text-sm font-semibold tracking-tight">{brand.brandName}</span>
-                <Button variant="ghost" size="icon-sm" onClick={() => setOpen(false)} aria-label="Close menu">
+                <Button variant="ghost" size="icon-sm" onClick={() => setOpen(false)} aria-label={t("shell.menu.close")}>
                   <X className="size-4" />
                 </Button>
               </div>
@@ -62,7 +77,6 @@ export function AppShell({
                     setOpen(false);
                     navigate(href);
                   }}
-                  status={status}
                   hideHeader
                 />
               </div>
@@ -78,30 +92,61 @@ export function AppShell({
               size="icon-sm"
               className="md:hidden"
               onClick={() => setOpen(true)}
-              aria-label="Open menu"
+              aria-label={t("shell.menu.open")}
             >
               <Menu className="size-4" />
             </Button>
             <div className="flex items-center gap-2 md:hidden">
               <span className="text-sm font-semibold tracking-tight">{brand.brandName}</span>
             </div>
-            <div className="ml-auto flex items-center gap-2">
+            <div className="ml-auto flex items-center gap-1.5">
               <span
                 className={cn(
-                  "ax-status",
-                  /fail|error/i.test(status)
+                  "ax-status hidden sm:inline-flex",
+                  statusInfo.tone === "danger"
                     ? "ax-status-danger"
-                    : /sync|loading|saving/i.test(status)
+                    : statusInfo.tone === "warning"
                     ? "ax-status-warning"
                     : "ax-status-positive"
                 )}
               >
-                {status}
+                {statusLabel}
               </span>
+
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    onClick={toggleLang}
+                    aria-label={langLabel}
+                    className="font-mono text-[11px] font-semibold tracking-wider"
+                  >
+                    <Languages className="size-3.5" />
+                    <span className="ml-1">{lang === "en" ? "EN" : "中"}</span>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{langLabel}</TooltipContent>
+              </Tooltip>
+
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="icon-sm" onClick={toggleTheme} aria-label={themeLabel}>
+                    {theme === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{themeLabel}</TooltipContent>
+              </Tooltip>
+
               <form method="post" action="/api/logout" className="hidden sm:block">
-                <Button variant="ghost" size="icon-sm" type="submit" aria-label="Sign out">
-                  <LogOut className="size-4" />
-                </Button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="ghost" size="icon-sm" type="submit" aria-label={t("shell.signout")}>
+                      <LogOut className="size-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>{t("shell.signout")}</TooltipContent>
+                </Tooltip>
               </form>
             </div>
           </header>
@@ -110,7 +155,7 @@ export function AppShell({
           </main>
         </div>
 
-        <Toaster position="top-right" theme="dark" />
+        <Toaster position="top-right" theme={theme} />
       </div>
     </TooltipProvider>
   );

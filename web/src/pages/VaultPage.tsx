@@ -4,10 +4,12 @@ import { Input } from "@/components/ui/input";
 import { loadDoc, loadDocs } from "@/api";
 import { EmptyHint, PageHeader, Panel } from "@/components/axiom/primitives";
 import { MarkdownView } from "@/components/axiom/MarkdownView";
+import { useT } from "@/lib/i18nConfig";
 import type { DocMeta, DocPayload } from "@/types";
 import { cn } from "@/lib/utils";
 
 export function VaultPage({ selectedId, navigate }: { selectedId?: string; navigate: (href: string) => void }) {
+  const t = useT();
   const [docs, setDocs] = useState<DocMeta[]>([]);
   const [query, setQuery] = useState("");
   const [error, setError] = useState("");
@@ -15,8 +17,8 @@ export function VaultPage({ selectedId, navigate }: { selectedId?: string; navig
   useEffect(() => {
     loadDocs()
       .then((payload) => setDocs(payload.docs))
-      .catch((exc) => setError(exc instanceof Error ? exc.message : "Failed to load vault"));
-  }, []);
+      .catch((exc) => setError(exc instanceof Error ? exc.message : t("vault.load.fail")));
+  }, [t]);
 
   const visible = useMemo(() => {
     const keyword = query.trim().toLowerCase();
@@ -36,19 +38,23 @@ export function VaultPage({ selectedId, navigate }: { selectedId?: string; navig
 
   return (
     <div>
-      <PageHeader eyebrow="Knowledge" title="Vault" description="Strategy documents. Authoritative copies live in markdown." />
+      <PageHeader eyebrow={t("vault.eyebrow")} title={t("vault.title")} description={t("vault.desc")} />
       {error ? (
         <div className="mb-4 rounded-lg border border-[var(--danger)]/40 bg-[var(--danger)]/5 px-4 py-3 text-[13px] text-[var(--danger)]">
           {error}
         </div>
       ) : null}
       <div className="grid gap-6 lg:grid-cols-[300px_minmax(0,1fr)]">
-        <Panel title="Index" subtitle={`${visible.length} of ${docs.length}`} contentClassName="space-y-4">
+        <Panel
+          title={t("vault.index")}
+          subtitle={t("vault.index.count", { visible: visible.length, total: docs.length })}
+          contentClassName="space-y-4"
+        >
           <label className="relative block">
             <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
             <Input
               className="h-9 rounded-md pl-8"
-              placeholder="Search"
+              placeholder={t("common.search")}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
             />
@@ -79,13 +85,14 @@ export function VaultPage({ selectedId, navigate }: { selectedId?: string; navig
           </div>
         </Panel>
 
-        {selected ? <DocBody docId={selected} /> : <EmptyHint title="Vault empty" />}
+        {selected ? <DocBody docId={selected} /> : <EmptyHint title={t("vault.empty")} />}
       </div>
     </div>
   );
 }
 
 function DocBody({ docId }: { docId: string }) {
+  const t = useT();
   const [doc, setDoc] = useState<DocPayload | null>(null);
   const [error, setError] = useState("");
   useEffect(() => {
@@ -93,20 +100,22 @@ function DocBody({ docId }: { docId: string }) {
     setError("");
     loadDoc(docId)
       .then(setDoc)
-      .catch((exc) => setError(exc instanceof Error ? exc.message : "Read failed"));
-  }, [docId]);
-  if (error) return <EmptyHint title="Document read failed" hint={error} />;
+      .catch((exc) => setError(exc instanceof Error ? exc.message : t("vault.read.fail")));
+  }, [docId, t]);
+  if (error) return <EmptyHint title={t("vault.read.fail")} hint={error} />;
   if (!doc)
     return (
       <Panel>
-        <p className="text-[13px] text-muted-foreground">Loading…</p>
+        <p className="text-[13px] text-muted-foreground">{t("common.loading")}</p>
       </Panel>
     );
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-card px-4 py-2.5">
         <span className="text-[13px] font-semibold">{doc.title}</span>
-        {doc.updatedAt ? <span className="text-[11px] text-muted-foreground">Updated {doc.updatedAt}</span> : null}
+        {doc.updatedAt ? (
+          <span className="text-[11px] text-muted-foreground">{t("vault.updated", { x: doc.updatedAt })}</span>
+        ) : null}
       </div>
       <MarkdownView content={doc.content} />
     </div>
