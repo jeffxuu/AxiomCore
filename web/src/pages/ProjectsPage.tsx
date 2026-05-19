@@ -14,7 +14,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { createProject, deleteProject, loadProjects, updateProject, type ProjectInput } from "@/api";
-import { EmptyHint, PageHeader, Panel, StatusDot, formatCNY } from "@/components/axiom/primitives";
+import { DomainBadge, DomainSelect, EmptyHint, PageHeader, Panel, StatusDot, formatCNY } from "@/components/axiom/primitives";
 import { useT } from "@/lib/i18nConfig";
 import type { Project, ProjectStatus, RiskLevel } from "@/types";
 import { cn } from "@/lib/utils";
@@ -37,6 +37,7 @@ const EMPTY_FORM: ProjectInput = {
   kill_criteria: "",
   capital_committed: 0,
   capital_spent: 0,
+  domain_tag: "",
 };
 
 function riskTone(level: RiskLevel): "positive" | "info" | "warning" | "danger" {
@@ -84,6 +85,7 @@ export function ProjectsPage({ onStatus }: { onStatus: (status: string) => void 
       kill_criteria: p.kill_criteria,
       capital_committed: p.capital_committed,
       capital_spent: p.capital_spent,
+      domain_tag: p.domain_tag,
     });
     setOpen(true);
   };
@@ -163,6 +165,7 @@ export function ProjectsPage({ onStatus }: { onStatus: (status: string) => void 
                     >
                       {t(`projects.status.${p.status}`)}
                     </span>
+                    {p.domain_tag ? <DomainBadge tag={p.domain_tag} /> : null}
                   </div>
                   {p.thesis ? <p className="mt-2 text-[13px] leading-6 text-muted-foreground">{p.thesis}</p> : null}
                   {p.kill_criteria ? (
@@ -293,6 +296,10 @@ export function ProjectsPage({ onStatus }: { onStatus: (status: string) => void 
                 className="min-h-16 rounded-md text-[13px]"
               />
             </div>
+            <DomainSelect
+              value={form.domain_tag ?? ""}
+              onChange={(next) => setForm((s) => ({ ...s, domain_tag: next }))}
+            />
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setOpen(false)} disabled={submitting} className="h-9 rounded-md">

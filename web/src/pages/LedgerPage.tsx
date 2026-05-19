@@ -18,12 +18,12 @@ import {
   loadTransactions,
   updateBaseline,
 } from "@/api";
-import { EmptyHint, PageHeader, Panel, formatCNY } from "@/components/axiom/primitives";
+import { DomainBadge, DomainSelect, EmptyHint, PageHeader, Panel, formatCNY } from "@/components/axiom/primitives";
 import { useT } from "@/lib/i18nConfig";
 import type { Baseline, Transaction } from "@/types";
 import { cn } from "@/lib/utils";
 
-type TxForm = { kind: "income" | "expense"; amount: string; occurred_at: string; note: string; category: string };
+type TxForm = { kind: "income" | "expense"; amount: string; occurred_at: string; note: string; category: string; domain_tag: string };
 
 function todayIso() {
   return new Date().toISOString().slice(0, 10);
@@ -35,7 +35,7 @@ export function LedgerPage({ onStatus }: { onStatus: (status: string) => void })
   const [baseline, setBaseline] = useState<Baseline | null>(null);
   const [open, setOpen] = useState(false);
   const [baselineOpen, setBaselineOpen] = useState(false);
-  const [form, setForm] = useState<TxForm>({ kind: "expense", amount: "", occurred_at: todayIso(), note: "", category: "" });
+  const [form, setForm] = useState<TxForm>({ kind: "expense", amount: "", occurred_at: todayIso(), note: "", category: "", domain_tag: "" });
   const [baselineForm, setBaselineForm] = useState<{ starting_position: string; baseline_date: string; note: string }>({
     starting_position: "",
     baseline_date: todayIso(),
@@ -74,10 +74,11 @@ export function LedgerPage({ onStatus }: { onStatus: (status: string) => void })
         occurred_at: form.occurred_at,
         note: form.note,
         category: form.category,
+        domain_tag: form.domain_tag || undefined,
       });
       toast.success(t("ledger.tx.toast"));
       setOpen(false);
-      setForm({ kind: "expense", amount: "", occurred_at: todayIso(), note: "", category: "" });
+      setForm({ kind: "expense", amount: "", occurred_at: todayIso(), note: "", category: "", domain_tag: "" });
       void refresh();
     } catch (exc) {
       toast.error(exc instanceof Error ? exc.message : t("ledger.tx.fail"));
@@ -193,11 +194,15 @@ export function LedgerPage({ onStatus }: { onStatus: (status: string) => void })
                     <p className="truncate text-[13px] font-medium">
                       {tx.note || (tx.kind === "income" ? t("dashboard.quick.income") : t("dashboard.quick.expense"))}
                     </p>
-                    <p className="text-[11px] text-muted-foreground">
-                      {tx.occurred_at} ·{" "}
-                      {tx.category ||
-                        (tx.kind === "income" ? t("dashboard.quick.income") : t("dashboard.quick.expense"))}
-                    </p>
+                    <div className="mt-0.5 flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                      <span>{tx.occurred_at}</span>
+                      <span>·</span>
+                      <span>
+                        {tx.category ||
+                          (tx.kind === "income" ? t("dashboard.quick.income") : t("dashboard.quick.expense"))}
+                      </span>
+                      {tx.domain_tag ? <DomainBadge tag={tx.domain_tag} /> : null}
+                    </div>
                   </div>
                   <span
                     className={cn(
@@ -297,6 +302,10 @@ export function LedgerPage({ onStatus }: { onStatus: (status: string) => void })
                 className="h-9 rounded-md"
               />
             </div>
+            <DomainSelect
+              value={form.domain_tag}
+              onChange={(next) => setForm((s) => ({ ...s, domain_tag: next }))}
+            />
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setOpen(false)} disabled={submitting} className="h-9 rounded-md">

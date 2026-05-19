@@ -114,6 +114,7 @@ export type TxInput = {
   note?: string;
   category?: string;
   project_id?: string | null;
+  domain_tag?: string;
 };
 
 export function createTransaction(input: TxInput): Promise<{ ok: true; transaction: Transaction }> {
@@ -138,6 +139,7 @@ export type ProjectInput = {
   kill_criteria?: string;
   capital_committed?: number;
   capital_spent?: number;
+  domain_tag?: string;
 };
 
 export function loadProjects(): Promise<{ ok: true; projects: Project[] }> {
@@ -173,6 +175,7 @@ export type DecisionInput = {
   expected_outcome?: string;
   status?: DecisionStatus;
   decided_at?: string | null;
+  domain_tag?: string;
 };
 
 export function loadDecisions(): Promise<{ ok: true; decisions: Decision[] }> {
@@ -264,4 +267,31 @@ export function generateOracleBrief(): Promise<{ ok: true; report: OracleReport 
 
 export function loadOracleReports(limit = 50): Promise<{ ok: true; reports: OracleReport[] }> {
   return requestJson<{ ok: true; reports: OracleReport[] }>(`/api/oracle/reports?limit=${limit}`);
+}
+
+export type OracleAutoConfig = {
+  ok: true;
+  auto_daily: boolean;
+  auto_weekly: boolean;
+  daily_cron?: string;
+  weekly_cron?: string;
+};
+
+export function loadOracleAuto(): Promise<OracleAutoConfig> {
+  return requestJson<OracleAutoConfig>("/api/oracle/auto");
+}
+
+export function saveOracleAuto(input: { auto_daily?: boolean; auto_weekly?: boolean }): Promise<OracleAutoConfig> {
+  return requestJson<OracleAutoConfig>("/api/oracle/auto", {
+    method: "POST",
+    headers: jsonHeaders,
+    body: JSON.stringify(input),
+  });
+}
+
+// ── Domain registry ──────────────────────────────────────────────
+export type DomainOption = { id: string; label: string };
+
+export function loadDomains(): Promise<{ ok: true; domains: DomainOption[] }> {
+  return requestJson<{ ok: true; domains: DomainOption[] }>("/api/domains");
 }

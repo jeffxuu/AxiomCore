@@ -312,6 +312,15 @@ const DICT: Record<Lang, Dict> = {
     "oracle.status.unset": "4SAPI credentials not configured",
     "oracle.report.empty": "Select a report on the left to view its body.",
     "oracle.toast.generated": "Brief generated",
+    "oracle.auto.daily.title": "Daily auto brief",
+    "oracle.auto.daily.hint": "23:30 Asia/Shanghai — idempotent. Skips if no activity or report already exists.",
+    "oracle.auto.weekly.title": "Weekly auto brief",
+    "oracle.auto.weekly.hint": "Sunday 23:00 Asia/Shanghai — ISO-week scope, same idempotency rules.",
+    "oracle.auto.saved": "Schedule updated",
+    "oracle.execution.weekly": "Manual weekly brief",
+    "oracle.execution.weekly.triggering": "Generating weekly…",
+    "oracle.behavior.title": "Behavior-anchored",
+    "oracle.behavior.detail": "Oracle only audits domains that saw activity today. Idle domains stay silent.",
 
     // ── Settings
     "settings.eyebrow": "System",
@@ -630,6 +639,15 @@ const DICT: Record<Lang, Dict> = {
     "oracle.status.unset": "尚未配置 4SAPI 凭据",
     "oracle.report.empty": "在左侧选择一份报告以查看正文。",
     "oracle.toast.generated": "简报已生成",
+    "oracle.auto.daily.title": "每日自动审计简报",
+    "oracle.auto.daily.hint": "上海时区 23:30 触发；幂等执行——若当天无业务行为或已存在日报，自动跳过。",
+    "oracle.auto.weekly.title": "每周自动审计周报",
+    "oracle.auto.weekly.hint": "周日 23:00 触发；覆盖本周一至周日所有归档记录，遵循相同的幂等规则。",
+    "oracle.auto.saved": "排程已更新",
+    "oracle.execution.weekly": "手动生成周报",
+    "oracle.execution.weekly.triggering": "正在生成周报…",
+    "oracle.behavior.title": "基于行为的审计",
+    "oracle.behavior.detail": "Oracle 只评判今天有归档动作的领域；没有动作的领域不会被点名——侧面证明那天可能没产出。",
 
     // ── 设置
     "settings.eyebrow": "系统",

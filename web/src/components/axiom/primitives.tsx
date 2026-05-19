@@ -1,4 +1,7 @@
 import type { ReactNode } from "react";
+import { useEffect, useState } from "react";
+import { loadDomains, type DomainOption } from "@/api";
+import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 
 /**
@@ -92,4 +95,73 @@ export function netTone(value: number): "positive" | "danger" | "neutral" {
   if (value > 0) return "positive";
   if (value < 0) return "danger";
   return "neutral";
+}
+
+// ─── Domain registry (cached) ───────────────────────────────────────
+let _domainsCache: DomainOption[] | null = null;
+let _domainsPromise: Promise<DomainOption[]> | null = null;
+
+export function useDomains(): DomainOption[] {
+  const [domains, setDomains] = useState<DomainOption[]>(_domainsCache ?? []);
+  useEffect(() => {
+    if (_domainsCache) return;
+    if (!_domainsPromise) {
+      _domainsPromise = loadDomains()
+        .then((p) => {
+          _domainsCache = p.domains;
+          return p.domains;
+        })
+        .catch(() => []);
+    }
+    _domainsPromise.then((list) => setDomains(list));
+  }, []);
+  return domains;
+}
+
+export function DomainSelect({
+  value,
+  onChange,
+  label = "归档至领域",
+  placeholder = "未归档（可稍后补）",
+  className,
+  disabled,
+}: {
+  value: string;
+  onChange: (next: string) => void;
+  label?: string;
+  placeholder?: string;
+  className?: string;
+  disabled?: boolean;
+}) {
+  const domains = useDomains();
+  return (
+    <div className={cn("space-y-1.5", className)}>
+      <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">{label}</Label>
+      <select
+        aria-label={label}
+        value={value || ""}
+        onChange={(e) => onChange(e.target.value)}
+        disabled={disabled}
+        className="h-9 w-full rounded-md border border-border bg-background px-2 text-[13px] disabled:opacity-50"
+      >
+        <option value="">{placeholder}</option>
+        {domains.map((d) => (
+          <option key={d.id} value={d.id}>
+            {d.label}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
+export function DomainBadge({ tag }: { tag: string }) {
+  const domains = useDomains();
+  if (!tag) return null;
+  const label = domains.find((d) => d.id === tag)?.label ?? tag;
+  return (
+    <span className="inline-flex items-center rounded-md border border-border/70 bg-muted/40 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+      {label}
+    </span>
+  );
 }

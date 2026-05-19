@@ -125,6 +125,7 @@ class CapitalTxIn(BaseModel):
     note: str | None = ""
     category: str | None = ""
     project_id: str | None = None
+    domain_tag: str | None = ""
 
 
 class ProjectIn(BaseModel):
@@ -137,6 +138,7 @@ class ProjectIn(BaseModel):
     kill_criteria: str | None = ""
     capital_committed: float | None = 0
     capital_spent: float | None = 0
+    domain_tag: str | None = ""
 
 
 class ProjectPatch(BaseModel):
@@ -149,6 +151,7 @@ class ProjectPatch(BaseModel):
     kill_criteria: str | None = None
     capital_committed: float | None = None
     capital_spent: float | None = None
+    domain_tag: str | None = None
 
 
 class DecisionIn(BaseModel):
@@ -160,6 +163,7 @@ class DecisionIn(BaseModel):
     expected_outcome: str | None = ""
     status: str = "open"  # open | committed | reviewed
     decided_at: str | None = None
+    domain_tag: str | None = ""
 
 
 class DecisionPatch(BaseModel):
@@ -172,6 +176,37 @@ class DecisionPatch(BaseModel):
     status: str | None = None
     reviewed_outcome: str | None = None
     reviewed_at: str | None = None
+    domain_tag: str | None = None
+
+
+# ─── Domain registry ─────────────────────────────────────────────────
+# Behavior-anchored archiving: each business-flow record (capital_tx,
+# project, decision) carries a `domain_tag` keyed to one of the nine
+# operator domains. The directory layout under repo root mirrors these IDs.
+DOMAIN_TAGS: list[dict[str, str]] = [
+    {"id": "01_health",        "label": "01_健康",   "dir": "01_Health"},
+    {"id": "02_cashflow",      "label": "02_现金流", "dir": "02_Cashflow"},
+    {"id": "03_career",        "label": "03_职业",   "dir": "03_Career"},
+    {"id": "04_skills",        "label": "04_技能",   "dir": "04_Skills"},
+    {"id": "05_projects",      "label": "05_项目",   "dir": "05_Projects"},
+    {"id": "06_cognition",     "label": "06_认知",   "dir": "06_Cognition"},
+    {"id": "07_relationships", "label": "07_关系",   "dir": "07_Relationships"},
+    {"id": "08_decisions",     "label": "08_决策",   "dir": "08_Decisions"},
+    {"id": "09_principles",    "label": "09_原则",   "dir": "09_Principles"},
+]
+DOMAIN_IDS: set[str] = {d["id"] for d in DOMAIN_TAGS}
+DOMAIN_LABEL_BY_ID: dict[str, str] = {d["id"]: d["label"] for d in DOMAIN_TAGS}
+
+
+def normalize_domain_tag(value: Any) -> str:
+    if value is None:
+        return ""
+    raw = str(value).strip().lower()
+    if not raw:
+        return ""
+    if raw not in DOMAIN_IDS:
+        raise HTTPException(status_code=400, detail=f"invalid domain_tag: {value}")
+    return raw
 
 
 # ─── Oracle request payloads (must live at module scope) ────────────
@@ -193,6 +228,12 @@ class OracleConfigIn(BaseModel):
     model_config = ConfigDict(extra="ignore", protected_namespaces=())
     api_key: str | None = None
     model_name: str | None = None
+
+
+class OracleAutoConfigIn(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    auto_daily: bool | None = None
+    auto_weekly: bool | None = None
 
 
 # ─── Utilities ──────────────────────────────────────────────────────
@@ -311,6 +352,14 @@ def init_db() -> None:
                 "INSERT INTO capital_baseline (id, starting_position, baseline_date, note, updated_at) VALUES (1, ?, ?, ?, ?)",
                 (-50000.0, today_iso(), "Initial debt baseline", now_iso()),
             )
+
+        # Additive migration: tag every business-flow record with one of the
+        # nine operator domains. Safe to re-run — checks PRAGMA table_info.
+        for table in ("capital_tx", "projects", "decisions"):
+            cols = {r["name"] for r in conn.execute(f"PRAGMA table_info({table})").fetchall()}
+            if "domain_tag" not in cols:
+                conn.execute(f"ALTER TABLE {table} ADD COLUMN domain_tag TEXT NOT NULL DEFAULT ''")
+                conn.execute(f"CREATE INDEX IF NOT EXISTS idx_{table}_domain_tag ON {table}(domain_tag)")
         conn.commit()
 
 
@@ -362,11 +411,12 @@ def insert_capital_tx(payload: CapitalTxIn) -> dict[str, Any]:
     occurred_at = (payload.occurred_at or today_iso()).strip()
     if not re.match(r"^\d{4}-\d{2}-\d{2}", occurred_at):
         occurred_at = today_iso()
+    domain_tag = normalize_domain_tag(payload.domain_tag)
     tx_id = gen_id("tx")
     created_at = now_iso()
     with connect() as conn:
         conn.execute(
-            "INSERT INTO capital_tx (id, kind, amount, occurred_at, note, category, project_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO capital_tx (id, kind, amount, occurred_at, note, category, project_id, domain_tag, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (
                 tx_id,
                 payload.kind,
@@ -375,6 +425,7 @@ def insert_capital_tx(payload: CapitalTxIn) -> dict[str, Any]:
                 (payload.note or "").strip(),
                 (payload.category or "").strip(),
                 payload.project_id,
+                domain_tag,
                 created_at,
             ),
         )
@@ -404,13 +455,14 @@ def insert_project(payload: ProjectIn) -> dict[str, Any]:
         raise HTTPException(status_code=400, detail="invalid status")
     if payload.risk_level not in {"low", "medium", "high", "extreme"}:
         raise HTTPException(status_code=400, detail="invalid risk_level")
+    domain_tag = normalize_domain_tag(payload.domain_tag)
     pid = gen_id("prj")
     ts = now_iso()
     with connect() as conn:
         conn.execute(
             """
-            INSERT INTO projects (id, name, status, thesis, roi_projection, risk_level, kill_criteria, capital_committed, capital_spent, started_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO projects (id, name, status, thesis, roi_projection, risk_level, kill_criteria, capital_committed, capital_spent, domain_tag, started_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 pid,
@@ -422,6 +474,7 @@ def insert_project(payload: ProjectIn) -> dict[str, Any]:
                 (payload.kill_criteria or "").strip(),
                 to_float(payload.capital_committed),
                 to_float(payload.capital_spent),
+                domain_tag,
                 ts,
                 ts,
             ),
@@ -436,6 +489,8 @@ def update_project(project_id: str, patch: ProjectPatch) -> dict[str, Any]:
         raise HTTPException(status_code=400, detail="invalid status")
     if "risk_level" in fields and fields["risk_level"] not in {"low", "medium", "high", "extreme"}:
         raise HTTPException(status_code=400, detail="invalid risk_level")
+    if "domain_tag" in fields:
+        fields["domain_tag"] = normalize_domain_tag(fields["domain_tag"])
     if not fields:
         with connect() as conn:
             row = conn.execute("SELECT * FROM projects WHERE id = ?", (project_id,)).fetchone()
@@ -481,14 +536,15 @@ def _decision_row(row: sqlite3.Row) -> dict[str, Any]:
 def insert_decision(payload: DecisionIn) -> dict[str, Any]:
     if payload.status not in {"open", "committed", "reviewed"}:
         raise HTTPException(status_code=400, detail="invalid status")
+    domain_tag = normalize_domain_tag(payload.domain_tag)
     did = gen_id("dec")
     ts = now_iso()
     options_json = json.dumps([str(o).strip() for o in (payload.options or []) if str(o).strip()], ensure_ascii=False)
     with connect() as conn:
         conn.execute(
             """
-            INSERT INTO decisions (id, context, options, choice, rationale, expected_outcome, status, decided_at, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO decisions (id, context, options, choice, rationale, expected_outcome, status, decided_at, domain_tag, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 did,
@@ -499,6 +555,7 @@ def insert_decision(payload: DecisionIn) -> dict[str, Any]:
                 (payload.expected_outcome or "").strip(),
                 payload.status,
                 (payload.decided_at or "").strip() or None,
+                domain_tag,
                 ts,
             ),
         )
@@ -512,6 +569,8 @@ def update_decision(decision_id: str, patch: DecisionPatch) -> dict[str, Any]:
         raise HTTPException(status_code=400, detail="invalid status")
     if "options" in fields and fields["options"] is not None:
         fields["options"] = json.dumps([str(o).strip() for o in fields["options"] if str(o).strip()], ensure_ascii=False)
+    if "domain_tag" in fields:
+        fields["domain_tag"] = normalize_domain_tag(fields["domain_tag"])
     if not fields:
         with connect() as conn:
             row = conn.execute("SELECT * FROM decisions WHERE id = ?", (decision_id,)).fetchone()
@@ -944,6 +1003,8 @@ def _login_redirect(error_message: str = "") -> RedirectResponse:
 ORACLE_BASE_URL = "https://4sapi.com/v1"
 ORACLE_KEY_NAME = "oracle_api_key"
 ORACLE_MODEL_NAME = "oracle_model"
+ORACLE_AUTO_DAILY_KEY = "oracle_auto_daily"
+ORACLE_AUTO_WEEKLY_KEY = "oracle_auto_weekly"
 ORACLE_TIMEOUT_SECONDS = 60.0
 SHANGHAI_TZ = ZoneInfo("Asia/Shanghai")
 
@@ -1024,36 +1085,120 @@ def oracle_today_shanghai() -> str:
     return datetime.now(SHANGHAI_TZ).strftime("%Y-%m-%d")
 
 
-def oracle_today_has_activity(today_str: str) -> bool:
-    """Return True iff today saw at least one decision or capital transaction."""
+def oracle_week_anchor_shanghai() -> tuple[str, str]:
+    """Return (monday_iso, sunday_iso) bracketing the current Shanghai week."""
+    today = datetime.now(SHANGHAI_TZ).date()
+    monday = today - timedelta(days=today.weekday())
+    sunday = monday + timedelta(days=6)
+    return monday.isoformat(), sunday.isoformat()
+
+
+def oracle_period_has_activity(start_iso: str, end_iso: str) -> bool:
+    """True iff any decision/capital_tx occurred in [start, end] (inclusive)."""
     with connect() as conn:
         row = conn.execute(
             """
             SELECT (
-              (SELECT COUNT(*) FROM decisions  WHERE substr(COALESCE(decided_at, created_at), 1, 10) = ?)
-            + (SELECT COUNT(*) FROM capital_tx WHERE substr(occurred_at, 1, 10) = ?)
+              (SELECT COUNT(*) FROM decisions  WHERE substr(COALESCE(decided_at, created_at), 1, 10) BETWEEN ? AND ?)
+            + (SELECT COUNT(*) FROM capital_tx WHERE substr(occurred_at, 1, 10) BETWEEN ? AND ?)
             ) AS hits
             """,
-            (today_str, today_str),
+            (start_iso, end_iso, start_iso, end_iso),
         ).fetchone()
         return int(row["hits"] or 0) > 0
 
 
-def oracle_build_context(today_str: str) -> dict[str, Any]:
-    snapshot = dashboard_snapshot()
+def oracle_report_exists_for(kind: str, day_iso: str) -> bool:
+    """Idempotency check — has a report of `kind` already landed on day_iso?"""
+    with connect() as conn:
+        row = conn.execute(
+            "SELECT 1 FROM oracle_reports WHERE kind = ? AND substr(created_at, 1, 10) = ? LIMIT 1",
+            (kind, day_iso),
+        ).fetchone()
+        return row is not None
+
+
+def oracle_collect_period_records(start_iso: str, end_iso: str) -> dict[str, Any]:
+    """Pull all tagged records inside [start, end] and bucket them by domain."""
+    with connect() as conn:
+        tx_rows = conn.execute(
+            """
+            SELECT kind, amount, occurred_at, note, category, domain_tag
+            FROM capital_tx
+            WHERE substr(occurred_at, 1, 10) BETWEEN ? AND ?
+            ORDER BY occurred_at ASC, created_at ASC
+            """,
+            (start_iso, end_iso),
+        ).fetchall()
+        dec_rows = conn.execute(
+            """
+            SELECT context, options, choice, rationale, expected_outcome, status, domain_tag,
+                   COALESCE(decided_at, created_at) AS at
+            FROM decisions
+            WHERE substr(COALESCE(decided_at, created_at), 1, 10) BETWEEN ? AND ?
+            ORDER BY at ASC
+            """,
+            (start_iso, end_iso),
+        ).fetchall()
+
+    by_domain: dict[str, dict[str, list[Any]]] = {}
+    for row in tx_rows:
+        tag = row["domain_tag"] or "_untagged"
+        bucket = by_domain.setdefault(tag, {"transactions": [], "decisions": []})
+        bucket["transactions"].append({
+            "kind": row["kind"],
+            "amount": row["amount"],
+            "occurred_at": row["occurred_at"],
+            "note": row["note"],
+            "category": row["category"],
+        })
+    for row in dec_rows:
+        tag = row["domain_tag"] or "_untagged"
+        bucket = by_domain.setdefault(tag, {"transactions": [], "decisions": []})
+        try:
+            opts = json.loads(row["options"] or "[]")
+        except json.JSONDecodeError:
+            opts = []
+        bucket["decisions"].append({
+            "context": row["context"],
+            "options": opts,
+            "choice": row["choice"],
+            "rationale": row["rationale"],
+            "expected_outcome": row["expected_outcome"],
+            "status": row["status"],
+            "at": row["at"],
+        })
+
     return {
-        "report_date": today_str,
+        "totals": {
+            "transactions": len(tx_rows),
+            "decisions": len(dec_rows),
+            "domains_touched": sum(1 for k in by_domain if k != "_untagged"),
+        },
+        "by_domain": {
+            (DOMAIN_LABEL_BY_ID.get(tag) or tag): bucket
+            for tag, bucket in by_domain.items()
+        },
+    }
+
+
+def oracle_build_context(start_iso: str, end_iso: str) -> dict[str, Any]:
+    snapshot = dashboard_snapshot()
+    period = oracle_collect_period_records(start_iso, end_iso)
+    return {
+        "period": {"start": start_iso, "end": end_iso},
         "baseline": snapshot["baseline"],
         "capital": snapshot["capital"],
         "active_projects": [
-            {"name": p["name"], "status": p["status"], "risk": p["risk_level"], "roi": p["roi_projection"], "thesis": p["thesis"]}
+            {"name": p["name"], "status": p["status"], "risk": p["risk_level"], "roi": p["roi_projection"], "thesis": p["thesis"], "domain": DOMAIN_LABEL_BY_ID.get(p.get("domain_tag") or "", "")}
             for p in snapshot["projects"]["active"]
         ],
         "open_decisions": [
-            {"context": d["context"], "options": d["options"], "rationale": d["rationale"]}
+            {"context": d["context"], "options": d["options"], "rationale": d["rationale"], "domain": DOMAIN_LABEL_BY_ID.get(d.get("domain_tag") or "", "")}
             for d in snapshot["decisions"]["open"]
         ],
-        "recent_transactions": snapshot["recent_tx"][:8],
+        "period_totals": period["totals"],
+        "period_by_domain": period["by_domain"],
     }
 
 
@@ -1069,23 +1214,56 @@ def oracle_persist_report(kind: str, content: str) -> dict[str, Any]:
     return {"id": report_id, "kind": kind, "content": content, "created_at": created_at}
 
 
+ORACLE_DAILY_SYSTEM_PROMPT = (
+    "你是 Axiom Core 的首席决策官（CDO）。运营者把今天发生的商业行为按九大领域"
+    "（01_健康 / 02_现金流 / 03_职业 / 04_技能 / 05_项目 / 06_认知 / 07_关系 / 08_决策 / 09_原则）"
+    "归档到下方 JSON 快照里。请生成一份冷静、可执行的中文日报（Markdown，500 字以内）：\n"
+    "## 今日态势\n"
+    "## 资金审计（净头寸 / 月度净额 / 跑道 vs 地板）\n"
+    "## 领域复盘（**只针对今天 `period_by_domain` 里出现过的领域**逐项点评——金额/ROI/风险数字必须引用原始记录）\n"
+    "## 项目雷达（按风险 × ROI 排序）\n"
+    "## 明日动作（不超过 3 条，必须可立刻执行）\n"
+    "## 一项应立即停止的事\n"
+    "禁止套话与鸡汤；没有归档行为的领域不要硬凑。"
+)
+
+ORACLE_WEEKLY_SYSTEM_PROMPT = (
+    "你是 Axiom Core 的首席决策官（CDO）。下方 JSON 覆盖了本周（周一至周日）所有按领域归档的"
+    "资金/决策记录、当前活跃项目与开放决策。请生成一份中文周报（Markdown，900 字以内）：\n"
+    "## 周度态势\n"
+    "## 资金审计（本周累计流入 / 流出 / 净额；净头寸距地板距离）\n"
+    "## 领域曲线（对每个 `period_by_domain` 里有动作的领域给出：本周累计金额、关键决策、ROI 维度评判）\n"
+    "## 项目调度建议（哪些加注 / 哪些暂停 / 哪些 kill）\n"
+    "## 下周三件最重要的事（必须可执行）\n"
+    "## 本周应立即停止的一件事\n"
+    "数字必须从 JSON 原文引用；不要泛化。"
+)
+
+
 async def oracle_generate_brief(kind: str) -> dict[str, Any]:
-    """Call 4SAPI with the live sandbox snapshot. Persists the resulting Markdown."""
+    """Call 4SAPI with the live sandbox snapshot. Persists the resulting Markdown.
+
+    kind ∈ {"daily", "manual"}  → today only.
+    kind == "weekly"           → current ISO week (Mon-Sun, Shanghai).
+    """
     api_key, model_name = oracle_load_credentials()
     if not api_key or not model_name:
-        raise HTTPException(status_code=400, detail="Oracle 未配置 API Key 或模型，请先在控制面板保存。")
+        raise HTTPException(status_code=400, detail="Oracle 尚未配置 API 密钥或模型引擎，请先在配置面板保存。")
 
-    today_str = oracle_today_shanghai()
-    context_data = oracle_build_context(today_str)
+    if kind == "weekly":
+        start_iso, end_iso = oracle_week_anchor_shanghai()
+        system_prompt = ORACLE_WEEKLY_SYSTEM_PROMPT
+        period_label = f"{start_iso} ~ {end_iso}"
+        max_tokens = 2400
+    else:
+        today_str = oracle_today_shanghai()
+        start_iso = end_iso = today_str
+        system_prompt = ORACLE_DAILY_SYSTEM_PROMPT
+        period_label = today_str
+        max_tokens = 1600
 
-    system_prompt = (
-        "你是 Axiom Core 的首席决策官（CDO）。下面是运营者今天的实时商业沙盘 JSON 快照（净头寸、月流水、距离地板的跑道、活跃项目、待决策事项、近期流水）。"
-        "请生成一份冷静、可执行的商业日报，Markdown 格式：\n"
-        "## 今日态势\n## 资金审计（净头寸 / 月度净额 / 跑道 vs 地板）\n## 项目雷达（按风险 × ROI 排序）\n"
-        "## 决策追踪（仍开放的决策与建议）\n## 明日动作（不超过 3 条，必须可立刻执行）\n## 一项应立即停止的事\n"
-        "数据为唯一依据，禁止套话与鸡汤。中文输出，500 字以内。"
-    )
-    user_message = f"Snapshot ({today_str}):\n{json.dumps(context_data, ensure_ascii=False, indent=2)}"
+    context_data = oracle_build_context(start_iso, end_iso)
+    user_message = f"Snapshot ({period_label}):\n{json.dumps(context_data, ensure_ascii=False, indent=2)}"
 
     client = AsyncOpenAI(api_key=api_key, base_url=ORACLE_BASE_URL, timeout=ORACLE_TIMEOUT_SECONDS)
     try:
@@ -1096,7 +1274,7 @@ async def oracle_generate_brief(kind: str) -> dict[str, Any]:
                 {"role": "user", "content": user_message},
             ],
             temperature=0.5,
-            max_tokens=1600,
+            max_tokens=max_tokens,
             stream=False,
         )
     finally:
@@ -1113,6 +1291,20 @@ async def oracle_generate_brief(kind: str) -> dict[str, Any]:
     return oracle_persist_report(kind, content)
 
 
+def oracle_auto_flag(key: str, default_on: bool = True) -> bool:
+    with connect() as conn:
+        raw = oracle_read_setting(conn, key)
+    if raw == "":
+        return default_on
+    return raw == "1"
+
+
+def oracle_set_auto_flag(key: str, value: bool) -> None:
+    with connect() as conn:
+        oracle_upsert_setting(conn, key, "1" if value else "0")
+        conn.commit()
+
+
 def oracle_list_reports(limit: int = 50) -> list[dict[str, Any]]:
     with connect() as conn:
         rows = conn.execute(
@@ -1123,20 +1315,50 @@ def oracle_list_reports(limit: int = 50) -> list[dict[str, Any]]:
 
 
 async def oracle_auto_daily_brief() -> None:
-    """Scheduled at 23:30 Asia/Shanghai. If today saw activity, generate the daily brief."""
+    """Scheduled 23:30 Asia/Shanghai. Idempotent + toggle-gated + activity-gated."""
     try:
+        if not oracle_auto_flag(ORACLE_AUTO_DAILY_KEY, default_on=True):
+            _oracle_log.info("auto_daily_brief skipped: toggle off")
+            return
         today_str = oracle_today_shanghai()
-        if not oracle_today_has_activity(today_str):
+        if oracle_report_exists_for("daily", today_str):
+            _oracle_log.info("auto_daily_brief skipped: report already exists for %s", today_str)
+            return
+        if not oracle_period_has_activity(today_str, today_str):
             _oracle_log.info("auto_daily_brief skipped: no activity for %s", today_str)
             return
         api_key, model_name = oracle_load_credentials()
         if not api_key or not model_name:
-            _oracle_log.warning("auto_daily_brief skipped: oracle credentials not configured")
+            _oracle_log.warning("auto_daily_brief skipped: credentials not configured")
             return
         report = await oracle_generate_brief("daily")
-        _oracle_log.info("auto_daily_brief generated report id=%s len=%d", report["id"], len(report["content"]))
+        _oracle_log.info("auto_daily_brief generated id=%s len=%d", report["id"], len(report["content"]))
     except Exception as exc:
         _oracle_log.exception("auto_daily_brief failed: %r", exc)
+
+
+async def oracle_auto_weekly_brief() -> None:
+    """Scheduled Sun 23:00 Asia/Shanghai. Idempotent + toggle-gated + activity-gated."""
+    try:
+        if not oracle_auto_flag(ORACLE_AUTO_WEEKLY_KEY, default_on=True):
+            _oracle_log.info("auto_weekly_brief skipped: toggle off")
+            return
+        today_str = oracle_today_shanghai()
+        if oracle_report_exists_for("weekly", today_str):
+            _oracle_log.info("auto_weekly_brief skipped: weekly report already exists for %s", today_str)
+            return
+        start_iso, end_iso = oracle_week_anchor_shanghai()
+        if not oracle_period_has_activity(start_iso, end_iso):
+            _oracle_log.info("auto_weekly_brief skipped: no activity for %s..%s", start_iso, end_iso)
+            return
+        api_key, model_name = oracle_load_credentials()
+        if not api_key or not model_name:
+            _oracle_log.warning("auto_weekly_brief skipped: credentials not configured")
+            return
+        report = await oracle_generate_brief("weekly")
+        _oracle_log.info("auto_weekly_brief generated id=%s len=%d", report["id"], len(report["content"]))
+    except Exception as exc:
+        _oracle_log.exception("auto_weekly_brief failed: %r", exc)
 
 
 # ─── App ────────────────────────────────────────────────────────────
@@ -1156,9 +1378,17 @@ def create_app() -> FastAPI:
             coalesce=True,
             misfire_grace_time=600,
         )
+        scheduler.add_job(
+            oracle_auto_weekly_brief,
+            CronTrigger(day_of_week="sun", hour=23, minute=0, timezone=SHANGHAI_TZ),
+            id="oracle_auto_weekly_brief",
+            replace_existing=True,
+            coalesce=True,
+            misfire_grace_time=900,
+        )
         try:
             scheduler.start()
-            _oracle_log.info("APScheduler started — daily Oracle brief armed at 23:30 Asia/Shanghai")
+            _oracle_log.info("APScheduler started — daily 23:30 + weekly Sun 23:00 Asia/Shanghai")
         except Exception as exc:
             _oracle_log.exception("APScheduler failed to start: %r", exc)
         try:
@@ -1613,6 +1843,34 @@ def create_app() -> FastAPI:
     @app.get("/api/oracle/reports")
     def oracle_reports_index(limit: int = Query(default=50, ge=1, le=200)) -> dict[str, Any]:
         return {"ok": True, "reports": oracle_list_reports(limit)}
+
+    @app.get("/api/oracle/auto")
+    def oracle_auto_get() -> dict[str, Any]:
+        return {
+            "ok": True,
+            "auto_daily": oracle_auto_flag(ORACLE_AUTO_DAILY_KEY, default_on=True),
+            "auto_weekly": oracle_auto_flag(ORACLE_AUTO_WEEKLY_KEY, default_on=True),
+            "daily_cron": "23:30 Asia/Shanghai",
+            "weekly_cron": "Sunday 23:00 Asia/Shanghai",
+        }
+
+    @app.post("/api/oracle/auto")
+    def oracle_auto_set(payload: OracleAutoConfigIn) -> dict[str, Any]:
+        if payload.auto_daily is not None:
+            oracle_set_auto_flag(ORACLE_AUTO_DAILY_KEY, bool(payload.auto_daily))
+        if payload.auto_weekly is not None:
+            oracle_set_auto_flag(ORACLE_AUTO_WEEKLY_KEY, bool(payload.auto_weekly))
+        return {
+            "ok": True,
+            "auto_daily": oracle_auto_flag(ORACLE_AUTO_DAILY_KEY, default_on=True),
+            "auto_weekly": oracle_auto_flag(ORACLE_AUTO_WEEKLY_KEY, default_on=True),
+        }
+
+    # Domain registry — read-only endpoint so the frontend renders consistent
+    # labels without hardcoding them.
+    @app.get("/api/domains")
+    def domains_index() -> dict[str, Any]:
+        return {"ok": True, "domains": [{"id": d["id"], "label": d["label"]} for d in DOMAIN_TAGS]}
 
     # ── App shell catch-all ──
     @app.get("/")

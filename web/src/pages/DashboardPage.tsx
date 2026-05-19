@@ -13,12 +13,12 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { createTransaction, loadDashboard } from "@/api";
-import { EmptyHint, PageHeader, Panel, StatusDot, formatCNY, netTone } from "@/components/axiom/primitives";
+import { DomainSelect, EmptyHint, PageHeader, Panel, StatusDot, formatCNY, netTone } from "@/components/axiom/primitives";
 import { useT } from "@/lib/i18nConfig";
 import type { DashboardPayload, TimelinePoint } from "@/types";
 import { cn } from "@/lib/utils";
 
-type FormState = { kind: "income" | "expense"; amount: string; note: string };
+type FormState = { kind: "income" | "expense"; amount: string; note: string; domain_tag: string };
 
 function runwayTone(months: number | null, netPosition: number, floor: number): "positive" | "warning" | "danger" {
   if (months === null) return "positive";
@@ -89,7 +89,7 @@ export function DashboardPage({
   const [data, setData] = useState<DashboardPayload | null>(null);
   const [error, setError] = useState("");
   const [quickOpen, setQuickOpen] = useState(false);
-  const [form, setForm] = useState<FormState>({ kind: "expense", amount: "", note: "" });
+  const [form, setForm] = useState<FormState>({ kind: "expense", amount: "", note: "", domain_tag: "" });
   const [submitting, setSubmitting] = useState(false);
 
   const refresh = useCallback(async () => {
@@ -117,7 +117,7 @@ export function DashboardPage({
     }
     setSubmitting(true);
     try {
-      await createTransaction({ kind: form.kind, amount, note: form.note.trim() });
+      await createTransaction({ kind: form.kind, amount, note: form.note.trim(), domain_tag: form.domain_tag || undefined });
       toast.success(
         t("dashboard.quick.toast", {
           kind: form.kind === "income" ? t("dashboard.quick.income") : t("dashboard.quick.expense"),
@@ -125,7 +125,7 @@ export function DashboardPage({
         })
       );
       setQuickOpen(false);
-      setForm({ kind: "expense", amount: "", note: "" });
+      setForm({ kind: "expense", amount: "", note: "", domain_tag: "" });
       void refresh();
     } catch (exc) {
       toast.error(exc instanceof Error ? exc.message : t("dashboard.quick.fail"));
@@ -443,6 +443,10 @@ export function DashboardPage({
                 className="h-9 rounded-md"
               />
             </div>
+            <DomainSelect
+              value={form.domain_tag}
+              onChange={(next) => setForm((s) => ({ ...s, domain_tag: next }))}
+            />
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setQuickOpen(false)} disabled={submitting} className="h-9 rounded-md">

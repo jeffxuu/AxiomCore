@@ -1,18 +1,22 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { CheckCircle2, KeyRound, Loader2, PlayCircle, RefreshCw, Save, Sparkles } from "lucide-react";
+import { CalendarClock, KeyRound, Loader2, PlayCircle, RefreshCw, Save, Sparkles, Telescope } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Switch } from "@/components/ui/switch";
 import { MarkdownView } from "@/components/axiom/MarkdownView";
 import { EmptyHint, PageHeader, Panel, StatusDot } from "@/components/axiom/primitives";
 import {
   generateOracleBrief,
+  loadOracleAuto,
   loadOracleConfig,
   loadOracleReports,
+  saveOracleAuto,
   saveOracleConfig,
   verifyOracleKey,
+  type OracleAutoConfig,
   type OracleConfig,
   type OracleReport,
 } from "@/api";
@@ -31,7 +35,9 @@ export function OraclePage({ onStatus }: { onStatus: (status: string) => void })
   const t = useT();
 
   const [config, setConfig] = useState<OracleConfig | null>(null);
+  const [auto, setAuto] = useState<OracleAutoConfig | null>(null);
   const [configLoading, setConfigLoading] = useState(true);
+
   const [apiKeyInput, setApiKeyInput] = useState("");
   const [keyDirty, setKeyDirty] = useState(false);
 
@@ -39,6 +45,7 @@ export function OraclePage({ onStatus }: { onStatus: (status: string) => void })
   const [selectedModel, setSelectedModel] = useState("");
   const [verifying, setVerifying] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [savingAuto, setSavingAuto] = useState(false);
 
   const [reports, setReports] = useState<OracleReport[]>([]);
   const [reportsLoading, setReportsLoading] = useState(true);
@@ -49,14 +56,15 @@ export function OraclePage({ onStatus }: { onStatus: (status: string) => void })
   const inputDisplaysMask = !keyDirty && maskedFromServer;
   const apiKeyForUI = inputDisplaysMask ? maskedFromServer : apiKeyInput;
 
-  const loadConfigOnce = useCallback(async () => {
+  const loadAll = useCallback(async () => {
     setConfigLoading(true);
     try {
-      const payload = await loadOracleConfig();
-      setConfig(payload);
-      if (payload.model_name) {
-        setSelectedModel(payload.model_name);
-        setModels((prev) => (prev.length === 0 ? [payload.model_name] : prev));
+      const [c, a] = await Promise.all([loadOracleConfig(), loadOracleAuto()]);
+      setConfig(c);
+      setAuto(a);
+      if (c.model_name) {
+        setSelectedModel(c.model_name);
+        setModels((prev) => (prev.length === 0 ? [c.model_name] : prev));
       }
       setApiKeyInput("");
       setKeyDirty(false);
@@ -83,9 +91,9 @@ export function OraclePage({ onStatus }: { onStatus: (status: string) => void })
   }, []);
 
   useEffect(() => {
-    loadConfigOnce();
+    loadAll();
     loadReportsOnce();
-  }, [loadConfigOnce, loadReportsOnce]);
+  }, [loadAll, loadReportsOnce]);
 
   const verify = async () => {
     const candidate = keyDirty ? apiKeyInput.trim() : "";
@@ -144,6 +152,24 @@ export function OraclePage({ onStatus }: { onStatus: (status: string) => void })
     }
   };
 
+  const updateAuto = async (patch: { auto_daily?: boolean; auto_weekly?: boolean }) => {
+    if (!auto) return;
+    setSavingAuto(true);
+    const prev = auto;
+    setAuto({ ...auto, ...patch });
+    try {
+      const payload = await saveOracleAuto(patch);
+      setAuto(payload);
+      toast.success(t("oracle.auto.saved"));
+    } catch (exc) {
+      setAuto(prev);
+      const message = exc instanceof Error ? exc.message : t("oracle.toast.failed");
+      toast.error(message);
+    } finally {
+      setSavingAuto(false);
+    }
+  };
+
   const trigger = async () => {
     if (!config?.api_key_set || !selectedModel) {
       toast.error(t("oracle.control.engine.required"));
@@ -193,9 +219,13 @@ export function OraclePage({ onStatus }: { onStatus: (status: string) => void })
         }
       />
 
-      <div className="grid gap-6 lg:grid-cols-[1.1fr_1fr]">
-        <Panel title={t("oracle.control.title")} subtitle={t("oracle.control.subtitle")}>
-          <div className="space-y-5">
+      <Panel
+        title={t("oracle.control.title")}
+        subtitle={t("oracle.control.subtitle")}
+      >
+        <div className="grid gap-5 lg:grid-cols-[1.05fr_1fr]">
+          {/* Credentials column */}
+          <div className="space-y-4">
             <div className="space-y-2">
               <Label className="flex items-center gap-1.5 text-[11px] uppercase tracking-wider text-muted-foreground">
                 <KeyRound className="size-3" />
@@ -271,33 +301,66 @@ export function OraclePage({ onStatus }: { onStatus: (status: string) => void })
               </Button>
             </div>
           </div>
-        </Panel>
 
-        <Panel title={t("oracle.execution.title")} subtitle={t("oracle.execution.subtitle")}>
-          <div className="flex h-full flex-col justify-between gap-5">
-            <div>
-              <Button
-                onClick={trigger}
-                disabled={!canTrigger}
-                className="h-11 w-full rounded-md bg-foreground text-base font-medium text-background hover:bg-foreground/90"
-              >
-                {generating ? <Loader2 className="size-4 animate-spin" /> : <PlayCircle className="size-4" />}
-                {generating ? t("oracle.execution.triggering") : t("oracle.execution.trigger")}
-              </Button>
-              <p className="mt-3 text-center text-[12px] leading-5 text-muted-foreground">
-                {t("oracle.execution.schedule")}
-              </p>
-            </div>
-            <div className="rounded-md border border-border/70 bg-muted/30 px-3 py-2.5 text-[11px] leading-5 text-muted-foreground">
-              <div className="flex items-center gap-1.5">
-                <CheckCircle2 className="size-3 text-[var(--positive)]" />
-                <span className="font-medium text-foreground">{t("oracle.execution.scheduler.label")}</span>
+          {/* Execution + automation column */}
+          <div className="flex flex-col gap-4">
+            <Button
+              onClick={trigger}
+              disabled={!canTrigger}
+              className="h-11 w-full rounded-md bg-foreground text-base font-medium text-background hover:bg-foreground/90"
+            >
+              {generating ? <Loader2 className="size-4 animate-spin" /> : <PlayCircle className="size-4" />}
+              {generating ? t("oracle.execution.triggering") : t("oracle.execution.trigger")}
+            </Button>
+
+            <div className="space-y-2.5 rounded-md border border-border/70 bg-muted/20 px-3.5 py-3">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="flex items-center gap-1.5 text-[12px] font-medium text-foreground">
+                    <CalendarClock className="size-3.5 text-muted-foreground" />
+                    {t("oracle.auto.daily.title")}
+                  </p>
+                  <p className="mt-0.5 text-[11px] leading-5 text-muted-foreground">
+                    {t("oracle.auto.daily.hint")}
+                  </p>
+                </div>
+                <Switch
+                  checked={!!auto?.auto_daily}
+                  disabled={!auto || savingAuto}
+                  onCheckedChange={(next) => updateAuto({ auto_daily: next })}
+                  aria-label={t("oracle.auto.daily.title")}
+                />
               </div>
-              <div className="mt-0.5 ml-[18px]">{t("oracle.execution.scheduler.detail")}</div>
+              <div className="border-t border-border/60" />
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="flex items-center gap-1.5 text-[12px] font-medium text-foreground">
+                    <CalendarClock className="size-3.5 text-muted-foreground" />
+                    {t("oracle.auto.weekly.title")}
+                  </p>
+                  <p className="mt-0.5 text-[11px] leading-5 text-muted-foreground">
+                    {t("oracle.auto.weekly.hint")}
+                  </p>
+                </div>
+                <Switch
+                  checked={!!auto?.auto_weekly}
+                  disabled={!auto || savingAuto}
+                  onCheckedChange={(next) => updateAuto({ auto_weekly: next })}
+                  aria-label={t("oracle.auto.weekly.title")}
+                />
+              </div>
+            </div>
+
+            <div className="flex items-start gap-2 rounded-md border border-border/70 bg-card px-3 py-2 text-[11px] leading-5 text-muted-foreground">
+              <Telescope className="mt-0.5 size-3.5 shrink-0 text-[var(--positive)]" />
+              <div>
+                <p className="font-medium text-foreground">{t("oracle.behavior.title")}</p>
+                <p>{t("oracle.behavior.detail")}</p>
+              </div>
             </div>
           </div>
-        </Panel>
-      </div>
+        </div>
+      </Panel>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[320px_1fr]">
         <Panel
@@ -322,15 +385,19 @@ export function OraclePage({ onStatus }: { onStatus: (status: string) => void })
                   const kindLabel =
                     r.kind === "daily"
                       ? t("oracle.reports.kind.daily")
-                      : r.kind === "manual"
-                        ? t("oracle.reports.kind.manual")
-                        : r.kind;
+                      : r.kind === "weekly"
+                        ? "周报"
+                        : r.kind === "manual"
+                          ? t("oracle.reports.kind.manual")
+                          : r.kind;
                   const badgeLabel =
                     r.kind === "daily"
                       ? t("oracle.reports.badge.daily")
-                      : r.kind === "manual"
-                        ? t("oracle.reports.badge.manual")
-                        : r.kind;
+                      : r.kind === "weekly"
+                        ? "WEEKLY"
+                        : r.kind === "manual"
+                          ? t("oracle.reports.badge.manual")
+                          : r.kind;
                   return (
                     <li key={r.id}>
                       <button

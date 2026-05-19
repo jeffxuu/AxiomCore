@@ -14,7 +14,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { createDecision, deleteDecision, loadDecisions, updateDecision, type DecisionInput } from "@/api";
-import { EmptyHint, PageHeader, Panel } from "@/components/axiom/primitives";
+import { DomainBadge, DomainSelect, EmptyHint, PageHeader, Panel } from "@/components/axiom/primitives";
 import { useT } from "@/lib/i18nConfig";
 import type { Decision, DecisionStatus } from "@/types";
 import { cn } from "@/lib/utils";
@@ -33,6 +33,7 @@ const EMPTY_FORM: DecisionInput & { reviewed_outcome?: string } = {
   rationale: "",
   expected_outcome: "",
   status: "open",
+  domain_tag: "",
 };
 
 export function DecisionsPage({ onStatus }: { onStatus: (status: string) => void }) {
@@ -77,6 +78,7 @@ export function DecisionsPage({ onStatus }: { onStatus: (status: string) => void
       expected_outcome: d.expected_outcome,
       status: d.status,
       reviewed_outcome: d.reviewed_outcome,
+      domain_tag: d.domain_tag,
     });
     setOptionsInput(d.options.join("\n"));
     setOpen(true);
@@ -210,7 +212,10 @@ export function DecisionsPage({ onStatus }: { onStatus: (status: string) => void
                       </p>
                     ) : null}
                     <div className="flex items-center justify-between pl-6 pt-1">
-                      <span className={cn("ax-status", STATUS_TONE[d.status])}>{t(`decisions.status.${d.status}`)}</span>
+                      <div className="flex items-center gap-2">
+                        <span className={cn("ax-status", STATUS_TONE[d.status])}>{t(`decisions.status.${d.status}`)}</span>
+                        {d.domain_tag ? <DomainBadge tag={d.domain_tag} /> : null}
+                      </div>
                       <div className="flex items-center gap-1">
                         {d.status !== "reviewed" ? (
                           <Button
@@ -343,6 +348,10 @@ export function DecisionsPage({ onStatus }: { onStatus: (status: string) => void
                 </div>
               ) : null}
             </div>
+            <DomainSelect
+              value={form.domain_tag ?? ""}
+              onChange={(next) => setForm((s) => ({ ...s, domain_tag: next }))}
+            />
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setOpen(false)} disabled={submitting} className="h-9 rounded-md">

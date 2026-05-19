@@ -26,6 +26,7 @@ export type Transaction = {
   note: string;
   category: string;
   project_id: string | null;
+  domain_tag: string;
   created_at: string;
 };
 
@@ -42,6 +43,7 @@ export type Project = {
   kill_criteria: string;
   capital_committed: number;
   capital_spent: number;
+  domain_tag: string;
   started_at: string;
   updated_at: string;
 };
@@ -59,6 +61,7 @@ export type Decision = {
   reviewed_outcome: string;
   decided_at: string | null;
   reviewed_at: string | null;
+  domain_tag: string;
   created_at: string;
 };
 
