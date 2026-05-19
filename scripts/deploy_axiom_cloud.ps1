@@ -46,7 +46,12 @@ web/dist tarball.
 param(
     [switch]$DryRun,
     [switch]$SkipDestroy,
-    [switch]$NoBuild
+    [switch]$NoBuild,
+    # ONE-SHOT: destroy /opt/axiom-core/data/axiom_core.db before the service
+    # restart. Use this only when you intend to drop all existing business data
+    # (e.g. schema migration to V4). Without the flag the data/ directory is
+    # preserved verbatim, as before.
+    [switch]$WipeDb
 )
 
 $ErrorActionPreference = 'Stop'
@@ -198,11 +203,13 @@ Write-Host ""
 Write-Host "[Step 4] Bootstrapping $RemoteApp ..." -ForegroundColor Yellow
 
 $skipBuildFlag = if ($NoBuild) { '1' } else { '0' }
+$wipeDbFlag    = if ($WipeDb)  { '1' } else { '0' }
 
 $bootstrap = @"
 set -e
 remote_app=$RemoteApp
 skip_build=$skipBuildFlag
+wipe_db=$wipeDbFlag
 
 echo '  mkdir + extract tarball'
 mkdir -p `$remote_app
@@ -213,6 +220,11 @@ find . -mindepth 1 -maxdepth 1 ! -name data -exec rm -rf {} +
 tar -xzf /tmp/axiom_core_deploy.tgz -C `$remote_app
 rm -f /tmp/axiom_core_deploy.tgz
 mkdir -p `$remote_app/data `$remote_app/logs/daily
+
+if [ "`$wipe_db" = "1" ]; then
+  echo '  -- WipeDb requested: dropping axiom_core.db and WAL/SHM siblings'
+  rm -f `$remote_app/data/axiom_core.db `$remote_app/data/axiom_core.db-wal `$remote_app/data/axiom_core.db-shm
+fi
 
 echo '  python deps'
 if [ -f `$remote_app/requirements.txt ]; then

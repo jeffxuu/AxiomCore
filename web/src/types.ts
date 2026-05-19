@@ -1,129 +1,90 @@
-export type Category = {
+// Frontend ↔ axiom_server.py contract.
+// V4 schema: business sandbox — Capital baseline + Transactions, Projects, Decisions.
+
+export type Baseline = {
+  starting_position: number;
+  baseline_date: string;
+  note: string;
+};
+
+export type CapitalSnapshot = {
+  net_position: number;
+  total_in: number;
+  total_out: number;
+  monthly_in: number;
+  monthly_out: number;
+  monthly_net: number;
+  floor: number;
+  runway_months: number | null;
+};
+
+export type Transaction = {
+  id: string;
+  kind: "income" | "expense";
+  amount: number;
+  occurred_at: string;
+  note: string;
+  category: string;
+  project_id: string | null;
+  created_at: string;
+};
+
+export type ProjectStatus = "active" | "paused" | "killed" | "shipped";
+export type RiskLevel = "low" | "medium" | "high" | "extreme";
+
+export type Project = {
   id: string;
   name: string;
-  color: string;
-  sort_order: number;
+  status: ProjectStatus;
+  thesis: string;
+  roi_projection: number;
+  risk_level: RiskLevel;
+  kill_criteria: string;
+  capital_committed: number;
+  capital_spent: number;
+  started_at: string;
+  updated_at: string;
 };
 
-export type AxiomEntry = {
-  sleep_hours: number | string;
-  weight_kg: number | string;
-  mood: number | string;
-  energy: number | string;
-  expense: number | string;
-  income: number | string;
-  job_applications: number | string;
-  interviews: number | string;
-  english_minutes: number | string;
-  exercise_minutes: number | string;
-  breakfast: string;
-  lunch: string;
-  dinner: string;
-  snacks: string;
-  diet_summary: string;
-  notes: string;
-  updated_at?: string;
+export type DecisionStatus = "open" | "committed" | "reviewed";
+
+export type Decision = {
+  id: string;
+  context: string;
+  options: string[];
+  choice: string;
+  rationale: string;
+  expected_outcome: string;
+  status: DecisionStatus;
+  reviewed_outcome: string;
+  decided_at: string | null;
+  reviewed_at: string | null;
+  created_at: string;
 };
 
-export type EntryField = keyof Omit<AxiomEntry, "updated_at">;
-
-export type AxiomTask = {
-  task_id: string;
-  category_id: string;
-  title: string;
-  target_value: number;
-  actual_value: number;
-  unit: string;
-  done: number | boolean;
-  sort_order: number;
-};
-
-export type AxiomDay = {
+export type TimelinePoint = {
   date: string;
-  entry: AxiomEntry;
-  tasks: AxiomTask[];
+  in: number;
+  out: number;
+  net: number;
 };
 
-export type RateStat = {
-  total: number;
-  done: number;
-  rate: number;
-};
-
-export type TimelinePoint = RateStat & {
-  date: string;
-  englishMinutes: number;
-  exerciseMinutes: number;
-  jobApplications: number;
-  interviews: number;
-  expense: number;
-  income: number;
-  sleepHours: number;
-  mood: number;
-  energy: number;
-  hasDiet: number;
-};
-
-export type CategoryStat = Category &
-  RateStat & {
-    sort_order?: number;
+export type DashboardPayload = {
+  ok: true;
+  baseline: Baseline;
+  capital: CapitalSnapshot;
+  projects: {
+    active: Project[];
+    all_count: number;
+    active_count: number;
   };
-
-export type Dashboard = {
-  today: RateStat;
-  streak: number;
-  thirtyDays: RateStat;
+  decisions: {
+    open: Decision[];
+    all_count: number;
+    open_count: number;
+  };
+  recent_tx: Transaction[];
   timeline: TimelinePoint[];
-  categories: CategoryStat[];
-  recentDays: Array<{ date: string } & RateStat>;
-  metrics: {
-    english7d: number;
-    exercise7d: number;
-    jobs7d: number;
-    interviews7d: number;
-    expense30d: number;
-    income30d: number;
-    avgSleep7d: number;
-    avgMood7d: number;
-    avgEnergy7d: number;
-  };
-  signals: {
-    strongest: CategoryStat | null;
-    weakest: CategoryStat | null;
-  };
-};
-
-export type BootstrapPayload = {
-  categories: Category[];
-  day: AxiomDay;
-  dashboard: Dashboard;
-};
-
-export type SavePayload = {
-  ok: true;
-  day: AxiomDay;
-  dashboard: Dashboard;
-  markdownPath: string;
-  schemaMarkdownPath: string;
-};
-
-export type ExportPayload = {
-  ok: true;
-  markdownPath: string;
-  schemaMarkdownPath: string;
-};
-
-export type CurrentStateDocument = {
-  relativePath: string;
-  updatedAt: string | null;
-  content: string;
-};
-
-export type CurrentStatePayload = {
-  ok: true;
-  warnings: string[];
-  currentState: CurrentStateDocument;
-  masterSystemPrompt: CurrentStateDocument;
 };
 
 export type AuthConfigPayload = {
@@ -147,13 +108,10 @@ export type DocMeta = {
   relativePath: string;
   updatedAt: string | null;
   sensitive: boolean;
-  kind: "markdown" | "daily";
-  date?: string;
+  kind: "markdown";
 };
 
-export type DocsPayload = {
-  docs: DocMeta[];
-};
+export type DocsPayload = { docs: DocMeta[] };
 
 export type DocPayload = DocMeta & {
   content: string;
