@@ -207,3 +207,61 @@ export function loadDocs(): Promise<DocsPayload> {
 export function loadDoc(id: string): Promise<DocPayload> {
   return requestJson<DocPayload>(`/api/docs/${encodeURIComponent(id)}`);
 }
+
+// ── Oracle (4SAPI gateway) ────────────────────────────────────────
+export type OracleConfig = {
+  ok: true;
+  api_key_masked: string;
+  api_key_set: boolean;
+  model_name: string;
+  base_url: string;
+  schedule: string;
+};
+
+export type OracleVerifyResponse = { ok: true; models: string[]; total: number };
+
+export type OracleSaveResponse = {
+  ok: true;
+  api_key_masked: string;
+  api_key_set: boolean;
+  model_name: string;
+};
+
+export type OracleReport = {
+  id: string;
+  kind: string;
+  content: string;
+  created_at: string;
+};
+
+export function loadOracleConfig(): Promise<OracleConfig> {
+  return requestJson<OracleConfig>("/api/oracle/config");
+}
+
+export function verifyOracleKey(apiKey: string): Promise<OracleVerifyResponse> {
+  return requestJson<OracleVerifyResponse>("/api/oracle/verify", {
+    method: "POST",
+    headers: jsonHeaders,
+    body: JSON.stringify({ api_key: apiKey }),
+  });
+}
+
+export function saveOracleConfig(input: { api_key?: string; model_name: string }): Promise<OracleSaveResponse> {
+  return requestJson<OracleSaveResponse>("/api/oracle/config", {
+    method: "POST",
+    headers: jsonHeaders,
+    body: JSON.stringify(input),
+  });
+}
+
+export function generateOracleBrief(): Promise<{ ok: true; report: OracleReport }> {
+  return requestJson<{ ok: true; report: OracleReport }>("/api/oracle/generate_now", {
+    method: "POST",
+    headers: jsonHeaders,
+    body: JSON.stringify({}),
+  });
+}
+
+export function loadOracleReports(limit = 50): Promise<{ ok: true; reports: OracleReport[] }> {
+  return requestJson<{ ok: true; reports: OracleReport[] }>(`/api/oracle/reports?limit=${limit}`);
+}

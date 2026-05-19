@@ -174,6 +174,27 @@ class DecisionPatch(BaseModel):
     reviewed_at: str | None = None
 
 
+# ─── Oracle request payloads (must live at module scope) ────────────
+# `from __future__ import annotations` turns all type hints into strings (PEP
+# 563). FastAPI resolves those strings via typing.get_type_hints(), which only
+# consults the function's __globals__. Pydantic models defined inside
+# create_app() are local and therefore unresolvable → FastAPI silently falls
+# back to treating the body parameter as a query field, returning
+# `query.payload: Field required` (HTTP 422). Hoisting these classes to module
+# scope fixes the resolution.
+class OracleVerifyIn(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    api_key: str
+
+
+class OracleConfigIn(BaseModel):
+    # `model_name` clashes with Pydantic 2's reserved `model_*` namespace in
+    # some versions — disabling the namespace check keeps the field stable.
+    model_config = ConfigDict(extra="ignore", protected_namespaces=())
+    api_key: str | None = None
+    model_name: str | None = None
+
+
 # ─── Utilities ──────────────────────────────────────────────────────
 def now_iso() -> str:
     return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -1533,15 +1554,6 @@ def create_app() -> FastAPI:
         }
 
     # ── Oracle 大脑 (4SAPI + APScheduler) ──
-    class OracleVerifyPayload(BaseModel):
-        model_config = ConfigDict(extra="ignore")
-        api_key: str
-
-    class OracleConfigPayload(BaseModel):
-        model_config = ConfigDict(extra="ignore")
-        api_key: str | None = None
-        model_name: str | None = None
-
     @app.get("/api/oracle/config")
     def oracle_config_get() -> dict[str, Any]:
         api_key, model_name = oracle_load_credentials()
@@ -1555,7 +1567,7 @@ def create_app() -> FastAPI:
         }
 
     @app.post("/api/oracle/verify")
-    async def oracle_config_verify(payload: Annotated[OracleVerifyPayload, Body()]) -> dict[str, Any]:
+    async def oracle_config_verify(payload: OracleVerifyIn) -> dict[str, Any]:
         raw_key = (payload.api_key or "").strip()
         if not raw_key or "***" in raw_key:
             raise HTTPException(status_code=400, detail="请粘贴完整的 4SAPI 明文 API Key。")
@@ -1574,11 +1586,11 @@ def create_app() -> FastAPI:
         return {"ok": True, "models": models, "total": len(models)}
 
     @app.post("/api/oracle/config")
-    def oracle_config_save(payload: Annotated[OracleConfigPayload, Body()]) -> dict[str, Any]:
+    def oracle_config_save(payload: OracleConfigIn) -> dict[str, Any]:
         raw_key = (payload.api_key or "").strip()
         model_name = (payload.model_name or "").strip()
         if not model_name:
-            raise HTTPException(status_code=400, detail="请选择 Model Engine。")
+            raise HTTPException(status_code=400, detail="请选择模型引擎。")
         with connect() as conn:
             if raw_key and "***" not in raw_key:
                 oracle_upsert_setting(conn, ORACLE_KEY_NAME, raw_key)

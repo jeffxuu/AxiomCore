@@ -7,41 +7,17 @@ import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { MarkdownView } from "@/components/axiom/MarkdownView";
 import { EmptyHint, PageHeader, Panel, StatusDot } from "@/components/axiom/primitives";
-import { formatApiError } from "@/api";
+import {
+  generateOracleBrief,
+  loadOracleConfig,
+  loadOracleReports,
+  saveOracleConfig,
+  verifyOracleKey,
+  type OracleConfig,
+  type OracleReport,
+} from "@/api";
 import { useT } from "@/lib/i18nConfig";
 import { cn } from "@/lib/utils";
-
-type OracleConfig = {
-  ok: true;
-  api_key_masked: string;
-  api_key_set: boolean;
-  model_name: string;
-  base_url: string;
-  schedule: string;
-};
-
-type VerifyResponse = { ok: true; models: string[]; total: number };
-type SaveResponse = { ok: true; api_key_masked: string; api_key_set: boolean; model_name: string };
-type OracleReport = { id: string; kind: string; content: string; created_at: string };
-type ReportsPayload = { ok: true; reports: OracleReport[] };
-type GeneratePayload = { ok: true; report: OracleReport };
-
-async function jsonRequest<T>(url: string, init: RequestInit = {}, timeoutMs = 90_000): Promise<T> {
-  const controller = new AbortController();
-  const timer = window.setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    const response = await fetch(url, { ...init, signal: controller.signal });
-    const payload = (await response.json().catch(() => ({}))) as { detail?: unknown; error?: unknown };
-    if (!response.ok) throw new Error(formatApiError(payload, `HTTP ${response.status}`));
-    return payload as T;
-  } catch (exc) {
-    if (exc instanceof DOMException && exc.name === "AbortError") throw new Error("Request timed out");
-    if (exc instanceof Error) throw exc;
-    throw new Error("Request failed");
-  } finally {
-    window.clearTimeout(timer);
-  }
-}
 
 function formatReportTimestamp(value: string): string {
   if (!value) return "";
@@ -73,10 +49,10 @@ export function OraclePage({ onStatus }: { onStatus: (status: string) => void })
   const inputDisplaysMask = !keyDirty && maskedFromServer;
   const apiKeyForUI = inputDisplaysMask ? maskedFromServer : apiKeyInput;
 
-  const loadConfig = useCallback(async () => {
+  const loadConfigOnce = useCallback(async () => {
     setConfigLoading(true);
     try {
-      const payload = await jsonRequest<OracleConfig>("/api/oracle/config", {}, 15_000);
+      const payload = await loadOracleConfig();
       setConfig(payload);
       if (payload.model_name) {
         setSelectedModel(payload.model_name);
@@ -85,50 +61,42 @@ export function OraclePage({ onStatus }: { onStatus: (status: string) => void })
       setApiKeyInput("");
       setKeyDirty(false);
     } catch (exc) {
-      const message = exc instanceof Error ? exc.message : "Load failed";
-      toast.error(message);
+      const message = exc instanceof Error ? exc.message : "";
+      if (message) toast.error(message);
     } finally {
       setConfigLoading(false);
     }
   }, []);
 
-  const loadReports = useCallback(async () => {
+  const loadReportsOnce = useCallback(async () => {
     setReportsLoading(true);
     try {
-      const payload = await jsonRequest<ReportsPayload>("/api/oracle/reports?limit=50", {}, 15_000);
+      const payload = await loadOracleReports(50);
       setReports(payload.reports || []);
       setSelectedReportId((prev) => prev || payload.reports?.[0]?.id || null);
     } catch (exc) {
-      const message = exc instanceof Error ? exc.message : "Load failed";
-      toast.error(message);
+      const message = exc instanceof Error ? exc.message : "";
+      if (message) toast.error(message);
     } finally {
       setReportsLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    loadConfig();
-    loadReports();
-  }, [loadConfig, loadReports]);
+    loadConfigOnce();
+    loadReportsOnce();
+  }, [loadConfigOnce, loadReportsOnce]);
 
   const verify = async () => {
     const candidate = keyDirty ? apiKeyInput.trim() : "";
     if (!candidate || candidate.includes("***")) {
-      toast.error(t("oracle.control.apikey.hint"));
+      toast.error(t("oracle.control.key.invalid"));
       return;
     }
     setVerifying(true);
     onStatus("Sync");
     try {
-      const payload = await jsonRequest<VerifyResponse>(
-        "/api/oracle/verify",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ api_key: candidate }),
-        },
-        30_000
-      );
+      const payload = await verifyOracleKey(candidate);
       setModels(payload.models || []);
       if (payload.models?.length) {
         const next = payload.models.includes(selectedModel) ? selectedModel : payload.models[0];
@@ -137,7 +105,7 @@ export function OraclePage({ onStatus }: { onStatus: (status: string) => void })
       onStatus("Live");
       toast.success(t("oracle.control.verified", { count: payload.total }));
     } catch (exc) {
-      const message = exc instanceof Error ? exc.message : "Verification failed";
+      const message = exc instanceof Error ? exc.message : t("oracle.toast.failed");
       onStatus("Sync failed");
       toast.error(message);
     } finally {
@@ -147,25 +115,17 @@ export function OraclePage({ onStatus }: { onStatus: (status: string) => void })
 
   const save = async () => {
     if (!selectedModel) {
-      toast.error(t("oracle.control.engine.placeholder"));
+      toast.error(t("oracle.control.engine.required"));
       return;
     }
     setSaving(true);
     onStatus("Sync");
     try {
-      const body: Record<string, string> = { model_name: selectedModel };
+      const body: { api_key?: string; model_name: string } = { model_name: selectedModel };
       if (keyDirty && apiKeyInput.trim() && !apiKeyInput.includes("***")) {
         body.api_key = apiKeyInput.trim();
       }
-      const payload = await jsonRequest<SaveResponse>(
-        "/api/oracle/config",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body),
-        },
-        15_000
-      );
+      const payload = await saveOracleConfig(body);
       setConfig((prev) =>
         prev
           ? { ...prev, api_key_masked: payload.api_key_masked, api_key_set: payload.api_key_set, model_name: payload.model_name }
@@ -176,7 +136,7 @@ export function OraclePage({ onStatus }: { onStatus: (status: string) => void })
       onStatus("Live");
       toast.success(t("oracle.control.saved"));
     } catch (exc) {
-      const message = exc instanceof Error ? exc.message : "Save failed";
+      const message = exc instanceof Error ? exc.message : t("oracle.toast.failed");
       onStatus("Sync failed");
       toast.error(message);
     } finally {
@@ -186,23 +146,19 @@ export function OraclePage({ onStatus }: { onStatus: (status: string) => void })
 
   const trigger = async () => {
     if (!config?.api_key_set || !selectedModel) {
-      toast.error(t("oracle.control.engine.placeholder"));
+      toast.error(t("oracle.control.engine.required"));
       return;
     }
     setGenerating(true);
     onStatus("Sync");
     try {
-      const payload = await jsonRequest<GeneratePayload>(
-        "/api/oracle/generate_now",
-        { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({}) },
-        120_000
-      );
+      const payload = await generateOracleBrief();
       setReports((prev) => [payload.report, ...prev]);
       setSelectedReportId(payload.report.id);
       onStatus("Live");
       toast.success(t("oracle.toast.generated"));
     } catch (exc) {
-      const message = exc instanceof Error ? exc.message : "Failed";
+      const message = exc instanceof Error ? exc.message : t("oracle.toast.failed");
       onStatus("Sync failed");
       toast.error(message);
     } finally {
@@ -219,6 +175,10 @@ export function OraclePage({ onStatus }: { onStatus: (status: string) => void })
   const canSave = !!selectedModel && !saving && !verifying;
   const canTrigger = !generating && !!config?.api_key_set && !!selectedModel;
 
+  const statusLabel = config?.api_key_set
+    ? t("oracle.status.set", { key: maskedFromServer || "***", model: config.model_name || "—" })
+    : t("oracle.status.unset");
+
   return (
     <div>
       <PageHeader
@@ -228,9 +188,7 @@ export function OraclePage({ onStatus }: { onStatus: (status: string) => void })
         actions={
           <div className="flex items-center gap-2 text-[12px] text-muted-foreground">
             <StatusDot tone={config?.api_key_set ? "positive" : "warning"} />
-            <span>
-              {config?.api_key_set ? `${maskedFromServer || "***"} · ${config.model_name || "—"}` : t("oracle.control.engine.placeholder")}
-            </span>
+            <span>{statusLabel}</span>
           </div>
         }
       />
@@ -333,9 +291,9 @@ export function OraclePage({ onStatus }: { onStatus: (status: string) => void })
             <div className="rounded-md border border-border/70 bg-muted/30 px-3 py-2.5 text-[11px] leading-5 text-muted-foreground">
               <div className="flex items-center gap-1.5">
                 <CheckCircle2 className="size-3 text-[var(--positive)]" />
-                <span className="font-medium text-foreground">APScheduler · Asia/Shanghai</span>
+                <span className="font-medium text-foreground">{t("oracle.execution.scheduler.label")}</span>
               </div>
-              <div className="mt-0.5 ml-[18px]">Cron 23:30 · auto audit & daily brief</div>
+              <div className="mt-0.5 ml-[18px]">{t("oracle.execution.scheduler.detail")}</div>
             </div>
           </div>
         </Panel>
@@ -349,7 +307,8 @@ export function OraclePage({ onStatus }: { onStatus: (status: string) => void })
         >
           {reportsLoading ? (
             <div className="flex items-center justify-center px-5 py-10 text-[12px] text-muted-foreground">
-              <Loader2 className="mr-2 size-3 animate-spin" /> Loading…
+              <Loader2 className="mr-2 size-3 animate-spin" />
+              {t("oracle.reports.loading")}
             </div>
           ) : reports.length === 0 ? (
             <div className="px-5 py-6">
@@ -366,6 +325,12 @@ export function OraclePage({ onStatus }: { onStatus: (status: string) => void })
                       : r.kind === "manual"
                         ? t("oracle.reports.kind.manual")
                         : r.kind;
+                  const badgeLabel =
+                    r.kind === "daily"
+                      ? t("oracle.reports.badge.daily")
+                      : r.kind === "manual"
+                        ? t("oracle.reports.badge.manual")
+                        : r.kind;
                   return (
                     <li key={r.id}>
                       <button
@@ -379,7 +344,7 @@ export function OraclePage({ onStatus }: { onStatus: (status: string) => void })
                         <div className="flex items-center justify-between gap-2">
                           <span className="text-[12px] font-medium text-foreground">{kindLabel}</span>
                           <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                            {r.kind === "daily" ? "AUTO" : "MANUAL"}
+                            {badgeLabel}
                           </span>
                         </div>
                         <p className="mt-1 text-[11px] text-muted-foreground">{formatReportTimestamp(r.created_at)}</p>
