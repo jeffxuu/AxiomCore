@@ -1,0 +1,8 @@
+[TOKEN OPTIMIZATION RULE - EXTREMELY IMPORTANT]
+You must aggressively optimize token consumption by wrapping terminal commands with the `rtk` CLI proxy.
+Whenever you need to execute a shell/powershell command that generates text output, especially for `git` operations, file inspections (`cat`, `ls`, `grep`), build logs, or test runners, you MUST prepend the command with `rtk `.
+Examples:
+- Use `rtk git status` instead of `git status`.
+- Use `rtk cat filename.txt` instead of `cat filename.txt`.
+- Use `rtk npm run build` instead of `npm run build`.
+Important: Always prefer running shell commands wrapped in `rtk` over using your built-in tools like ReadFile when inspecting large files, to benefit from smart compression.
