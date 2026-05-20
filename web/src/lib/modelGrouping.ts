@@ -1,92 +1,150 @@
-// Two-tier model classifier for the 4SAPI aggregated gateway.
+// Dynamic vendor ingestion engine for the 4SAPI aggregated gateway.
 //
-// Defensive: a static 4-vendor dictionary + lowercase fuzzy `includes`
-// matching, so any model string returned by /api/oracle/verify lands in the
-// right bucket regardless of casing, punctuation, or vendor prefixes.
+// 4SAPI's "all-model" key can return models from dozens of vendors
+// (OpenAI, Anthropic, Google, DeepSeek, Qwen, Llama, Kimi, Mistral, Yi,
+// Hunyuan, Ernie, GLM…) and the strings often carry an extra `gpt-` proxy
+// shell. We do NOT hardcode the vendor list. Instead we keyword-sniff every
+// raw model id, fall back to slicing on `-`, and let the bucket map drive
+// the UI cascade.
 
-export type ProviderId = "openai" | "anthropic" | "google" | "deepseek";
+export interface Provider {
+  key: string;
+  label: string;
+}
 
-export const PROVIDER_ORDER: ProviderId[] = [
+// Curated bilingual labels for the vendors we know about. Anything not in
+// this table is rendered with the vendor key title-cased.
+export const PROVIDER_LABEL_MAP: Record<string, { zh: string; en: string }> = {
+  openai: { zh: "OpenAI ( ChatGPT )", en: "OpenAI ( ChatGPT )" },
+  anthropic: { zh: "Anthropic ( 克劳德 )", en: "Anthropic ( Claude )" },
+  google: { zh: "Google ( 双子座 )", en: "Google ( Gemini )" },
+  deepseek: { zh: "DeepSeek ( 深度求索 )", en: "DeepSeek" },
+  alibaba: { zh: "Alibaba ( 通义千问 )", en: "Alibaba ( Qwen )" },
+  tencent: { zh: "Tencent ( 腾讯混元 )", en: "Tencent ( Hunyuan )" },
+  baidu: { zh: "Baidu ( 文心一言 )", en: "Baidu ( Ernie )" },
+  meta: { zh: "Meta ( Llama 架构 )", en: "Meta ( Llama )" },
+  moonshot: { zh: "Moonshot ( Kimi 秘塔 )", en: "Moonshot ( Kimi )" },
+  mistral: { zh: "Mistral AI ( 欧洲智库 )", en: "Mistral AI" },
+  yi: { zh: "01.AI ( 零一万物 )", en: "01.AI ( Yi )" },
+  zhipu: { zh: "Zhipu ( 智谱清言 )", en: "Zhipu AI" },
+  xai: { zh: "xAI ( Grok )", en: "xAI ( Grok )" },
+  cohere: { zh: "Cohere ( 指令模型 )", en: "Cohere" },
+  perplexity: { zh: "Perplexity ( 检索增强 )", en: "Perplexity" },
+};
+
+// Preferred ordering when several known vendors show up. Anything outside
+// this list (including the dynamic slice-fallback vendors) is appended
+// alphabetically.
+const VENDOR_PRIORITY: string[] = [
   "openai",
   "anthropic",
   "google",
   "deepseek",
+  "alibaba",
+  "meta",
+  "moonshot",
+  "mistral",
+  "yi",
+  "zhipu",
+  "baidu",
+  "tencent",
+  "xai",
+  "cohere",
+  "perplexity",
 ];
 
-export type ProviderGroups = Record<ProviderId, string[]>;
+// Core single-string detector. Pure / deterministic so it doubles as the
+// "what vendor does THIS id belong to" probe used by stored-state hydration.
+export function detectVendor(model: string): string {
+  const raw = (model ?? "").trim();
+  if (!raw) return "";
+  const m = raw.toLowerCase();
 
-export function getModelsByProvider(
-  rawModels: readonly string[] | null | undefined,
-  providerKey: ProviderId,
-): string[] {
-  if (!rawModels || rawModels.length === 0) return [];
-  return rawModels.filter((model) => {
-    if (typeof model !== "string") return false;
-    const m = model.toLowerCase();
-    switch (providerKey) {
-      case "openai":
-        return (
-          (m.includes("gpt-") ||
-            m.startsWith("gpt") ||
-            m.startsWith("o1-") ||
-            m.startsWith("o3-") ||
-            m.startsWith("o4-") ||
-            m.includes("chatgpt")) &&
-          !m.includes("claude") &&
-          !m.includes("gemini") &&
-          !m.includes("deepseek")
-        );
-      case "anthropic":
-        return m.includes("claude");
-      case "google":
-        return m.includes("gemini");
-      case "deepseek":
-        return m.includes("deepseek");
-      default:
-        return false;
-    }
-  });
-}
-
-export function detectProvider(model: string): ProviderId | "" {
-  const m = (model ?? "").toLowerCase().trim();
-  if (!m) return "";
-  if (m.includes("claude")) return "anthropic";
-  if (m.includes("gemini")) return "google";
+  // A. Keyword-precision interception (immune to nested `gpt-` proxy shells).
+  if (m.includes("claude") || m.includes("anthropic")) return "anthropic";
+  if (m.includes("gemini") || m.includes("google")) return "google";
   if (m.includes("deepseek")) return "deepseek";
-  if (
-    m.includes("gpt-") ||
-    m.startsWith("gpt") ||
-    m.startsWith("o1-") ||
-    m.startsWith("o3-") ||
-    m.startsWith("o4-") ||
-    m.includes("chatgpt")
-  ) {
+  if (m.includes("qwen") || m.includes("qianwen")) return "alibaba";
+  if (m.includes("llama")) return "meta";
+  if (m.includes("kimi") || m.includes("moonshot")) return "moonshot";
+  if (m.includes("mistral") || m.includes("mixtral") || m.includes("codestral")) return "mistral";
+  if (m.includes("yi-") || m.startsWith("yi-") || m.includes("01-ai") || m.includes("01ai")) return "yi";
+  if (m.includes("ernie") || m.includes("baidu") || m.includes("wenxin")) return "baidu";
+  if (m.includes("hunyuan") || m.includes("tencent")) return "tencent";
+  if (m.includes("glm") || m.includes("zhipu") || m.includes("chatglm")) return "zhipu";
+  if (m.includes("grok") || m.includes("xai")) return "xai";
+  if (m.includes("command-r") || m.includes("cohere")) return "cohere";
+  if (m.includes("sonar") || m.includes("perplexity")) return "perplexity";
+  if (m.includes("gpt-") || m.startsWith("gpt") || m.startsWith("o1-") || m.startsWith("o3-") || m.startsWith("o4-") || m.includes("chatgpt")) {
     return "openai";
   }
-  return "";
+
+  // B. Slice fallback: 4SAPI proxy IDs often look like `gpt-<vendor>-<model>`.
+  // Strip the leading `gpt-` shell, then take the first remaining segment.
+  const parts = raw.split("-").filter(Boolean);
+  if (parts.length >= 3 && parts[0].toLowerCase() === "gpt") {
+    return parts[1].toLowerCase();
+  }
+  if (parts.length > 0) {
+    return parts[0].toLowerCase();
+  }
+  return "other";
 }
 
-export function groupModels(models: readonly string[] | null | undefined): ProviderGroups {
-  const buckets: ProviderGroups = {
-    openai: [],
-    anthropic: [],
-    google: [],
-    deepseek: [],
-  };
+function vendorLabel(key: string, isEn: boolean): string {
+  const entry = PROVIDER_LABEL_MAP[key];
+  if (entry) return isEn ? entry.en : entry.zh;
+  if (!key) return isEn ? "Other" : "其他";
+  return key.charAt(0).toUpperCase() + key.slice(1);
+}
+
+function sortVendorKeys(keys: string[]): string[] {
+  const known: string[] = [];
+  const unknown: string[] = [];
+  for (const key of keys) {
+    if (VENDOR_PRIORITY.includes(key)) known.push(key);
+    else unknown.push(key);
+  }
+  known.sort((a, b) => VENDOR_PRIORITY.indexOf(a) - VENDOR_PRIORITY.indexOf(b));
+  unknown.sort((a, b) => a.localeCompare(b));
+  return [...known, ...unknown];
+}
+
+/**
+ * Scan a raw model pool, bucket every entry to its detected vendor, and
+ * emit the data shape the two-tier cascade needs.
+ *
+ * Returns:
+ *   - dynamicProviders: ordered Provider[] for the LEFT select.
+ *   - bucketMap:        vendorKey -> string[] of models for the RIGHT select.
+ */
+export function parseAllModelsAndProviders(
+  rawModels: readonly string[] | null | undefined,
+  isEn: boolean,
+): { dynamicProviders: Provider[]; bucketMap: Map<string, string[]> } {
+  const bucketMap = new Map<string, string[]>();
   const seen = new Set<string>();
-  const cleaned: string[] = [];
-  for (const raw of models || []) {
+
+  for (const raw of rawModels || []) {
     if (typeof raw !== "string") continue;
     const trimmed = raw.trim();
     if (!trimmed || seen.has(trimmed)) continue;
     seen.add(trimmed);
-    cleaned.push(trimmed);
+
+    const vendor = detectVendor(trimmed) || "other";
+    if (!bucketMap.has(vendor)) bucketMap.set(vendor, []);
+    bucketMap.get(vendor)!.push(trimmed);
   }
-  for (const key of PROVIDER_ORDER) {
-    const arr = getModelsByProvider(cleaned, key);
-    arr.sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
-    buckets[key] = arr;
+
+  for (const [, list] of bucketMap) {
+    list.sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
   }
-  return buckets;
+
+  const orderedKeys = sortVendorKeys(Array.from(bucketMap.keys()));
+  const dynamicProviders: Provider[] = orderedKeys.map((key) => ({
+    key,
+    label: vendorLabel(key, isEn),
+  }));
+
+  return { dynamicProviders, bucketMap };
 }

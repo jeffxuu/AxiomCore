@@ -24,11 +24,8 @@ import {
 import { useI18n, useT } from "@/lib/i18nConfig";
 import { cn } from "@/lib/utils";
 import {
-  detectProvider,
-  getModelsByProvider,
-  groupModels,
-  PROVIDER_ORDER,
-  type ProviderId,
+  detectVendor,
+  parseAllModelsAndProviders,
 } from "@/lib/modelGrouping";
 
 const ORACLE_PROVIDER_STORAGE_KEY = "axiom.oracle.provider";
@@ -42,14 +39,12 @@ function formatReportTimestamp(value: string, lang: "en" | "zh"): string {
   return date.toLocaleString(locale, { hour12: false });
 }
 
-function readStoredProvider(): ProviderId | "" {
+function readStoredProvider(): string {
   try {
-    const value = window.localStorage.getItem(ORACLE_PROVIDER_STORAGE_KEY);
-    if (value && (PROVIDER_ORDER as string[]).includes(value)) return value as ProviderId;
+    return window.localStorage.getItem(ORACLE_PROVIDER_STORAGE_KEY) || "";
   } catch {
-    /* ignore */
+    return "";
   }
-  return "";
 }
 
 export function OraclePage({ onStatus }: { onStatus: (status: string) => void }) {
@@ -65,13 +60,16 @@ export function OraclePage({ onStatus }: { onStatus: (status: string) => void })
 
   const [models, setModels] = useState<string[]>([]);
   const [selectedModel, setSelectedModel] = useState("");
-  const [selectedProvider, setSelectedProvider] = useState<ProviderId | "">(() => readStoredProvider());
+  const [selectedProvider, setSelectedProvider] = useState<string>(() => readStoredProvider());
   const [verifying, setVerifying] = useState(false);
   const [saving, setSaving] = useState(false);
   const [savingAuto, setSavingAuto] = useState(false);
 
-  const groups = useMemo(() => groupModels(models), [models]);
-  const engineOptions = selectedProvider ? groups[selectedProvider] : [];
+  const { dynamicProviders, bucketMap } = useMemo(
+    () => parseAllModelsAndProviders(models, lang === "en"),
+    [models, lang],
+  );
+  const engineOptions = selectedProvider ? bucketMap.get(selectedProvider) || [] : [];
 
   const [reports, setReports] = useState<OracleReport[]>([]);
   const [reportsLoading, setReportsLoading] = useState(true);
@@ -93,10 +91,10 @@ export function OraclePage({ onStatus }: { onStatus: (status: string) => void })
       const initialModel = c.model_name || pool[0] || "";
       if (initialModel) {
         setSelectedModel(initialModel);
-        const inferred = detectProvider(initialModel);
+        const inferred = detectVendor(initialModel);
         const stored = readStoredProvider();
-        const next: ProviderId = stored || (inferred as ProviderId) || PROVIDER_ORDER[0];
-        setSelectedProvider(next);
+        const next = stored || inferred || "";
+        if (next) setSelectedProvider(next);
       }
       setApiKeyInput("");
       setKeyDirty(false);
@@ -139,17 +137,20 @@ export function OraclePage({ onStatus }: { onStatus: (status: string) => void })
     }
   }, [selectedProvider]);
 
-  // State circuit breaker: whenever the provider changes or the global model
-  // pool reloads (e.g. after /api/oracle/verify), re-evaluate the bucket and
-  // force selectedModel back into a valid value. Without this, the controlled
-  // <select> can deadlock onto a stale id that isn't in the new options list
-  // and render as blank.
+  // Snap the provider into the dynamic list. If the stored / inferred vendor
+  // isn't represented in the current pool (e.g. the key flipped from a single-
+  // vendor account to the 4SAPI multi-vendor key), default to the first bucket.
   useEffect(() => {
-    if (!selectedProvider) {
-      if (selectedModel) setSelectedModel("");
-      return;
+    if (dynamicProviders.length === 0) return;
+    if (!selectedProvider || !bucketMap.has(selectedProvider)) {
+      setSelectedProvider(dynamicProviders[0].key);
     }
-    const bucket = getModelsByProvider(models, selectedProvider);
+  }, [dynamicProviders, bucketMap, selectedProvider]);
+
+  // Snap the model into the active bucket. Without this the controlled select
+  // deadlocks on a stale id and renders blank.
+  useEffect(() => {
+    const bucket = selectedProvider ? bucketMap.get(selectedProvider) || [] : [];
     if (bucket.length === 0) {
       if (selectedModel) setSelectedModel("");
       return;
@@ -157,12 +158,12 @@ export function OraclePage({ onStatus }: { onStatus: (status: string) => void })
     if (!bucket.includes(selectedModel)) {
       setSelectedModel(bucket[0]);
     }
-    // selectedModel intentionally excluded — including it would loop the effect
-    // on every user pick.
+    // selectedModel intentionally excluded — re-running on every user pick
+    // would clobber the just-selected value.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedProvider, models]);
+  }, [selectedProvider, bucketMap]);
 
-  const handleProviderChange = (next: ProviderId | "") => {
+  const handleProviderChange = (next: string) => {
     setSelectedProvider(next);
   };
 
@@ -183,12 +184,16 @@ export function OraclePage({ onStatus }: { onStatus: (status: string) => void })
       const fetched = payload.models || [];
       setModels(fetched);
       if (fetched.length) {
-        const groupsLocal = groupModels(fetched);
-        const inferred = detectProvider(selectedModel || fetched[0]);
-        const nextProvider: ProviderId =
-          selectedProvider || (inferred as ProviderId) || PROVIDER_ORDER[0];
+        const { dynamicProviders: providersLocal, bucketMap: bucketsLocal } =
+          parseAllModelsAndProviders(fetched, lang === "en");
+        const inferred = detectVendor(selectedModel || fetched[0]);
+        const nextProvider =
+          (selectedProvider && bucketsLocal.has(selectedProvider) ? selectedProvider : "") ||
+          (bucketsLocal.has(inferred) ? inferred : "") ||
+          providersLocal[0]?.key ||
+          "";
         setSelectedProvider(nextProvider);
-        const bucket = groupsLocal[nextProvider];
+        const bucket = nextProvider ? bucketsLocal.get(nextProvider) || [] : [];
         const keep = bucket.includes(selectedModel) ? selectedModel : bucket[0] || "";
         setSelectedModel(keep);
       }
@@ -382,16 +387,19 @@ export function OraclePage({ onStatus }: { onStatus: (status: string) => void })
                 <select
                   aria-label={t("oracle.control.provider")}
                   value={selectedProvider}
-                  onChange={(e) => handleProviderChange(e.target.value as ProviderId | "")}
-                  disabled={configLoading}
+                  onChange={(e) => handleProviderChange(e.target.value)}
+                  disabled={configLoading || dynamicProviders.length === 0}
                   className="h-9 w-full rounded-md border border-border bg-background px-2 text-[13px] disabled:opacity-50"
                 >
-                  {!selectedProvider ? (
+                  {dynamicProviders.length === 0 ? (
                     <option value="">{t("oracle.control.provider.placeholder")}</option>
                   ) : null}
-                  {PROVIDER_ORDER.map((p) => (
-                    <option key={p} value={p}>
-                      {t(`provider.${p}`)}
+                  {!selectedProvider && dynamicProviders.length > 0 ? (
+                    <option value="">{t("oracle.control.provider.placeholder")}</option>
+                  ) : null}
+                  {dynamicProviders.map((p) => (
+                    <option key={p.key} value={p.key}>
+                      {p.label}
                     </option>
                   ))}
                 </select>

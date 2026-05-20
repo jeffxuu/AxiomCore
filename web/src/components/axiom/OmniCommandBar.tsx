@@ -2,14 +2,11 @@ import { useCallback, useEffect, useMemo, useState, type KeyboardEvent } from "r
 import { Boxes, ChevronDown, Cpu, Loader2, Send, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { loadOracleConfig, parseCommand, type CommandParseResponse } from "@/api";
-import { useT } from "@/lib/i18nConfig";
+import { useI18n, useT } from "@/lib/i18nConfig";
 import { cn } from "@/lib/utils";
 import {
-  detectProvider,
-  getModelsByProvider,
-  groupModels,
-  PROVIDER_ORDER,
-  type ProviderId,
+  detectVendor,
+  parseAllModelsAndProviders,
 } from "@/lib/modelGrouping";
 
 const MODEL_STORAGE_KEY = "axiom.omni.parse_model";
@@ -21,11 +18,6 @@ function readStored(key: string): string {
   } catch {
     return "";
   }
-}
-
-function readStoredProvider(): ProviderId | "" {
-  const value = readStored(PROVIDER_STORAGE_KEY);
-  return (PROVIDER_ORDER as string[]).includes(value) ? (value as ProviderId) : "";
 }
 
 /**
@@ -40,15 +32,19 @@ function readStoredProvider(): ProviderId | "" {
  */
 export function OmniCommandBar({ onIngested }: { onIngested: (result: CommandParseResponse) => void }) {
   const t = useT();
+  const { lang } = useI18n();
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const [models, setModels] = useState<string[]>([]);
   const [defaultModel, setDefaultModel] = useState<string>("");
-  const [selectedProvider, setSelectedProvider] = useState<ProviderId | "">(() => readStoredProvider());
+  const [selectedProvider, setSelectedProvider] = useState<string>(() => readStored(PROVIDER_STORAGE_KEY));
   const [selectedModel, setSelectedModel] = useState<string>(() => readStored(MODEL_STORAGE_KEY));
 
-  const groups = useMemo(() => groupModels(models), [models]);
-  const engineOptions = selectedProvider ? groups[selectedProvider] : [];
+  const { dynamicProviders, bucketMap } = useMemo(
+    () => parseAllModelsAndProviders(models, lang === "en"),
+    [models, lang],
+  );
+  const engineOptions = selectedProvider ? bucketMap.get(selectedProvider) || [] : [];
 
   const hydrate = useCallback(async () => {
     try {
@@ -57,31 +53,29 @@ export function OmniCommandBar({ onIngested }: { onIngested: (result: CommandPar
       setModels(pool);
       setDefaultModel(cfg.model_name || "");
 
-      const groupsLocal = groupModels(pool);
+      const { dynamicProviders: providersLocal, bucketMap: bucketsLocal } =
+        parseAllModelsAndProviders(pool, lang === "en");
 
-      const storedProvider = readStoredProvider();
+      const storedProvider = readStored(PROVIDER_STORAGE_KEY);
       const storedModel = readStored(MODEL_STORAGE_KEY);
       const fallbackModel = cfg.model_name || pool[0] || "";
       const candidateModel = storedModel && pool.includes(storedModel) ? storedModel : fallbackModel;
-      const inferredProvider = candidateModel ? detectProvider(candidateModel) : "";
+      const inferredProvider = candidateModel ? detectVendor(candidateModel) : "";
 
-      let nextProvider: ProviderId | "" = "";
-      if (storedProvider) {
-        nextProvider = storedProvider;
-      } else if (inferredProvider) {
-        nextProvider = inferredProvider as ProviderId;
-      } else {
-        nextProvider = PROVIDER_ORDER[0];
-      }
+      const nextProvider =
+        (storedProvider && bucketsLocal.has(storedProvider) ? storedProvider : "") ||
+        (bucketsLocal.has(inferredProvider) ? inferredProvider : "") ||
+        providersLocal[0]?.key ||
+        "";
       setSelectedProvider(nextProvider);
 
-      const bucket = nextProvider ? groupsLocal[nextProvider] : [];
+      const bucket = nextProvider ? bucketsLocal.get(nextProvider) || [] : [];
       const nextModel = bucket.includes(candidateModel) ? candidateModel : bucket[0] || "";
       setSelectedModel(nextModel);
     } catch {
       /* Oracle not configured yet — silent. */
     }
-  }, []);
+  }, [lang]);
 
   useEffect(() => {
     void hydrate();
@@ -111,17 +105,26 @@ export function OmniCommandBar({ onIngested }: { onIngested: (result: CommandPar
     }
   }, [selectedModel]);
 
-  // State circuit breaker: whenever the provider changes or the global model
-  // pool reloads, re-derive the bucket and snap selectedModel into a valid
-  // option. Empty string is preferred here (vs OraclePage) because the engine
-  // <select> exposes an explicit "use default model" option, so the empty
-  // state is meaningful.
+  // Snap the provider into the dynamic list whenever the pool changes (e.g.
+  // after the Oracle key flips from a single-vendor key to the 4SAPI all-model
+  // key). Without this, a stored vendor that no longer exists deadlocks the
+  // engine select on a blank.
+  useEffect(() => {
+    if (dynamicProviders.length === 0) return;
+    if (!selectedProvider || !bucketMap.has(selectedProvider)) {
+      setSelectedProvider(dynamicProviders[0].key);
+    }
+  }, [dynamicProviders, bucketMap, selectedProvider]);
+
+  // Snap selectedModel into the active bucket. Empty string is preferred here
+  // (vs OraclePage) because the engine <select> exposes an explicit "use
+  // default model" option, so the empty state is meaningful.
   useEffect(() => {
     if (!selectedProvider) {
       if (selectedModel) setSelectedModel("");
       return;
     }
-    const bucket = getModelsByProvider(models, selectedProvider);
+    const bucket = bucketMap.get(selectedProvider) || [];
     if (bucket.length === 0) {
       if (selectedModel) setSelectedModel("");
       return;
@@ -132,9 +135,9 @@ export function OmniCommandBar({ onIngested }: { onIngested: (result: CommandPar
     // selectedModel intentionally excluded — see OraclePage.tsx for the same
     // rationale.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedProvider, models]);
+  }, [selectedProvider, bucketMap]);
 
-  const onProviderChange = (next: ProviderId | "") => {
+  const onProviderChange = (next: string) => {
     setSelectedProvider(next);
   };
 
@@ -246,8 +249,8 @@ export function OmniCommandBar({ onIngested }: { onIngested: (result: CommandPar
             <select
               aria-label={t("omni.console.provider")}
               value={selectedProvider}
-              disabled={providerSelectDisabled}
-              onChange={(e) => onProviderChange(e.target.value as ProviderId | "")}
+              disabled={providerSelectDisabled || dynamicProviders.length === 0}
+              onChange={(e) => onProviderChange(e.target.value)}
               className={cn(
                 "h-9 w-full appearance-none truncate rounded-md border border-border bg-background pl-3 pr-8 text-[12px]",
                 "font-medium text-foreground transition-colors",
@@ -255,12 +258,15 @@ export function OmniCommandBar({ onIngested }: { onIngested: (result: CommandPar
                 "disabled:cursor-not-allowed disabled:opacity-50",
               )}
             >
-              {!selectedProvider ? (
+              {dynamicProviders.length === 0 ? (
                 <option value="">{t("omni.console.provider.placeholder")}</option>
               ) : null}
-              {PROVIDER_ORDER.map((p) => (
-                <option key={p} value={p}>
-                  {t(`provider.${p}`)}
+              {!selectedProvider && dynamicProviders.length > 0 ? (
+                <option value="">{t("omni.console.provider.placeholder")}</option>
+              ) : null}
+              {dynamicProviders.map((p) => (
+                <option key={p.key} value={p.key}>
+                  {p.label}
                 </option>
               ))}
             </select>
