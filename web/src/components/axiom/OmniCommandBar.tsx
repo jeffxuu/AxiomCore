@@ -6,6 +6,7 @@ import { useT } from "@/lib/i18nConfig";
 import { cn } from "@/lib/utils";
 import {
   detectProvider,
+  getModelsByProvider,
   groupModels,
   PROVIDER_ORDER,
   type ProviderId,
@@ -110,16 +111,31 @@ export function OmniCommandBar({ onIngested }: { onIngested: (result: CommandPar
     }
   }, [selectedModel]);
 
-  const onProviderChange = (next: ProviderId | "") => {
-    setSelectedProvider(next);
-    if (!next) {
-      setSelectedModel("");
+  // State circuit breaker: whenever the provider changes or the global model
+  // pool reloads, re-derive the bucket and snap selectedModel into a valid
+  // option. Empty string is preferred here (vs OraclePage) because the engine
+  // <select> exposes an explicit "use default model" option, so the empty
+  // state is meaningful.
+  useEffect(() => {
+    if (!selectedProvider) {
+      if (selectedModel) setSelectedModel("");
       return;
     }
-    const bucket = groups[next] || [];
-    if (!bucket.includes(selectedModel)) {
-      setSelectedModel(bucket[0] || "");
+    const bucket = getModelsByProvider(models, selectedProvider);
+    if (bucket.length === 0) {
+      if (selectedModel) setSelectedModel("");
+      return;
     }
+    if (selectedModel && !bucket.includes(selectedModel)) {
+      setSelectedModel(bucket[0]);
+    }
+    // selectedModel intentionally excluded — see OraclePage.tsx for the same
+    // rationale.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedProvider, models]);
+
+  const onProviderChange = (next: ProviderId | "") => {
+    setSelectedProvider(next);
   };
 
   const submit = async () => {

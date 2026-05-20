@@ -25,6 +25,7 @@ import { useI18n, useT } from "@/lib/i18nConfig";
 import { cn } from "@/lib/utils";
 import {
   detectProvider,
+  getModelsByProvider,
   groupModels,
   PROVIDER_ORDER,
   type ProviderId,
@@ -138,16 +139,31 @@ export function OraclePage({ onStatus }: { onStatus: (status: string) => void })
     }
   }, [selectedProvider]);
 
-  const handleProviderChange = (next: ProviderId | "") => {
-    setSelectedProvider(next);
-    if (!next) {
-      setSelectedModel("");
+  // State circuit breaker: whenever the provider changes or the global model
+  // pool reloads (e.g. after /api/oracle/verify), re-evaluate the bucket and
+  // force selectedModel back into a valid value. Without this, the controlled
+  // <select> can deadlock onto a stale id that isn't in the new options list
+  // and render as blank.
+  useEffect(() => {
+    if (!selectedProvider) {
+      if (selectedModel) setSelectedModel("");
       return;
     }
-    const bucket = groups[next] || [];
-    if (!bucket.includes(selectedModel)) {
-      setSelectedModel(bucket[0] || "");
+    const bucket = getModelsByProvider(models, selectedProvider);
+    if (bucket.length === 0) {
+      if (selectedModel) setSelectedModel("");
+      return;
     }
+    if (!bucket.includes(selectedModel)) {
+      setSelectedModel(bucket[0]);
+    }
+    // selectedModel intentionally excluded — including it would loop the effect
+    // on every user pick.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedProvider, models]);
+
+  const handleProviderChange = (next: ProviderId | "") => {
+    setSelectedProvider(next);
   };
 
   const verify = async () => {
