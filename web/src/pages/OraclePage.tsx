@@ -26,7 +26,6 @@ import { cn } from "@/lib/utils";
 import {
   detectProvider,
   groupModels,
-  providersWithEngines,
   PROVIDER_ORDER,
   type ProviderId,
 } from "@/lib/modelGrouping";
@@ -71,7 +70,6 @@ export function OraclePage({ onStatus }: { onStatus: (status: string) => void })
   const [savingAuto, setSavingAuto] = useState(false);
 
   const groups = useMemo(() => groupModels(models), [models]);
-  const availableProviders = useMemo(() => providersWithEngines(groups), [groups]);
   const engineOptions = selectedProvider ? groups[selectedProvider] : [];
 
   const [reports, setReports] = useState<OracleReport[]>([]);
@@ -96,14 +94,7 @@ export function OraclePage({ onStatus }: { onStatus: (status: string) => void })
         setSelectedModel(initialModel);
         const inferred = detectProvider(initialModel);
         const stored = readStoredProvider();
-        const groupsLocal = groupModels(pool);
-        const candidates = providersWithEngines(groupsLocal);
-        const next: ProviderId | "" =
-          stored && candidates.includes(stored)
-            ? stored
-            : candidates.includes(inferred)
-              ? inferred
-              : candidates[0] || "";
+        const next: ProviderId = stored || (inferred as ProviderId) || PROVIDER_ORDER[0];
         setSelectedProvider(next);
       }
       setApiKeyInput("");
@@ -175,14 +166,9 @@ export function OraclePage({ onStatus }: { onStatus: (status: string) => void })
       setModels(fetched);
       if (fetched.length) {
         const groupsLocal = groupModels(fetched);
-        const candidates = providersWithEngines(groupsLocal);
         const inferred = detectProvider(selectedModel || fetched[0]);
         const nextProvider: ProviderId =
-          selectedProvider && candidates.includes(selectedProvider)
-            ? selectedProvider
-            : candidates.includes(inferred)
-              ? inferred
-              : candidates[0] || "other";
+          selectedProvider || (inferred as ProviderId) || PROVIDER_ORDER[0];
         setSelectedProvider(nextProvider);
         const bucket = groupsLocal[nextProvider];
         const keep = bucket.includes(selectedModel) ? selectedModel : bucket[0] || "";
@@ -379,23 +365,17 @@ export function OraclePage({ onStatus }: { onStatus: (status: string) => void })
                   aria-label={t("oracle.control.provider")}
                   value={selectedProvider}
                   onChange={(e) => handleProviderChange(e.target.value as ProviderId | "")}
-                  disabled={configLoading || availableProviders.length === 0}
+                  disabled={configLoading}
                   className="h-9 w-full rounded-md border border-border bg-background px-2 text-[13px] disabled:opacity-50"
                 >
-                  {availableProviders.length === 0 ? (
-                    <option value="">{t("oracle.control.provider.locked")}</option>
-                  ) : (
-                    <>
-                      {!selectedProvider ? (
-                        <option value="">{t("oracle.control.provider.placeholder")}</option>
-                      ) : null}
-                      {availableProviders.map((p) => (
-                        <option key={p} value={p}>
-                          {t(`provider.${p}`)}
-                        </option>
-                      ))}
-                    </>
-                  )}
+                  {!selectedProvider ? (
+                    <option value="">{t("oracle.control.provider.placeholder")}</option>
+                  ) : null}
+                  {PROVIDER_ORDER.map((p) => (
+                    <option key={p} value={p}>
+                      {t(`provider.${p}`)}
+                    </option>
+                  ))}
                 </select>
               </div>
               <div className="space-y-2">

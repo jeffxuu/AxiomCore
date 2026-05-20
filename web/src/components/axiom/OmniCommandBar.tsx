@@ -7,7 +7,6 @@ import { cn } from "@/lib/utils";
 import {
   detectProvider,
   groupModels,
-  providersWithEngines,
   PROVIDER_ORDER,
   type ProviderId,
 } from "@/lib/modelGrouping";
@@ -48,7 +47,6 @@ export function OmniCommandBar({ onIngested }: { onIngested: (result: CommandPar
   const [selectedModel, setSelectedModel] = useState<string>(() => readStored(MODEL_STORAGE_KEY));
 
   const groups = useMemo(() => groupModels(models), [models]);
-  const availableProviders = useMemo(() => providersWithEngines(groups), [groups]);
   const engineOptions = selectedProvider ? groups[selectedProvider] : [];
 
   const hydrate = useCallback(async () => {
@@ -59,7 +57,6 @@ export function OmniCommandBar({ onIngested }: { onIngested: (result: CommandPar
       setDefaultModel(cfg.model_name || "");
 
       const groupsLocal = groupModels(pool);
-      const candidates = providersWithEngines(groupsLocal);
 
       const storedProvider = readStoredProvider();
       const storedModel = readStored(MODEL_STORAGE_KEY);
@@ -68,12 +65,12 @@ export function OmniCommandBar({ onIngested }: { onIngested: (result: CommandPar
       const inferredProvider = candidateModel ? detectProvider(candidateModel) : "";
 
       let nextProvider: ProviderId | "" = "";
-      if (storedProvider && candidates.includes(storedProvider)) {
+      if (storedProvider) {
         nextProvider = storedProvider;
-      } else if (inferredProvider && candidates.includes(inferredProvider as ProviderId)) {
+      } else if (inferredProvider) {
         nextProvider = inferredProvider as ProviderId;
       } else {
-        nextProvider = candidates[0] || "";
+        nextProvider = PROVIDER_ORDER[0];
       }
       setSelectedProvider(nextProvider);
 
@@ -141,7 +138,7 @@ export function OmniCommandBar({ onIngested }: { onIngested: (result: CommandPar
     }
   };
 
-  const providerSelectDisabled = busy || availableProviders.length === 0;
+  const providerSelectDisabled = busy;
   const engineSelectDisabled = busy || !selectedProvider || engineOptions.length === 0;
 
   return (
@@ -228,20 +225,14 @@ export function OmniCommandBar({ onIngested }: { onIngested: (result: CommandPar
                   "disabled:cursor-not-allowed disabled:opacity-50",
                 )}
               >
-                {availableProviders.length === 0 ? (
+                {!selectedProvider ? (
                   <option value="">{t("omni.console.provider.empty")}</option>
-                ) : (
-                  <>
-                    {!selectedProvider ? (
-                      <option value="">{t("omni.console.provider.empty")}</option>
-                    ) : null}
-                    {availableProviders.map((p) => (
-                      <option key={p} value={p}>
-                        {t(`provider.${p}`)}
-                      </option>
-                    ))}
-                  </>
-                )}
+                ) : null}
+                {PROVIDER_ORDER.map((p) => (
+                  <option key={p} value={p}>
+                    {t(`provider.${p}`)}
+                  </option>
+                ))}
               </select>
               <ChevronDown className="pointer-events-none absolute right-1.5 size-3 text-muted-foreground" />
             </span>
