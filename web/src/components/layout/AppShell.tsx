@@ -78,7 +78,7 @@ export function AppShell({
     return (
       <TooltipProvider delayDuration={150}>
         <div className="min-h-screen w-full bg-background text-foreground">
-          <main className="mx-auto flex min-h-screen max-w-md items-center justify-center px-4 py-10">
+          <main className="mx-auto flex min-h-screen w-full max-w-[760px] items-center justify-center px-4 py-10">
             {children}
           </main>
           <Toaster position="top-right" theme={theme} />

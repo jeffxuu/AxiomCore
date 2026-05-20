@@ -62,18 +62,18 @@ function App() {
           setAuthStatus("authenticated");
         } else {
           setAuthStatus("anonymous");
-          window.location.replace("/login");
+          if (route.path !== "/") window.location.replace("/login");
         }
       })
       .catch(() => {
         if (cancelled) return;
         setAuthStatus("anonymous");
-        window.location.replace("/login");
+        if (route.path !== "/") window.location.replace("/login");
       });
     return () => {
       cancelled = true;
     };
-  }, [isLoginRoute]);
+  }, [isLoginRoute, route.path]);
 
   if (isLoginRoute) {
     return (
@@ -83,8 +83,16 @@ function App() {
     );
   }
 
-  if (authStatus !== "authenticated") {
+  if (authStatus === "checking") {
     return <AuthSplash />;
+  }
+
+  if (authStatus !== "authenticated") {
+    return (
+      <AppShell isLogin path={route.path} status={status} navigate={navigate}>
+        <LoginPage />
+      </AppShell>
+    );
   }
 
   const content = (() => {
