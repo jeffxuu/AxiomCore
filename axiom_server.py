@@ -2127,7 +2127,7 @@ def create_app() -> FastAPI:
         }
 
     @app.post("/api/oracle/generate_now")
-    async def oracle_generate_now(payload: Annotated[OracleGenerateIn, Body(default=None)] = None) -> dict[str, Any]:
+    async def oracle_generate_now(payload: OracleGenerateIn | None = None) -> dict[str, Any]:
         kind = (payload.kind if payload else None) or "manual"
         kind_norm = kind.strip().lower()
         if kind_norm not in {"manual", "daily", "weekly"}:
