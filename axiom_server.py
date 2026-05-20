@@ -242,8 +242,9 @@ class OracleGenerateIn(BaseModel):
 
 
 class CommandParseIn(BaseModel):
-    model_config = ConfigDict(extra="ignore")
+    model_config = ConfigDict(extra="ignore", protected_namespaces=())
     text: str
+    parse_model: str | None = None
 
 
 # ─── Utilities ──────────────────────────────────────────────────────
@@ -1013,6 +1014,7 @@ def _login_redirect(error_message: str = "") -> RedirectResponse:
 ORACLE_BASE_URL = "https://4sapi.com/v1"
 ORACLE_KEY_NAME = "oracle_api_key"
 ORACLE_MODEL_NAME = "oracle_model"
+ORACLE_MODEL_POOL_KEY = "oracle_model_pool"
 ORACLE_AUTO_DAILY_KEY = "oracle_auto_daily"
 ORACLE_AUTO_WEEKLY_KEY = "oracle_auto_weekly"
 ORACLE_TIMEOUT_SECONDS = 60.0
@@ -1466,15 +1468,16 @@ def nlp_vault_append(domain_id: str, markdown_text: str) -> dict[str, Any]:
     }
 
 
-async def nlp_call_4sapi(text: str) -> dict[str, Any]:
+async def nlp_call_4sapi(text: str, model_override: str | None = None) -> dict[str, Any]:
     """Ask 4SAPI for the structured envelope. Raises HTTPException on failure."""
     api_key, model_name = oracle_load_credentials()
     if not api_key or not model_name:
         raise HTTPException(status_code=400, detail="Oracle 尚未配置 API 密钥或模型引擎，请先打开 /oracle 页面保存。")
+    chosen_model = (model_override or "").strip() or model_name
     client = AsyncOpenAI(api_key=api_key, base_url=ORACLE_BASE_URL, timeout=ORACLE_TIMEOUT_SECONDS)
     try:
         completion = await client.chat.completions.create(
-            model=model_name,
+            model=chosen_model,
             messages=[
                 {"role": "system", "content": NLP_SYSTEM_PROMPT},
                 {"role": "user", "content": text.strip()},
@@ -1489,7 +1492,7 @@ async def nlp_call_4sapi(text: str) -> dict[str, Any]:
         # without it and rely on prompt-level discipline.
         try:
             completion = await client.chat.completions.create(
-                model=model_name,
+                model=chosen_model,
                 messages=[
                     {"role": "system", "content": NLP_SYSTEM_PROMPT},
                     {"role": "user", "content": text.strip()},
@@ -2078,11 +2081,21 @@ def create_app() -> FastAPI:
     @app.get("/api/oracle/config")
     def oracle_config_get() -> dict[str, Any]:
         api_key, model_name = oracle_load_credentials()
+        with connect() as conn:
+            pool_raw = oracle_read_setting(conn, ORACLE_MODEL_POOL_KEY)
+        try:
+            pool = json.loads(pool_raw) if pool_raw else []
+        except json.JSONDecodeError:
+            pool = []
+        if not isinstance(pool, list):
+            pool = []
+        models: list[str] = [str(m) for m in pool if str(m).strip()]
         return {
             "ok": True,
             "api_key_masked": mask_api_key(api_key),
             "api_key_set": bool(api_key),
             "model_name": model_name,
+            "models": models,
             "base_url": ORACLE_BASE_URL,
             "schedule": "23:30 Asia/Shanghai",
         }
@@ -2090,8 +2103,15 @@ def create_app() -> FastAPI:
     @app.post("/api/oracle/verify")
     async def oracle_config_verify(payload: OracleVerifyIn) -> dict[str, Any]:
         raw_key = (payload.api_key or "").strip()
+        # Credential hydration guard: when the frontend sends an empty value or
+        # the masked stub (containing ***), fall back to the plaintext key
+        # persisted in system_settings so the user can re-verify without
+        # re-pasting the secret.
         if not raw_key or "***" in raw_key:
-            raise HTTPException(status_code=400, detail="请粘贴完整的 4SAPI 明文 API Key。")
+            stored_key, _ = oracle_load_credentials()
+            if not stored_key:
+                raise HTTPException(status_code=400, detail="请先粘贴完整的 4SAPI 明文 API Key 并保存。")
+            raw_key = stored_key
         try:
             models = await oracle_fetch_models(raw_key)
         except AuthenticationError as exc:
@@ -2104,6 +2124,15 @@ def create_app() -> FastAPI:
             raise HTTPException(status_code=502, detail=f"4SAPI 通信失败：{exc!s}") from exc
         except Exception as exc:
             raise HTTPException(status_code=500, detail=f"模型拉取失败：{exc!s}") from exc
+        # Persist the latest verified pool so the Dashboard model selector can
+        # hydrate without re-pasting the key. Truncate to keep the SQLite blob
+        # small.
+        try:
+            with connect() as conn:
+                oracle_upsert_setting(conn, ORACLE_MODEL_POOL_KEY, json.dumps(models[:200]))
+                conn.commit()
+        except Exception as exc:
+            _oracle_log.warning("model_pool_persist_failed: %r", exc)
         return {"ok": True, "models": models, "total": len(models)}
 
     @app.post("/api/oracle/config")
@@ -2142,13 +2171,26 @@ def create_app() -> FastAPI:
             raise HTTPException(status_code=400, detail="请先输入一段自然语言。")
         if len(text) > 2000:
             raise HTTPException(status_code=400, detail="单条命令请控制在 2000 字以内。")
-        parsed = await nlp_call_4sapi(text)
+        parsed = await nlp_call_4sapi(text, model_override=payload.parse_model)
         result = nlp_dispatch(parsed)
         return {"ok": True, **result}
 
     @app.get("/api/oracle/reports")
     def oracle_reports_index(limit: int = Query(default=50, ge=1, le=200)) -> dict[str, Any]:
         return {"ok": True, "reports": oracle_list_reports(limit)}
+
+    @app.delete("/api/oracle/reports/{report_id}")
+    def oracle_report_delete(report_id: str) -> dict[str, Any]:
+        rid = (report_id or "").strip()
+        if not rid:
+            raise HTTPException(status_code=400, detail="缺少报告 ID。")
+        with connect() as conn:
+            cursor = conn.execute("DELETE FROM oracle_reports WHERE id = ?", (rid,))
+            conn.commit()
+            removed = cursor.rowcount or 0
+        if removed == 0:
+            raise HTTPException(status_code=404, detail="报告不存在或已被删除。")
+        return {"ok": True, "deleted_id": rid}
 
     @app.get("/api/oracle/auto")
     def oracle_auto_get() -> dict[str, Any]:

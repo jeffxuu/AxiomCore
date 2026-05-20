@@ -217,6 +217,7 @@ export type OracleConfig = {
   api_key_masked: string;
   api_key_set: boolean;
   model_name: string;
+  models?: string[];
   base_url: string;
   schedule: string;
 };
@@ -269,6 +270,12 @@ export function loadOracleReports(limit = 50): Promise<{ ok: true; reports: Orac
   return requestJson<{ ok: true; reports: OracleReport[] }>(`/api/oracle/reports?limit=${limit}`);
 }
 
+export function deleteOracleReport(id: string): Promise<{ ok: true; deleted_id: string }> {
+  return requestJson<{ ok: true; deleted_id: string }>(`/api/oracle/reports/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+  });
+}
+
 export type OracleAutoConfig = {
   ok: true;
   auto_daily: boolean;
@@ -309,10 +316,13 @@ export type CommandParseResponse = {
   markdown?: string;
 };
 
-export function parseCommand(text: string): Promise<CommandParseResponse> {
+export function parseCommand(text: string, parseModel?: string | null): Promise<CommandParseResponse> {
+  const body: { text: string; parse_model?: string } = { text };
+  const candidate = (parseModel || "").trim();
+  if (candidate) body.parse_model = candidate;
   return requestJson<CommandParseResponse>("/api/command/parse", {
     method: "POST",
     headers: jsonHeaders,
-    body: JSON.stringify({ text }),
+    body: JSON.stringify(body),
   });
 }

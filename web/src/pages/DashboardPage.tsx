@@ -111,13 +111,13 @@ export function DashboardPage({
 
   return (
     <div>
+      <OmniCommandBar onIngested={onIngested} />
+
       <PageHeader
         eyebrow={t("dashboard.eyebrow")}
         title={t("dashboard.title")}
         description={t("dashboard.desc")}
       />
-
-      <OmniCommandBar onIngested={onIngested} />
 
       {error ? (
         <div className="mb-4 rounded-lg border border-[var(--danger)]/40 bg-[var(--danger)]/5 px-4 py-3 text-[13px] text-[var(--danger)]">

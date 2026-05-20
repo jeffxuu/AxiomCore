@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { CalendarClock, KeyRound, Loader2, PlayCircle, RefreshCw, Save, Sparkles, Telescope } from "lucide-react";
+import { CalendarClock, KeyRound, Loader2, PlayCircle, RefreshCw, Save, Sparkles, Telescope, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,6 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { MarkdownView } from "@/components/axiom/MarkdownView";
 import { EmptyHint, PageHeader, Panel, StatusDot } from "@/components/axiom/primitives";
 import {
+  deleteOracleReport,
   generateOracleBrief,
   loadOracleAuto,
   loadOracleConfig,
@@ -62,9 +63,12 @@ export function OraclePage({ onStatus }: { onStatus: (status: string) => void })
       const [c, a] = await Promise.all([loadOracleConfig(), loadOracleAuto()]);
       setConfig(c);
       setAuto(a);
+      const pool = c.models && c.models.length ? c.models : c.model_name ? [c.model_name] : [];
+      if (pool.length) setModels(pool);
       if (c.model_name) {
         setSelectedModel(c.model_name);
-        setModels((prev) => (prev.length === 0 ? [c.model_name] : prev));
+      } else if (pool[0]) {
+        setSelectedModel(pool[0]);
       }
       setApiKeyInput("");
       setKeyDirty(false);
@@ -96,8 +100,12 @@ export function OraclePage({ onStatus }: { onStatus: (status: string) => void })
   }, [loadAll, loadReportsOnce]);
 
   const verify = async () => {
-    const candidate = keyDirty ? apiKeyInput.trim() : "";
-    if (!candidate || candidate.includes("***")) {
+    // When the user hasn't typed a new key (or only sees the masked stub), we
+    // intentionally send an empty string; the server hydrates the plaintext
+    // key from system_settings, so users can re-verify in one click.
+    const raw = keyDirty ? apiKeyInput.trim() : "";
+    const candidate = raw.includes("***") ? "" : raw;
+    if (!candidate && !config?.api_key_set) {
       toast.error(t("oracle.control.key.invalid"));
       return;
     }
@@ -197,7 +205,34 @@ export function OraclePage({ onStatus }: { onStatus: (status: string) => void })
     [reports, selectedReportId]
   );
 
-  const canVerify = keyDirty && apiKeyInput.trim().length > 0 && !apiKeyInput.includes("***") && !verifying;
+  const [deletingReportId, setDeletingReportId] = useState<string | null>(null);
+
+  const removeReport = async (report: OracleReport) => {
+    if (!window.confirm(t("oracle.confirm.delete"))) return;
+    setDeletingReportId(report.id);
+    // Optimistic UI: drop the row immediately, then reconcile on failure.
+    const prevReports = reports;
+    const prevSelected = selectedReportId;
+    const nextReports = reports.filter((r) => r.id !== report.id);
+    setReports(nextReports);
+    if (prevSelected === report.id) {
+      setSelectedReportId(nextReports[0]?.id ?? null);
+    }
+    try {
+      await deleteOracleReport(report.id);
+      toast.success(t("oracle.toast.deleted"));
+    } catch (exc) {
+      setReports(prevReports);
+      setSelectedReportId(prevSelected);
+      const message = exc instanceof Error ? exc.message : t("oracle.toast.deleteFail");
+      toast.error(message);
+    } finally {
+      setDeletingReportId(null);
+    }
+  };
+
+  const hasFreshKey = keyDirty && apiKeyInput.trim().length > 0 && !apiKeyInput.includes("***");
+  const canVerify = !verifying && (hasFreshKey || !!config?.api_key_set);
   const canSave = !!selectedModel && !saving && !verifying;
   const canTrigger = generatingKind === null && !!config?.api_key_set && !!selectedModel;
 
@@ -397,7 +432,7 @@ export function OraclePage({ onStatus }: { onStatus: (status: string) => void })
                     r.kind === "daily"
                       ? t("oracle.reports.kind.daily")
                       : r.kind === "weekly"
-                        ? "周报"
+                        ? t("oracle.reports.kind.weekly")
                         : r.kind === "manual"
                           ? t("oracle.reports.kind.manual")
                           : r.kind;
@@ -405,27 +440,50 @@ export function OraclePage({ onStatus }: { onStatus: (status: string) => void })
                     r.kind === "daily"
                       ? t("oracle.reports.badge.daily")
                       : r.kind === "weekly"
-                        ? "WEEKLY"
+                        ? t("oracle.reports.badge.weekly")
                         : r.kind === "manual"
                           ? t("oracle.reports.badge.manual")
                           : r.kind;
+                  const removing = deletingReportId === r.id;
                   return (
-                    <li key={r.id}>
+                    <li
+                      key={r.id}
+                      className={cn(
+                        "group relative flex items-stretch transition-colors",
+                        active ? "bg-muted/60" : "hover:bg-muted/30"
+                      )}
+                    >
                       <button
                         type="button"
                         onClick={() => setSelectedReportId(r.id)}
-                        className={cn(
-                          "block w-full px-4 py-3 text-left transition-colors",
-                          active ? "bg-muted/60" : "hover:bg-muted/30"
-                        )}
+                        className="block flex-1 px-4 py-3 text-left"
                       >
-                        <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center justify-between gap-2 pr-7">
                           <span className="text-[12px] font-medium text-foreground">{kindLabel}</span>
                           <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
                             {badgeLabel}
                           </span>
                         </div>
                         <p className="mt-1 text-[11px] text-muted-foreground">{formatReportTimestamp(r.created_at)}</p>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          void removeReport(r);
+                        }}
+                        disabled={removing}
+                        aria-label={t("oracle.reports.delete")}
+                        title={t("oracle.reports.delete")}
+                        className={cn(
+                          "absolute right-2 top-1/2 -translate-y-1/2 flex size-7 items-center justify-center rounded-md",
+                          "text-muted-foreground/70 transition-all",
+                          "opacity-0 group-hover:opacity-100 focus-visible:opacity-100",
+                          "hover:bg-[var(--danger)]/10 hover:text-[var(--danger)]",
+                          "disabled:opacity-50 disabled:cursor-not-allowed"
+                        )}
+                      >
+                        {removing ? <Loader2 className="size-3.5 animate-spin" /> : <Trash2 className="size-3.5" />}
                       </button>
                     </li>
                   );

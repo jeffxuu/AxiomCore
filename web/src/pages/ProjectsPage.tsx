@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import { createProject, deleteProject, loadProjects, updateProject, type ProjectInput } from "@/api";
 import { DomainBadge, DomainSelect, EmptyHint, PageHeader, Panel, StatusDot, formatCNY } from "@/components/axiom/primitives";
+import { RiskRoiMatrix } from "@/components/axiom/RiskRoiMatrix";
 import { useT } from "@/lib/i18nConfig";
 import type { Project, ProjectStatus, RiskLevel } from "@/types";
 import { cn } from "@/lib/utils";
@@ -138,6 +139,14 @@ export function ProjectsPage({ onStatus }: { onStatus: (status: string) => void 
         }
       />
 
+      <Panel
+        className="mb-6"
+        title={t("projects.matrix.title")}
+        subtitle={t("projects.matrix.subtitle")}
+      >
+        <RiskRoiMatrix projects={projects} />
+      </Panel>
+
       <Panel contentClassName="px-0 py-0">
         {projects.length === 0 ? (
           <div className="p-6">
@@ -146,7 +155,11 @@ export function ProjectsPage({ onStatus }: { onStatus: (status: string) => void 
         ) : (
           <ul className="divide-y divide-border">
             {projects.map((p) => (
-              <li key={p.id} className="grid grid-cols-1 gap-4 px-5 py-4 md:grid-cols-[1fr_auto] md:items-start">
+              <li
+                key={p.id}
+                id={`project-${p.id}`}
+                className="grid grid-cols-1 gap-4 scroll-mt-24 px-5 py-4 md:grid-cols-[1fr_auto] md:items-start"
+              >
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
                     <GitBranch className="size-4 text-muted-foreground" />
