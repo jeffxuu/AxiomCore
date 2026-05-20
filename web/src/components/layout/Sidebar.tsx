@@ -2,6 +2,7 @@ import {
   BookOpen,
   GitBranch,
   LayoutDashboard,
+  LineChart,
   Receipt,
   Scale,
   Settings,
@@ -30,6 +31,12 @@ const SECTIONS: { titleKey: string; items: NavItem[] }[] = [
     ],
   },
   {
+    titleKey: "nav.section.intelligence",
+    items: [
+      { href: "/insights", labelKey: "nav.insights", hintKey: "nav.insights.hint", Icon: LineChart },
+    ],
+  },
+  {
     titleKey: "nav.section.knowledge",
     items: [
       { href: "/vault", labelKey: "nav.vault", hintKey: "nav.vault.hint", Icon: BookOpen },
@@ -44,6 +51,7 @@ const SECTIONS: { titleKey: string; items: NavItem[] }[] = [
 
 function isActive(path: string, href: string): boolean {
   if (href === "/app") return path === "/" || path === "/app";
+  if (href === "/insights") return path === "/insights";
   if (href === "/vault") return path === "/vault" || path === "/files" || path === "/library";
   if (href === "/oracle") return path === "/oracle" || path === "/ai";
   if (href === "/settings") return path === "/settings" || path === "/more";

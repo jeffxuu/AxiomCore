@@ -6,6 +6,7 @@ import { DashboardPage } from "@/pages/DashboardPage";
 import { ProjectsPage } from "@/pages/ProjectsPage";
 import { DecisionsPage } from "@/pages/DecisionsPage";
 import { LedgerPage } from "@/pages/LedgerPage";
+import { InsightsPage } from "@/pages/InsightsPage";
 import { VaultPage } from "@/pages/VaultPage";
 import { OraclePage } from "@/pages/OraclePage";
 import { SettingsPage } from "@/pages/SettingsPage";
@@ -91,6 +92,7 @@ function App() {
     if (route.path === "/projects") return <ProjectsPage onStatus={setStatus} />;
     if (route.path === "/decisions") return <DecisionsPage onStatus={setStatus} />;
     if (route.path === "/ledger") return <LedgerPage onStatus={setStatus} />;
+    if (route.path === "/insights") return <InsightsPage onStatus={setStatus} />;
     if (route.path === "/vault" || route.path === "/files" || route.path === "/library") {
       return <VaultPage selectedId={new URLSearchParams(route.search).get("doc") || undefined} navigate={navigate} />;
     }

@@ -15,7 +15,6 @@ import {
 } from "@/components/ui/dialog";
 import { createProject, deleteProject, loadProjects, updateProject, type ProjectInput } from "@/api";
 import { DomainBadge, DomainSelect, EmptyHint, PageHeader, Panel, StatusDot, formatCNY } from "@/components/axiom/primitives";
-import { RiskRoiMatrix } from "@/components/axiom/RiskRoiMatrix";
 import { useT } from "@/lib/i18nConfig";
 import type { Project, ProjectStatus, RiskLevel } from "@/types";
 import { cn } from "@/lib/utils";
@@ -138,14 +137,6 @@ export function ProjectsPage({ onStatus }: { onStatus: (status: string) => void 
           </Button>
         }
       />
-
-      <Panel
-        className="mb-6"
-        title={t("projects.matrix.title")}
-        subtitle={t("projects.matrix.subtitle")}
-      >
-        <RiskRoiMatrix projects={projects} />
-      </Panel>
 
       <Panel contentClassName="px-0 py-0">
         {projects.length === 0 ? (
