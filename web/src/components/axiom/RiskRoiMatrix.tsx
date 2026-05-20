@@ -71,14 +71,6 @@ export function RiskRoiMatrix({ projects }: { projects: Project[] }) {
     if (target) target.scrollIntoView({ behavior: "smooth", block: "center" });
   };
 
-  if (!projects.length) {
-    return (
-      <div className="rounded-md border border-dashed border-border px-6 py-10 text-center text-[12px] text-muted-foreground">
-        {t("projects.matrix.empty")}
-      </div>
-    );
-  }
-
   return (
     <div className="relative">
       <svg
@@ -217,6 +209,14 @@ export function RiskRoiMatrix({ projects }: { projects: Project[] }) {
           );
         })}
       </svg>
+
+      {projects.length === 0 ? (
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+          <span className="rounded-md border border-dashed border-border bg-card/70 px-3 py-1.5 text-[11px] text-muted-foreground backdrop-blur">
+            {t("projects.matrix.empty")}
+          </span>
+        </div>
+      ) : null}
 
       {hover && tooltipScreen ? (
         <div
