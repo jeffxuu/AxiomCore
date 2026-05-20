@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { loadBaseline, loadDecisions, loadProjects, loadTransactions, type CommandParseResponse } from "@/api";
 import { OmniCommandBar } from "@/components/axiom/OmniCommandBar";
@@ -7,12 +7,9 @@ import { RiskRoiMatrix } from "@/components/analytics/RiskRoiMatrix";
 import { RunwayVelocityChart } from "@/components/analytics/RunwayVelocityChart";
 import { CapitalAllocationTree } from "@/components/analytics/CapitalAllocationTree";
 import { DecisionFunnel } from "@/components/analytics/DecisionFunnel";
-import { RiskExposureRadar } from "@/components/analytics/RiskExposureRadar";
 import { DomainContributionWaterfall } from "@/components/analytics/DomainContributionWaterfall";
 import { useT } from "@/lib/i18nConfig";
 import type { Baseline, Decision, Project, Transaction } from "@/types";
-
-const DANGER_THRESHOLD = 0.4;
 
 export function InsightsPage({ onStatus }: { onStatus: (status: string) => void }) {
   const t = useT();
@@ -52,30 +49,16 @@ export function InsightsPage({ onStatus }: { onStatus: (status: string) => void 
     [refresh],
   );
 
-  const exposureAlert = useMemo(() => {
-    const live = projects.filter((p) => p.status !== "killed");
-    const total = live.reduce((acc, p) => acc + Math.max(0, p.capital_committed), 0);
-    if (total <= 0) return false;
-    const danger = live
-      .filter((p) => p.risk_level === "high" || p.risk_level === "extreme")
-      .reduce((acc, p) => acc + Math.max(0, p.capital_committed), 0);
-    return danger / total > DANGER_THRESHOLD;
-  }, [projects]);
-
   return (
-    <div className="space-y-5">
+    <div className="space-y-7">
       <OmniCommandBar onIngested={onIngested} />
 
-      {/* ───── 65 / 35 ASYMMETRIC GRID ───── */}
-      <section
-        className="grid gap-4"
-        style={{ gridTemplateColumns: "repeat(20, minmax(0, 1fr))" }}
-      >
-        {/* ━━━━━━ LEFT MAIN (13/20 = 65%) ━━━━━━ */}
-        <div className="space-y-4" style={{ gridColumn: "span 13 / span 13" }}>
+      <section className="grid grid-cols-1 gap-7 lg:grid-cols-[repeat(20,minmax(0,1fr))]">
+        <div className="space-y-7 lg:col-span-13">
           <InsightCard
             title={t("insights.runway.title")}
             subtitle={t("insights.runway.subtitle")}
+            className="min-h-[520px]"
           >
             <RunwayVelocityChart baseline={baseline} transactions={transactions} />
           </InsightCard>
@@ -83,16 +66,17 @@ export function InsightsPage({ onStatus }: { onStatus: (status: string) => void 
           <InsightCard
             title={t("insights.matrix.title")}
             subtitle={t("insights.matrix.subtitle")}
+            className="min-h-[520px]"
           >
             <RiskRoiMatrix projects={projects} />
           </InsightCard>
         </div>
 
-        {/* ━━━━━━ RIGHT AUDIT (7/20 = 35%) ━━━━━━ */}
-        <div className="space-y-4" style={{ gridColumn: "span 7 / span 7" }}>
+        <aside className="space-y-7 lg:col-span-7">
           <InsightCard
             title={t("insights.waterfall.title")}
             subtitle={t("insights.waterfall.subtitle")}
+            className="lg:sticky lg:top-0"
           >
             <DomainContributionWaterfall
               transactions={transactions}
@@ -114,15 +98,7 @@ export function InsightsPage({ onStatus }: { onStatus: (status: string) => void 
           >
             <CapitalAllocationTree projects={projects} />
           </InsightCard>
-
-          <InsightCard
-            title={t("insights.exposure.title")}
-            subtitle={t("insights.exposure.subtitle")}
-            alert={exposureAlert}
-          >
-            <RiskExposureRadar projects={projects} />
-          </InsightCard>
-        </div>
+        </aside>
       </section>
     </div>
   );

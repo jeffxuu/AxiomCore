@@ -30,7 +30,7 @@ export function CapitalAllocationTree({ projects }: { projects: Project[] }) {
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between font-sans text-[10px] font-semibold uppercase tracking-[0.16em] text-[#64748B] dark:text-[#94A3B8]">
+      <div className="flex items-center justify-between font-sans text-[10px] font-semibold uppercase tracking-wider text-[#64748B] opacity-75 dark:text-[#94A3B8]">
         <span>{t("insights.allocation.column.project")}</span>
         <span>{t("insights.allocation.column.usage")}</span>
       </div>
@@ -45,11 +45,11 @@ export function CapitalAllocationTree({ projects }: { projects: Project[] }) {
           const widthSpent = Math.min(100, spentPct);
           return (
             <li key={project.id}>
-              <div className="flex items-center justify-between gap-3 font-sans text-[12px] tracking-tight">
-                <span className="min-w-0 flex-1 truncate font-medium text-[#0F172A] dark:text-[#F8FAFC]">
+              <div className="flex items-center justify-between gap-3 font-sans text-[12.5px] tracking-tight">
+                <span className="min-w-0 flex-1 truncate font-normal text-[#0F172A] dark:text-[#F8FAFC]">
                   {project.name}
                 </span>
-                <span className="ax-kpi shrink-0 text-[11px] tabular text-[#64748B] dark:text-[#94A3B8]">
+                <span className="shrink-0 font-mono text-[11px] font-light tracking-tighter tabular text-[#64748B] dark:text-[#94A3B8]">
                   {(spentRatio * 100).toFixed(0)}%
                 </span>
               </div>
@@ -66,11 +66,11 @@ export function CapitalAllocationTree({ projects }: { projects: Project[] }) {
                 />
               </div>
               <p className="mt-1 font-sans text-[10.5px] tracking-tight text-[#64748B] dark:text-[#94A3B8]">
-                <span className="ax-kpi text-[#0F172A] dark:text-[#F8FAFC]">{formatCNY(project.capital_spent)}</span>{" "}
+                <span className="font-mono font-light tabular text-[#0F172A] dark:text-[#F8FAFC]">{formatCNY(project.capital_spent)}</span>{" "}
                 /{" "}
-                <span className="ax-kpi">{formatCNY(project.capital_committed)} CNY</span>
+                <span className="font-mono font-light tabular">{formatCNY(project.capital_committed)} CNY</span>
                 {overrun ? (
-                  <span className="ml-2 rounded-sm bg-[#E11D48]/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#E11D48] dark:bg-[#F43F5E]/14 dark:text-[#F43F5E]">
+                  <span className="ml-2 rounded-sm bg-[#E11D48]/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-[#E11D48] opacity-75 dark:bg-[#F43F5E]/14 dark:text-[#F43F5E]">
                     {t("insights.allocation.overrun")}
                   </span>
                 ) : null}

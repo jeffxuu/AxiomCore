@@ -9,9 +9,10 @@ import { useI18n } from "@/lib/i18nConfig";
 import { cn } from "@/lib/utils";
 import { Sidebar } from "./Sidebar";
 
-function statusKey(status: string): { token: string; tone: "positive" | "warning" | "danger" } {
-  if (/fail|error|fail/i.test(status)) return { token: "shell.status.fail", tone: "danger" };
-  if (/sync|loading|saving/i.test(status)) return { token: "shell.status.sync", tone: "warning" };
+function statusKey(status: string | null | undefined): { token: string; tone: "positive" | "warning" | "danger" } {
+  const value = status ?? "";
+  if (/fail|error/i.test(value)) return { token: "shell.status.fail", tone: "danger" };
+  if (/sync|loading|saving/i.test(value)) return { token: "shell.status.sync", tone: "warning" };
   return { token: "shell.status.live", tone: "positive" };
 }
 
@@ -47,9 +48,31 @@ export function AppShell({
   navigate: (href: string) => void;
 }) {
   const brand = useBrand();
-  const { theme, toggle: toggleTheme } = useTheme();
-  const { lang, toggle: toggleLang, t } = useI18n();
+  const themeCtx = useTheme();
+  const i18n = useI18n();
   const [open, setOpen] = useState(false);
+  const theme = themeCtx?.theme ?? "light";
+  const toggleTheme = themeCtx?.toggle ?? (() => undefined);
+  const lang = i18n?.lang ?? "en";
+  const toggleLang = i18n?.toggle ?? (() => undefined);
+  const t = i18n?.t ?? ((key: string) => key);
+  const brandName = brand?.brandName || "Axiom Core";
+  const currentPath = path || "/";
+  const safeNavigate = (href: string) => {
+    if (typeof navigate === "function") navigate(href);
+  };
+
+  const statusInfo = statusKey(status);
+  const statusLabel = t(statusInfo.token);
+  const themeLabel = theme === "dark" ? t("shell.theme.toggle.light") : t("shell.theme.toggle.dark");
+  const langLabel = t("shell.lang.toggle");
+
+  const crumbs = useMemo<Crumb[]>(() => {
+    const trail: Crumb[] = [{ label: t("nav.section.sandbox") }];
+    const key = PATH_CRUMBS[currentPath] || PATH_CRUMBS["/"];
+    trail.push({ label: t(key) });
+    return trail;
+  }, [currentPath, t]);
 
   if (isLogin) {
     return (
@@ -64,18 +87,6 @@ export function AppShell({
     );
   }
 
-  const statusInfo = statusKey(status);
-  const statusLabel = t(statusInfo.token);
-  const themeLabel = theme === "dark" ? t("shell.theme.toggle.light") : t("shell.theme.toggle.dark");
-  const langLabel = t("shell.lang.toggle");
-
-  const crumbs = useMemo<Crumb[]>(() => {
-    const trail: Crumb[] = [{ label: t("nav.section.sandbox") }];
-    const key = PATH_CRUMBS[path] || PATH_CRUMBS["/"];
-    trail.push({ label: t(key) });
-    return trail;
-  }, [path, t]);
-
   return (
     <TooltipProvider delayDuration={150}>
       <div className="flex h-screen w-full overflow-hidden bg-[var(--ax-bg)] text-[var(--ax-text)]">
@@ -84,7 +95,7 @@ export function AppShell({
           className="hidden w-[240px] shrink-0 flex-col border-r md:flex"
           style={{ background: "var(--ax-card)", borderColor: "var(--ax-border)" }}
         >
-          <Sidebar path={path} navigate={navigate} />
+          <Sidebar path={currentPath} navigate={safeNavigate} />
         </aside>
 
         {/* Mobile sidebar overlay */}
@@ -99,17 +110,17 @@ export function AppShell({
                 className="flex h-[52px] items-center justify-between border-b px-4"
                 style={{ borderColor: "var(--ax-border)" }}
               >
-                <span className="text-[13px] font-semibold tracking-tight">{brand.brandName}</span>
+                <span className="text-[13px] font-medium tracking-tight">{brandName}</span>
                 <Button variant="ghost" size="icon-sm" onClick={() => setOpen(false)} aria-label={t("shell.menu.close")}>
                   <X className="size-4" />
                 </Button>
               </div>
               <div className="h-[calc(100%-52px)]">
                 <Sidebar
-                  path={path}
+                  path={currentPath}
                   navigate={(href) => {
                     setOpen(false);
-                    navigate(href);
+                    safeNavigate(href);
                   }}
                   hideHeader
                 />
@@ -180,7 +191,7 @@ export function AppShell({
                     size="icon-sm"
                     onClick={toggleLang}
                     aria-label={langLabel}
-                    className="font-mono text-[11px] font-semibold tracking-wider"
+                    className="font-mono text-[11px] font-medium tracking-wider"
                   >
                     <Languages className="size-3.5" />
                     <span className="ml-1">{lang === "en" ? "EN" : "中"}</span>
@@ -223,7 +234,7 @@ export function AppShell({
 
               {/* Operator avatar */}
               <span
-                className="ax-kpi flex size-8 items-center justify-center rounded-full border text-[11px] font-semibold"
+                className="ax-kpi flex size-8 items-center justify-center rounded-full border text-[11px] font-medium"
                 style={{
                   background: "var(--ax-hover)",
                   color: "var(--ax-text)",
@@ -238,7 +249,7 @@ export function AppShell({
 
           {/* SCROLLABLE WORKSPACE */}
           <div
-            className="scroll-thin flex-1 overflow-y-auto px-4 py-5 md:px-6"
+            className="scroll-thin flex-1 overflow-y-auto px-6 py-4.5"
             style={{ background: "var(--ax-bg)" }}
           >
             <div className="mx-auto w-full max-w-[1440px] space-y-5">{children}</div>

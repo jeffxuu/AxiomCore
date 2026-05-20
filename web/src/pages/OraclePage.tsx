@@ -47,6 +47,99 @@ function readStoredProvider(): string {
   }
 }
 
+const DEFAULT_ORACLE_CONFIG: OracleConfig = {
+  ok: true,
+  api_key_masked: "",
+  api_key_set: false,
+  model_name: "",
+  models: [],
+  base_url: "",
+  schedule: "",
+};
+
+const DEFAULT_ORACLE_AUTO: OracleAutoConfig = {
+  ok: true,
+  auto_daily: false,
+  auto_weekly: false,
+};
+
+function safeText(value: unknown, fallback = ""): string {
+  return typeof value === "string" ? value : fallback;
+}
+
+function normalizeModelPool(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  const seen = new Set<string>();
+  const models: string[] = [];
+  for (const item of value) {
+    if (typeof item !== "string") continue;
+    const model = item.trim();
+    if (!model || seen.has(model)) continue;
+    seen.add(model);
+    models.push(model);
+  }
+  return models;
+}
+
+function normalizeOracleConfig(
+  input: Partial<OracleConfig> | null | undefined,
+  fallback: OracleConfig | null = null,
+): OracleConfig {
+  const base = fallback ?? DEFAULT_ORACLE_CONFIG;
+  return {
+    ok: true,
+    api_key_masked: safeText(input?.api_key_masked, base.api_key_masked),
+    api_key_set:
+      typeof input?.api_key_set === "boolean"
+        ? input.api_key_set
+        : base.api_key_set,
+    model_name: safeText(input?.model_name, base.model_name),
+    models: normalizeModelPool(input?.models).length
+      ? normalizeModelPool(input?.models)
+      : normalizeModelPool(base.models),
+    base_url: safeText(input?.base_url, base.base_url),
+    schedule: safeText(input?.schedule, base.schedule),
+  };
+}
+
+function normalizeOracleAuto(
+  input: Partial<OracleAutoConfig> | null | undefined,
+  fallback: OracleAutoConfig | null = null,
+): OracleAutoConfig {
+  const base = fallback ?? DEFAULT_ORACLE_AUTO;
+  return {
+    ok: true,
+    auto_daily:
+      typeof input?.auto_daily === "boolean"
+        ? input.auto_daily
+        : base.auto_daily,
+    auto_weekly:
+      typeof input?.auto_weekly === "boolean"
+        ? input.auto_weekly
+        : base.auto_weekly,
+    daily_cron: safeText(input?.daily_cron, base.daily_cron ?? ""),
+    weekly_cron: safeText(input?.weekly_cron, base.weekly_cron ?? ""),
+  };
+}
+
+function normalizeOracleReport(input: Partial<OracleReport> | null | undefined): OracleReport | null {
+  const id = safeText(input?.id).trim();
+  if (!id) return null;
+  return {
+    id,
+    kind: safeText(input?.kind, "manual"),
+    content: safeText(input?.content),
+    created_at: safeText(input?.created_at),
+  };
+}
+
+function normalizeReports(input: unknown): OracleReport[] {
+  if (!Array.isArray(input)) return [];
+  return input
+    .map((item) => normalizeOracleReport(item as Partial<OracleReport>))
+    .filter((item): item is OracleReport => Boolean(item));
+}
+
 export function OraclePage({ onStatus }: { onStatus: (status: string) => void }) {
   const t = useT();
   const { lang } = useI18n();
@@ -80,15 +173,29 @@ export function OraclePage({ onStatus }: { onStatus: (status: string) => void })
   const inputDisplaysMask = !keyDirty && maskedFromServer;
   const apiKeyForUI = inputDisplaysMask ? maskedFromServer : apiKeyInput;
 
+  const setShellStatus = useCallback(
+    (next: string) => {
+      try {
+        if (typeof onStatus === "function") onStatus(next);
+      } catch {
+        /* The page must never break the outer shell status channel. */
+      }
+    },
+    [onStatus],
+  );
+
   const loadAll = useCallback(async () => {
     setConfigLoading(true);
     try {
-      const [c, a] = await Promise.all([loadOracleConfig(), loadOracleAuto()]);
-      setConfig(c);
-      setAuto(a);
-      const pool = c.models && c.models.length ? c.models : c.model_name ? [c.model_name] : [];
+      const [rawConfig, rawAuto] = await Promise.all([loadOracleConfig(), loadOracleAuto()]);
+      const nextConfig = normalizeOracleConfig(rawConfig);
+      const nextAuto = normalizeOracleAuto(rawAuto);
+      setConfig(nextConfig);
+      setAuto(nextAuto);
+      const configModels = nextConfig.models ?? [];
+      const pool = configModels.length ? configModels : nextConfig.model_name ? [nextConfig.model_name] : [];
       if (pool.length) setModels(pool);
-      const initialModel = c.model_name || pool[0] || "";
+      const initialModel = nextConfig.model_name || pool[0] || "";
       if (initialModel) {
         setSelectedModel(initialModel);
         const inferred = detectVendor(initialModel);
@@ -99,6 +206,8 @@ export function OraclePage({ onStatus }: { onStatus: (status: string) => void })
       setApiKeyInput("");
       setKeyDirty(false);
     } catch (exc) {
+      setConfig((prev) => prev ?? DEFAULT_ORACLE_CONFIG);
+      setAuto((prev) => prev ?? DEFAULT_ORACLE_AUTO);
       const message = exc instanceof Error ? exc.message : "";
       if (message) toast.error(message);
     } finally {
@@ -110,9 +219,16 @@ export function OraclePage({ onStatus }: { onStatus: (status: string) => void })
     setReportsLoading(true);
     try {
       const payload = await loadOracleReports(50);
-      setReports(payload.reports || []);
-      setSelectedReportId((prev) => prev || payload.reports?.[0]?.id || null);
+      const nextReports = normalizeReports(payload?.reports);
+      setReports(nextReports);
+      setSelectedReportId((prev) =>
+        prev && nextReports.some((report) => report.id === prev)
+          ? prev
+          : nextReports[0]?.id ?? null,
+      );
     } catch (exc) {
+      setReports([]);
+      setSelectedReportId(null);
       const message = exc instanceof Error ? exc.message : "";
       if (message) toast.error(message);
     } finally {
@@ -178,7 +294,7 @@ export function OraclePage({ onStatus }: { onStatus: (status: string) => void })
       return;
     }
     setVerifying(true);
-    onStatus("Sync");
+    setShellStatus("Sync");
     try {
       const payload = await verifyOracleKey(candidate);
       const fetched = payload.models || [];
@@ -197,11 +313,11 @@ export function OraclePage({ onStatus }: { onStatus: (status: string) => void })
         const keep = bucket.includes(selectedModel) ? selectedModel : bucket[0] || "";
         setSelectedModel(keep);
       }
-      onStatus("Live");
+      setShellStatus("Live");
       toast.success(t("oracle.control.verified", { count: payload.total }));
     } catch (exc) {
       const message = exc instanceof Error ? exc.message : t("oracle.toast.failed");
-      onStatus("Sync failed");
+      setShellStatus("Sync failed");
       toast.error(message);
     } finally {
       setVerifying(false);
@@ -209,30 +325,46 @@ export function OraclePage({ onStatus }: { onStatus: (status: string) => void })
   };
 
   const save = async () => {
-    if (!selectedModel) {
+    const modelName = selectedModel.trim();
+    if (!modelName) {
       toast.error(t("oracle.control.engine.required"));
       return;
     }
     setSaving(true);
-    onStatus("Sync");
+    setShellStatus("Sync");
     try {
-      const body: { api_key?: string; model_name: string } = { model_name: selectedModel };
+      const body: { api_key?: string; model_name: string } = { model_name: modelName };
       if (keyDirty && apiKeyInput.trim() && !apiKeyInput.includes("***")) {
         body.api_key = apiKeyInput.trim();
       }
       const payload = await saveOracleConfig(body);
-      setConfig((prev) =>
-        prev
-          ? { ...prev, api_key_masked: payload.api_key_masked, api_key_set: payload.api_key_set, model_name: payload.model_name }
-          : null
-      );
+      const savedModel = safeText(payload?.model_name, modelName);
+      setSelectedModel(savedModel);
+      setModels((prev) => normalizeModelPool([savedModel, ...prev]));
+      setConfig((prev) => {
+        const base = normalizeOracleConfig(prev);
+        const mergedModels = normalizeModelPool([savedModel, ...models, ...(base.models ?? [])]);
+        return normalizeOracleConfig(
+          {
+            ...base,
+            api_key_masked: safeText(payload?.api_key_masked, base.api_key_masked),
+            api_key_set:
+              typeof payload?.api_key_set === "boolean"
+                ? payload.api_key_set
+                : base.api_key_set,
+            model_name: savedModel,
+            models: mergedModels,
+          },
+          base,
+        );
+      });
       setApiKeyInput("");
       setKeyDirty(false);
-      onStatus("Live");
+      setShellStatus("Live");
       toast.success(t("oracle.control.saved"));
     } catch (exc) {
       const message = exc instanceof Error ? exc.message : t("oracle.toast.failed");
-      onStatus("Sync failed");
+      setShellStatus("Sync failed");
       toast.error(message);
     } finally {
       setSaving(false);
@@ -240,13 +372,13 @@ export function OraclePage({ onStatus }: { onStatus: (status: string) => void })
   };
 
   const updateAuto = async (patch: { auto_daily?: boolean; auto_weekly?: boolean }) => {
-    if (!auto) return;
     setSavingAuto(true);
-    const prev = auto;
-    setAuto({ ...auto, ...patch });
+    const prev = normalizeOracleAuto(auto);
+    const optimistic = normalizeOracleAuto({ ...prev, ...patch }, prev);
+    setAuto(optimistic);
     try {
       const payload = await saveOracleAuto(patch);
-      setAuto(payload);
+      setAuto(normalizeOracleAuto(payload, optimistic));
       toast.success(t("oracle.auto.saved"));
     } catch (exc) {
       setAuto(prev);
@@ -263,16 +395,18 @@ export function OraclePage({ onStatus }: { onStatus: (status: string) => void })
       return;
     }
     setGeneratingKind(kind);
-    onStatus("Sync");
+    setShellStatus("Sync");
     try {
       const payload = await generateOracleBrief(kind);
-      setReports((prev) => [payload.report, ...prev]);
-      setSelectedReportId(payload.report.id);
-      onStatus("Live");
+      const report = normalizeOracleReport(payload?.report);
+      if (!report) throw new Error(t("oracle.toast.failed"));
+      setReports((prev) => [report, ...normalizeReports(prev)]);
+      setSelectedReportId(report.id);
+      setShellStatus("Live");
       toast.success(t("oracle.toast.generated"));
     } catch (exc) {
       const message = exc instanceof Error ? exc.message : t("oracle.toast.failed");
-      onStatus("Sync failed");
+      setShellStatus("Sync failed");
       toast.error(message);
     } finally {
       setGeneratingKind(null);
@@ -287,18 +421,20 @@ export function OraclePage({ onStatus }: { onStatus: (status: string) => void })
   const [deletingReportId, setDeletingReportId] = useState<string | null>(null);
 
   const removeReport = async (report: OracleReport) => {
+    const reportId = report?.id;
+    if (!reportId) return;
     if (!window.confirm(t("oracle.confirm.delete"))) return;
-    setDeletingReportId(report.id);
+    setDeletingReportId(reportId);
     // Optimistic UI: drop the row immediately, then reconcile on failure.
-    const prevReports = reports;
+    const prevReports = normalizeReports(reports);
     const prevSelected = selectedReportId;
-    const nextReports = reports.filter((r) => r.id !== report.id);
+    const nextReports = prevReports.filter((r) => r.id !== reportId);
     setReports(nextReports);
-    if (prevSelected === report.id) {
+    if (prevSelected === reportId) {
       setSelectedReportId(nextReports[0]?.id ?? null);
     }
     try {
-      await deleteOracleReport(report.id);
+      await deleteOracleReport(reportId);
       toast.success(t("oracle.toast.deleted"));
     } catch (exc) {
       setReports(prevReports);

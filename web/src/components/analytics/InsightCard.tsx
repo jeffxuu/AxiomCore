@@ -33,7 +33,7 @@ export function InsightCard({
       }
     >
       <header
-        className="flex items-start justify-between gap-3 border-b px-6 py-[18px]"
+        className="flex items-start justify-between gap-3 border-b px-6 py-4.5"
         style={{ borderColor: "var(--ax-border)" }}
       >
         <div className="min-w-0">
@@ -47,7 +47,7 @@ export function InsightCard({
         </div>
         {badge ? <div className="shrink-0">{badge}</div> : null}
       </header>
-      <div className="px-6 py-[18px]">{children}</div>
+      <div className="px-6 py-4.5">{children}</div>
     </section>
   );
 }

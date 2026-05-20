@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { GitBranch, Pencil, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -27,6 +27,7 @@ const STATUS_TONE: Record<ProjectStatus, "info" | "warning" | "danger" | "positi
 };
 const STATUS_OPTIONS: ProjectStatus[] = ["active", "paused", "shipped", "killed"];
 const RISK_OPTIONS: RiskLevel[] = ["low", "medium", "high", "extreme"];
+const MICRO_LABEL = "text-[10px] font-semibold uppercase tracking-wider opacity-75";
 
 const EMPTY_FORM: ProjectInput = {
   name: "",
@@ -42,6 +43,53 @@ const EMPTY_FORM: ProjectInput = {
 
 function riskTone(level: RiskLevel): "positive" | "info" | "warning" | "danger" {
   return level === "extreme" ? "danger" : level === "high" ? "warning" : level === "low" ? "positive" : "info";
+}
+
+function metricToneClass(tone: "neutral" | "positive" | "danger" = "neutral"): string {
+  if (tone === "positive") return "text-[#0D9488] dark:text-[#14B8A6]";
+  if (tone === "danger") return "text-[#E11D48] dark:text-[#F43F5E]";
+  return "text-foreground";
+}
+
+function MetricCell({
+  label,
+  value,
+  sub,
+  tone = "neutral",
+}: {
+  label: string;
+  value: string;
+  sub: string;
+  tone?: "neutral" | "positive" | "danger";
+}) {
+  return (
+    <div className="ax-card px-6 py-4.5">
+      <p className={cn(MICRO_LABEL, "text-muted-foreground")}>{label}</p>
+      <p className={cn("mt-1 font-mono text-3xl font-light tracking-tighter tabular", metricToneClass(tone))}>
+        {value}
+      </p>
+      <p className="mt-1 text-xs font-normal text-muted-foreground">{sub}</p>
+    </div>
+  );
+}
+
+function KpiLine({
+  label,
+  value,
+  tone = "neutral",
+}: {
+  label: string;
+  value: string;
+  tone?: "neutral" | "positive" | "danger";
+}) {
+  return (
+    <div>
+      <p className={cn(MICRO_LABEL, "text-muted-foreground")}>{label}</p>
+      <p className={cn("font-mono text-3xl font-light tracking-tighter tabular md:text-[22px]", metricToneClass(tone))}>
+        {value}
+      </p>
+    </div>
+  );
 }
 
 export function ProjectsPage({ onStatus }: { onStatus: (status: string) => void }) {
@@ -67,6 +115,17 @@ export function ProjectsPage({ onStatus }: { onStatus: (status: string) => void 
   useEffect(() => {
     void refresh();
   }, [refresh]);
+
+  const metrics = useMemo(() => {
+    const live = projects.filter((p) => p.status !== "killed");
+    const active = projects.filter((p) => p.status === "active");
+    const committed = live.reduce((acc, p) => acc + Math.max(0, p.capital_committed), 0);
+    const spent = live.reduce((acc, p) => acc + Math.max(0, p.capital_spent), 0);
+    const avgRoi = live.length
+      ? live.reduce((acc, p) => acc + Math.max(0, p.roi_projection), 0) / live.length
+      : 0;
+    return { live: live.length, active: active.length, committed, spent, avgRoi };
+  }, [projects]);
 
   const openNew = () => {
     setEditing(null);
@@ -125,7 +184,7 @@ export function ProjectsPage({ onStatus }: { onStatus: (status: string) => void 
   };
 
   return (
-    <div>
+    <div className="space-y-7">
       <PageHeader
         eyebrow={t("projects.eyebrow")}
         title={t("projects.title")}
@@ -138,76 +197,98 @@ export function ProjectsPage({ onStatus }: { onStatus: (status: string) => void 
         }
       />
 
+      <section className="grid gap-4 md:grid-cols-4">
+        <MetricCell label="ACTIVE" value={String(metrics.active)} sub={`${metrics.live} live`} />
+        <MetricCell label="ROI" value={`${metrics.avgRoi.toFixed(1)}x`} sub="portfolio mean" tone="positive" />
+        <MetricCell label="COMMITTED" value={formatCNY(metrics.committed, { compact: true })} sub="CNY allocated" />
+        <MetricCell label="SPENT" value={formatCNY(metrics.spent, { compact: true })} sub="CNY consumed" tone={metrics.spent > metrics.committed ? "danger" : "neutral"} />
+      </section>
+
       <Panel contentClassName="px-0 py-0">
         {projects.length === 0 ? (
-          <div className="p-6">
+          <div className="px-6 py-4.5">
             <EmptyHint title={t("projects.empty.title")} hint={t("projects.empty.hint")} />
           </div>
         ) : (
           <ul className="divide-y divide-border">
-            {projects.map((p) => (
-              <li
-                key={p.id}
-                id={`project-${p.id}`}
-                className="grid grid-cols-1 gap-4 scroll-mt-24 px-5 py-4 md:grid-cols-[1fr_auto] md:items-start"
-              >
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <GitBranch className="size-4 text-muted-foreground" />
-                    <span className="text-[14px] font-semibold">{p.name}</span>
-                    <span
-                      className={cn(
-                        "ax-status",
-                        STATUS_TONE[p.status] === "positive"
-                          ? "ax-status-positive"
-                          : STATUS_TONE[p.status] === "warning"
-                          ? "ax-status-warning"
-                          : STATUS_TONE[p.status] === "danger"
-                          ? "ax-status-danger"
-                          : "ax-status-info"
-                      )}
-                    >
-                      {t(`projects.status.${p.status}`)}
-                    </span>
-                    {p.domain_tag ? <DomainBadge tag={p.domain_tag} /> : null}
-                  </div>
-                  {p.thesis ? <p className="mt-2 text-[13px] leading-6 text-muted-foreground">{p.thesis}</p> : null}
-                  {p.kill_criteria ? (
-                    <p className="mt-1 text-[12px] text-muted-foreground">
-                      <span className="text-foreground">{t("projects.kill")}</span> {p.kill_criteria}
-                    </p>
-                  ) : null}
-                  <div className="mt-3 flex flex-wrap items-center gap-3 text-[12px]">
-                    <span className="flex items-center gap-1.5">
-                      <StatusDot tone={riskTone(p.risk_level)} />
-                      <span className="text-muted-foreground uppercase tracking-wider">
-                        {t("projects.risk.suffix", { level: t(`risk.${p.risk_level}`) })}
+            {projects.map((p) => {
+              const statusTone = STATUS_TONE[p.status];
+              const starBet = p.roi_projection >= 5 && (p.risk_level === "low" || p.risk_level === "medium");
+              return (
+                <li
+                  key={p.id}
+                  id={`project-${p.id}`}
+                  className="grid grid-cols-1 gap-5 scroll-mt-24 px-6 py-4.5 md:grid-cols-[minmax(0,1fr)_220px_auto] md:items-center"
+                >
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <GitBranch className="size-3.5 text-muted-foreground" />
+                      <span className="max-w-full truncate text-[12.5px] font-medium text-foreground">{p.name}</span>
+                      <span className="font-mono text-xs font-normal tabular text-muted-foreground">#{p.id.slice(0, 8)}</span>
+                      <span
+                        className={cn(
+                          "rounded-sm border px-1.5 py-0.5 text-xs font-normal",
+                          statusTone === "positive"
+                            ? "border-[var(--positive)]/25 text-[var(--positive)]"
+                            : statusTone === "warning"
+                            ? "border-[var(--warning)]/25 text-[var(--warning)]"
+                            : statusTone === "danger"
+                            ? "border-[var(--danger)]/25 text-[var(--danger)]"
+                            : "border-[var(--info)]/25 text-[var(--info)]",
+                        )}
+                      >
+                        {t(`projects.status.${p.status}`)}
                       </span>
-                    </span>
-                    <span className="text-muted-foreground">·</span>
-                    <span className="ax-kpi tabular text-foreground">{t("projects.roi", { x: p.roi_projection.toFixed(1) })}</span>
-                    <span className="text-muted-foreground">·</span>
-                    <span className="ax-kpi tabular text-muted-foreground">
-                      {t("projects.spent", { spent: formatCNY(p.capital_spent), committed: formatCNY(p.capital_committed) })}
-                    </span>
+                      {starBet ? (
+                        <span className={cn(MICRO_LABEL, "rounded-sm bg-[#0D9488]/8 px-1.5 py-0.5 text-[#0D9488] dark:bg-[#14B8A6]/14 dark:text-[#14B8A6]")}>
+                          STAR BET
+                        </span>
+                      ) : null}
+                      {p.domain_tag ? <DomainBadge tag={p.domain_tag} /> : null}
+                    </div>
+                    {p.thesis ? <p className="mt-2 line-clamp-2 text-[12.5px] font-normal leading-5 text-muted-foreground">{p.thesis}</p> : null}
+                    {p.kill_criteria ? (
+                      <p className="mt-2 text-xs font-normal text-muted-foreground">
+                        <span className={cn(MICRO_LABEL, "mr-2 text-foreground")}>{t("projects.kill")}</span>
+                        {p.kill_criteria}
+                      </p>
+                    ) : null}
+                    <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+                      <span className="flex items-center gap-1.5 text-muted-foreground">
+                        <StatusDot tone={riskTone(p.risk_level)} />
+                        <span className={MICRO_LABEL}>
+                          {t("projects.risk.suffix", { level: t(`risk.${p.risk_level}`) })}
+                        </span>
+                      </span>
+                      <span className={cn(MICRO_LABEL, "rounded-sm bg-muted/50 px-1.5 py-0.5 text-muted-foreground")}>OPEN</span>
+                    </div>
                   </div>
-                </div>
-                <div className="flex items-center gap-1">
-                  <Button variant="ghost" size="icon-sm" onClick={() => openEdit(p)} aria-label={t("common.edit")}>
-                    <Pencil className="size-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    onClick={() => remove(p)}
-                    aria-label={t("common.delete")}
-                    className="text-muted-foreground hover:text-[var(--danger)]"
-                  >
-                    <Trash2 className="size-4" />
-                  </Button>
-                </div>
-              </li>
-            ))}
+
+                  <div className="grid grid-cols-2 gap-4 md:grid-cols-1 md:gap-2">
+                    <KpiLine label="ROI" value={`${p.roi_projection.toFixed(1)}x`} tone="positive" />
+                    <KpiLine
+                      label="CAPITAL"
+                      value={`${formatCNY(p.capital_spent, { compact: true })} / ${formatCNY(p.capital_committed, { compact: true })}`}
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-1 md:justify-end">
+                    <Button variant="ghost" size="icon-sm" onClick={() => openEdit(p)} aria-label={t("common.edit")}>
+                      <Pencil className="size-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      onClick={() => remove(p)}
+                      aria-label={t("common.delete")}
+                      className="text-muted-foreground hover:text-[var(--danger)]"
+                    >
+                      <Trash2 className="size-4" />
+                    </Button>
+                  </div>
+                </li>
+              );
+            })}
           </ul>
         )}
       </Panel>

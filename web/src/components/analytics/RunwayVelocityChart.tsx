@@ -209,7 +209,7 @@ export function RunwayVelocityChart({
             x2={PAD_LEFT}
             y2={VIEW_H - PAD_BOTTOM}
             className="stroke-[#94A3B8] dark:stroke-[#334155]"
-            strokeWidth={1}
+            strokeWidth={0.75}
           />
           <line
             x1={PAD_LEFT}
@@ -217,7 +217,7 @@ export function RunwayVelocityChart({
             x2={VIEW_W - PAD_RIGHT}
             y2={VIEW_H - PAD_BOTTOM}
             className="stroke-[#94A3B8] dark:stroke-[#334155]"
-            strokeWidth={1}
+            strokeWidth={0.75}
           />
 
           {/* Floor line */}
@@ -227,9 +227,9 @@ export function RunwayVelocityChart({
             x2={VIEW_W - PAD_RIGHT}
             y2={data.floorY}
             stroke="#E11D48"
-            strokeOpacity={0.7}
+            strokeOpacity={0.25}
             strokeDasharray="6 4"
-            strokeWidth={1.25}
+            strokeWidth={0.75}
             className="dark:hidden"
           />
           <line
@@ -238,9 +238,9 @@ export function RunwayVelocityChart({
             x2={VIEW_W - PAD_RIGHT}
             y2={data.floorY}
             stroke="#F43F5E"
-            strokeOpacity={0.8}
+            strokeOpacity={0.25}
             strokeDasharray="6 4"
-            strokeWidth={1.25}
+            strokeWidth={0.75}
             className="hidden dark:block"
           />
 
@@ -275,8 +275,8 @@ export function RunwayVelocityChart({
                 d={forecastPath}
                 fill="none"
                 stroke="#0F172A"
-                strokeOpacity={0.5}
-                strokeWidth={1.4}
+                strokeOpacity={0.25}
+                strokeWidth={0.75}
                 strokeDasharray="4 4"
                 className="dark:hidden"
               />
@@ -284,8 +284,8 @@ export function RunwayVelocityChart({
                 d={forecastPath}
                 fill="none"
                 stroke="#F8FAFC"
-                strokeOpacity={0.45}
-                strokeWidth={1.4}
+                strokeOpacity={0.25}
+                strokeWidth={0.75}
                 strokeDasharray="4 4"
                 className="hidden dark:block"
               />
@@ -325,14 +325,14 @@ export function RunwayVelocityChart({
           })}
 
           <span
-            className="absolute rounded-md bg-[#E11D48]/8 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#E11D48] dark:bg-[#F43F5E]/15 dark:text-[#F43F5E]"
+            className="absolute rounded-sm bg-[#E11D48]/7 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-[#E11D48]/75 dark:bg-[#F43F5E]/12 dark:text-[#F43F5E]/75"
             style={{ right: `${(PAD_RIGHT / VIEW_W) * 100 + 1}%`, top: `${(data.floorY / VIEW_H) * 100}%`, transform: "translateY(-130%)" }}
           >
             {t("insights.runway.floor")} {formatCNY(FLOOR_VALUE, { compact: true })}
           </span>
 
           <span
-            className="absolute -translate-x-1/2 rounded-sm bg-[#0F172A]/8 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#334155] dark:bg-[#F8FAFC]/12 dark:text-[#CBD5E1]"
+            className="absolute -translate-x-1/2 rounded-sm bg-[#0F172A]/7 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-[#334155]/75 dark:bg-[#F8FAFC]/12 dark:text-[#CBD5E1]/75"
             style={{ left: `${todayPct}%`, top: `${((VIEW_H - PAD_BOTTOM + 6) / VIEW_H) * 100}%` }}
           >
             {t("insights.runway.today")}
@@ -384,11 +384,11 @@ function KPIBox({
       ? "text-[#0D9488] dark:text-[#14B8A6]"
       : "text-[#0F172A] dark:text-[#F8FAFC]";
   return (
-    <div className="rounded-md border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 dark:border-[#1E293B] dark:bg-[#0B1220]">
-      <p className="font-sans text-[10px] font-semibold uppercase tracking-[0.14em] text-[#64748B] dark:text-[#94A3B8]">
+    <div className="rounded-md border px-6 py-4.5" style={{ borderColor: "var(--ax-border)", background: "var(--ax-canvas)" }}>
+      <p className="font-sans text-[10px] font-semibold uppercase tracking-wider text-[#64748B] opacity-75 dark:text-[#94A3B8]">
         {label}
       </p>
-      <p className={`ax-kpi mt-1 font-sans text-[15px] font-semibold tracking-tight ${toneClass}`}>{value}</p>
+      <p className={`mt-1 font-mono text-3xl font-light tracking-tighter tabular ${toneClass}`}>{value}</p>
     </div>
   );
 }

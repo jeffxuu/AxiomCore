@@ -127,8 +127,8 @@ export function DecisionFunnel({ decisions }: { decisions: Decision[] }) {
                 className="absolute left-1/2 -translate-x-1/2 -translate-y-1/2 text-center text-white"
                 style={{ top: `${yPct}%` }}
               >
-                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-white/85">{row.label}</p>
-                <p className="ax-kpi mt-0.5 text-[18px] font-semibold tabular text-white">{row.count}</p>
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-white/75">{row.label}</p>
+                <p className="mt-0.5 font-mono text-[22px] font-light tracking-tighter tabular text-white">{row.count}</p>
               </div>
             );
           })}
@@ -138,11 +138,11 @@ export function DecisionFunnel({ decisions }: { decisions: Decision[] }) {
               className="absolute left-1/2 -translate-x-1/2 text-center"
               style={{ top: `${(PAD_TOP / 2 / VIEW_H) * 100 + 4}%` }}
             >
-              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#64748B] dark:text-[#94A3B8]">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-[#64748B] opacity-75 dark:text-[#94A3B8]">
                 {t("insights.funnel.successRate")}
               </p>
               <p
-                className={`ax-kpi mt-0.5 text-[28px] font-semibold tabular ${
+                className={`mt-0.5 font-mono text-3xl font-light tracking-tighter tabular ${
                   successPct >= 60
                     ? "text-[#0D9488] dark:text-[#14B8A6]"
                     : successPct >= 40
@@ -158,10 +158,10 @@ export function DecisionFunnel({ decisions }: { decisions: Decision[] }) {
               className="absolute left-1/2 -translate-x-1/2 text-center"
               style={{ top: `${(PAD_TOP / 2 / VIEW_H) * 100 + 4}%` }}
             >
-              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#64748B] dark:text-[#94A3B8]">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-[#64748B] opacity-75 dark:text-[#94A3B8]">
                 {t("insights.funnel.successRate")}
               </p>
-              <p className="mt-0.5 font-sans text-[14px] font-semibold text-[#94A3B8] dark:text-[#64748B]">
+              <p className="mt-0.5 font-sans text-[14px] font-light text-[#94A3B8] dark:text-[#64748B]">
                 {t("insights.funnel.successRate.pending")}
               </p>
             </div>
@@ -194,9 +194,9 @@ function FootBox({
       ? "text-[#0D9488] dark:text-[#14B8A6]"
       : "text-[#0F172A] dark:text-[#F8FAFC]";
   return (
-    <div className="rounded-md border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2 dark:border-[#1E293B] dark:bg-[#0B1220]">
-      <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#64748B] dark:text-[#94A3B8]">{label}</p>
-      <p className={`ax-kpi mt-1 text-[15px] font-semibold tabular ${toneText}`}>{value}</p>
+    <div className="rounded-md border px-6 py-4.5" style={{ borderColor: "var(--ax-border)", background: "var(--ax-canvas)" }}>
+      <p className="text-[10px] font-semibold uppercase tracking-wider text-[#64748B] opacity-75 dark:text-[#94A3B8]">{label}</p>
+      <p className={`mt-1 font-mono text-[22px] font-light tracking-tighter tabular ${toneText}`}>{value}</p>
     </div>
   );
 }

@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Axiom Core · Anchor 2 · ChartMogul/Stripe 金融中性大厂</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        fontFamily: { sans: ['Inter', 'system-ui'], mono: ['JetBrains Mono', 'monospace'] },
+        colors: {
+          f: {
+            bg: '#090A0F',
+            card: '#12141C',
+            cardAlt: '#161924',
+            border: '#1E222F',
+            borderStrong: '#2A2F40',
+            text: '#F3F4F6',
+            muted: '#6B7280',
+            dim: '#9CA3AF',
+            positive: '#0D9488',
+            positiveSoft: '#134E4A',
+            danger: '#E11D48',
+            dangerSoft: '#4C1129',
+            warning: '#D97706',
+            warningSoft: '#3B1F08',
+            info: '#475569'
+          }
+        },
+        boxShadow: {
+          'flat': '0 1px 0 0 rgba(255,255,255,0.03), 0 1px 3px rgba(0,0,0,0.5)',
+          'flat-lg': '0 1px 0 0 rgba(255,255,255,0.04), 0 4px 12px rgba(0,0,0,0.6)'
+        }
+      }
+    }
+  }
+</script>
+<style>
+  html, body { background: #090A0F; }
+  body { font-family: 'Inter', system-ui, sans-serif; font-feature-settings: "tnum", "cv11"; }
+  .ax-kpi { font-family: 'JetBrains Mono', monospace; letter-spacing: -0.015em; font-variant-numeric: tabular-nums; }
+  .ax-dot-grid {
+    background-image: radial-gradient(rgba(255,255,255,0.04) 1px, transparent 1px);
+    background-size: 18px 18px;
+    background-position: 0 0;
+  }
+  select.ax-select {
+    appearance: none;
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239CA3AF' stroke-width='2'%3e%3cpath d='M6 9l6 6 6-6'/%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    padding-right: 36px;
+  }
+  ::selection { background: #0D9488; color: #F3F4F6; }
+</style>
+</head>
+<body class="bg-f-bg text-f-text antialiased">
+
+<div class="max-w-7xl mx-auto p-8 space-y-6">
+
+  <!-- 顶栏 -->
+  <header class="flex items-center justify-between">
+    <div class="flex items-center gap-4">
+      <div class="w-8 h-8 rounded-lg bg-f-card border border-f-border flex items-center justify-center shadow-flat">
+        <div class="w-3 h-3 rounded-sm bg-f-positive"></div>
+      </div>
+      <div>
+        <div class="flex items-baseline gap-2.5">
+          <span class="text-[15px] font-semibold tracking-tight">Axiom Core</span>
+          <span class="px-1.5 py-0.5 text-[10px] ax-kpi uppercase bg-f-cardAlt border border-f-border rounded text-f-dim">Treasury Console</span>
+        </div>
+        <div class="text-[11px] text-f-muted mt-0.5 ax-kpi">Workspace · acme-capital-mgmt-prod · region ap-southeast-1</div>
+      </div>
+    </div>
+    <div class="flex items-center gap-2">
+      <div class="flex items-center gap-2 px-3 py-2 bg-f-card border border-f-border rounded-lg shadow-flat">
+        <span class="w-2 h-2 rounded-full bg-f-positive animate-pulse"></span>
+        <span class="text-[12px] text-f-dim ax-kpi">Markets Open · SH 14:32</span>
+      </div>
+      <button class="px-4 py-2 bg-f-positive text-white text-[12px] font-medium rounded-lg shadow-flat hover:bg-teal-600 transition-colors">Export Report</button>
+    </div>
+  </header>
+
+  <!-- 版块 1：统一指挥台 -->
+  <section class="bg-f-card border border-f-border rounded-xl shadow-flat">
+    <div class="px-6 py-4 border-b border-f-border flex items-center justify-between">
+      <div>
+        <h2 class="text-[14px] font-semibold tracking-tight">Unified Command Console</h2>
+        <p class="text-[12px] text-f-muted mt-0.5">统一指挥台 · Natural language → ledger primitives</p>
+      </div>
+      <div class="flex items-center gap-3 text-[11px] text-f-muted">
+        <span class="ax-kpi">Latency p50 · 84ms</span>
+        <span class="w-px h-3 bg-f-border"></span>
+        <span class="ax-kpi">Tokens 412 / 8192</span>
+      </div>
+    </div>
+
+    <div class="p-6 space-y-5">
+      <!-- 输入区 -->
+      <div class="bg-f-bg border border-f-border rounded-lg p-1 focus-within:border-f-positive transition-colors">
+        <div class="flex items-center gap-3 px-4 py-3">
+          <svg class="w-4 h-4 text-f-muted shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+          </svg>
+          <input
+            type="text"
+            value="昨日给广州商业沙盘注入资本10万元，风险评级设定为中等，ROI预期4.5x"
+            class="flex-1 bg-transparent text-[14px] text-f-text placeholder-f-muted focus:outline-none"
+          />
+          <span class="text-[10px] ax-kpi uppercase text-f-muted px-2 py-1 bg-f-cardAlt border border-f-border rounded">⌘K</span>
+        </div>
+      </div>
+
+      <!-- 解析预览 -->
+      <div class="grid grid-cols-4 gap-3">
+        <div class="bg-f-cardAlt border border-f-border rounded-lg px-3.5 py-2.5">
+          <div class="text-[10px] uppercase text-f-muted ax-kpi tracking-wider">Intent</div>
+          <div class="text-[12.5px] font-medium mt-1">capital.allocate</div>
+        </div>
+        <div class="bg-f-cardAlt border border-f-border rounded-lg px-3.5 py-2.5">
+          <div class="text-[10px] uppercase text-f-muted ax-kpi tracking-wider">Target Entity</div>
+          <div class="text-[12.5px] font-medium mt-1">广州商业沙盘</div>
+        </div>
+        <div class="bg-f-cardAlt border border-f-border rounded-lg px-3.5 py-2.5">
+          <div class="text-[10px] uppercase text-f-muted ax-kpi tracking-wider">Amount</div>
+          <div class="text-[12.5px] font-medium mt-1 ax-kpi">¥100,000.00</div>
+        </div>
+        <div class="bg-f-cardAlt border border-f-border rounded-lg px-3.5 py-2.5">
+          <div class="text-[10px] uppercase text-f-muted ax-kpi tracking-wider">Forecast ROI</div>
+          <div class="text-[12.5px] font-medium mt-1 ax-kpi text-f-positive">4.50x · Medium risk</div>
+        </div>
+      </div>
+
+      <!-- 底栏：状态 + 双下拉 -->
+      <div class="flex items-end justify-between gap-6 pt-1">
+        <div class="flex items-center gap-3 text-[11.5px] text-f-muted">
+          <span class="flex items-center gap-1.5 px-2 py-1 bg-f-positiveSoft/30 border border-f-positive/30 rounded-md">
+            <span class="w-1.5 h-1.5 rounded-full bg-f-positive"></span>
+            <span class="text-f-positive ax-kpi">Schema valid</span>
+          </span>
+          <span class="flex items-center gap-1.5 px-2 py-1 bg-f-warningSoft/30 border border-f-warning/30 rounded-md">
+            <span class="w-1.5 h-1.5 rounded-full bg-f-warning"></span>
+            <span class="text-f-warning ax-kpi">Requires CFO sign-off</span>
+          </span>
+        </div>
+
+        <div class="flex items-end gap-3">
+          <div class="flex flex-col gap-1.5">
+            <label class="text-[10.5px] text-f-muted ax-kpi uppercase tracking-wider">Provider · 厂商</label>
+            <select class="ax-select bg-f-bg border border-f-border rounded-lg px-3.5 py-2.5 text-[13px] text-f-text focus:outline-none focus:border-f-positive min-w-[200px] shadow-flat">
+              <option>Anthropic</option>
+              <option>OpenAI</option>
+              <option>Google DeepMind</option>
+              <option>阿里通义 · Qwen</option>
+              <option>智谱AI · GLM</option>
+              <option>4SAPI Aggregator</option>
+            </select>
+          </div>
+          <div class="flex flex-col gap-1.5">
+            <label class="text-[10.5px] text-f-muted ax-kpi uppercase tracking-wider">Engine · 引擎</label>
+            <select class="ax-select bg-f-bg border border-f-border rounded-lg px-3.5 py-2.5 text-[13px] text-f-text focus:outline-none focus:border-f-positive min-w-[220px] shadow-flat">
+              <option>Claude Opus 4.7</option>
+              <option>Claude Sonnet 4.6</option>
+              <option>GPT-4o (2024-11)</option>
+              <option>Gemini 2.0 Pro Experimental</option>
+              <option>Qwen-Max 2025-04</option>
+              <option>GLM-4-Plus</option>
+            </select>
+          </div>
+          <button class="px-5 py-2.5 bg-f-text text-f-bg text-[13px] font-semibold rounded-lg shadow-flat-lg hover:opacity-90 transition-opacity">
+            Commit Transaction →
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 版块 2：资产跑道 KPI 组 -->
+  <section class="grid grid-cols-3 gap-5">
+
+    <div class="bg-f-card border border-f-border rounded-xl shadow-flat p-6">
+      <div class="flex items-center justify-between mb-5">
+        <div class="flex items-center gap-2">
+          <div class="w-7 h-7 rounded-md bg-f-positiveSoft/60 flex items-center justify-center">
+            <svg class="w-3.5 h-3.5 text-f-positive" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <path d="M7 17l5-5 5 5M7 7l5-5 5 5" transform="rotate(180 12 12)" />
+            </svg>
+          </div>
+          <span class="text-[12px] text-f-dim font-medium">Net Capital Flow</span>
+        </div>
+        <span class="text-[10.5px] ax-kpi text-f-positive bg-f-positiveSoft/40 px-2 py-0.5 rounded-md border border-f-positive/30">▲ 24.83%</span>
+      </div>
+      <div class="ax-kpi text-[32px] font-semibold text-f-positive leading-none tracking-tight">+¥412,850.00</div>
+      <div class="mt-2 text-[11.5px] text-f-muted">CNY · trailing 30 days · 净资本流入</div>
+
+      <!-- 微图表 -->
+      <svg viewBox="0 0 220 50" class="mt-4 w-full h-14">
+        <defs>
+          <linearGradient id="g1" x1="0" x2="0" y1="0" y2="1">
+            <stop offset="0%" stop-color="#0D9488" stop-opacity="0.4"/>
+            <stop offset="100%" stop-color="#0D9488" stop-opacity="0"/>
+          </linearGradient>
+        </defs>
+        <path d="M0,40 L20,38 L40,32 L60,34 L80,26 L100,22 L120,16 L140,18 L160,10 L180,7 L200,4 L220,2 L220,50 L0,50 Z" fill="url(#g1)"/>
+        <path d="M0,40 L20,38 L40,32 L60,34 L80,26 L100,22 L120,16 L140,18 L160,10 L180,7 L200,4 L220,2" fill="none" stroke="#0D9488" stroke-width="1.5"/>
+      </svg>
+
+      <div class="mt-4 pt-4 border-t border-f-border grid grid-cols-2 gap-3 text-[11px]">
+        <div>
+          <div class="text-f-muted ax-kpi uppercase tracking-wider text-[10px]">Prev period</div>
+          <div class="ax-kpi text-f-dim mt-1">¥330,712.40</div>
+        </div>
+        <div>
+          <div class="text-f-muted ax-kpi uppercase tracking-wider text-[10px]">Top inflow</div>
+          <div class="ax-kpi text-f-dim mt-1">SH-FINLAB · ¥186k</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="bg-f-card border border-f-border rounded-xl shadow-flat p-6">
+      <div class="flex items-center justify-between mb-5">
+        <div class="flex items-center gap-2">
+          <div class="w-7 h-7 rounded-md bg-f-dangerSoft/60 flex items-center justify-center">
+            <svg class="w-3.5 h-3.5 text-f-danger" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <path d="M12 5v14M5 12l7 7 7-7"/>
+            </svg>
+          </div>
+          <span class="text-[12px] text-f-dim font-medium">Monthly Burn Rate</span>
+        </div>
+        <span class="text-[10.5px] ax-kpi text-f-warning bg-f-warningSoft/40 px-2 py-0.5 rounded-md border border-f-warning/30">▲ +6.4% MoM</span>
+      </div>
+      <div class="ax-kpi text-[32px] font-semibold text-f-danger leading-none tracking-tight">-¥14,200</div>
+      <div class="mt-2 text-[11.5px] text-f-muted">per month · 经常性运营开支</div>
+
+      <svg viewBox="0 0 220 50" class="mt-4 w-full h-14">
+        <defs>
+          <linearGradient id="g2" x1="0" x2="0" y1="0" y2="1">
+            <stop offset="0%" stop-color="#E11D48" stop-opacity="0.4"/>
+            <stop offset="100%" stop-color="#E11D48" stop-opacity="0"/>
+          </linearGradient>
+        </defs>
+        <path d="M0,12 L20,14 L40,11 L60,16 L80,15 L100,19 L120,22 L140,24 L160,28 L180,33 L200,36 L220,40 L220,50 L0,50 Z" fill="url(#g2)"/>
+        <path d="M0,12 L20,14 L40,11 L60,16 L80,15 L100,19 L120,22 L140,24 L160,28 L180,33 L200,36 L220,40" fill="none" stroke="#E11D48" stroke-width="1.5"/>
+      </svg>
+
+      <div class="mt-4 pt-4 border-t border-f-border grid grid-cols-2 gap-3 text-[11px]">
+        <div>
+          <div class="text-f-muted ax-kpi uppercase tracking-wider text-[10px]">Largest line</div>
+          <div class="ax-kpi text-f-dim mt-1">Cloud · ¥6,820</div>
+        </div>
+        <div>
+          <div class="text-f-muted ax-kpi uppercase tracking-wider text-[10px]">Headcount</div>
+          <div class="ax-kpi text-f-dim mt-1">12 FTE · ¥4,950</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="bg-f-card border border-f-border rounded-xl shadow-flat p-6">
+      <div class="flex items-center justify-between mb-5">
+        <div class="flex items-center gap-2">
+          <div class="w-7 h-7 rounded-md bg-f-cardAlt border border-f-border flex items-center justify-center">
+            <svg class="w-3.5 h-3.5 text-f-text" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>
+            </svg>
+          </div>
+          <span class="text-[12px] text-f-dim font-medium">Capital Runway</span>
+        </div>
+        <span class="text-[10.5px] ax-kpi text-f-positive bg-f-positiveSoft/40 px-2 py-0.5 rounded-md border border-f-positive/30">Healthy</span>
+      </div>
+      <div class="ax-kpi text-[32px] font-semibold text-f-text leading-none tracking-tight">871 Days</div>
+      <div class="mt-2 text-[11.5px] text-f-muted">≈ 2.39 years · ETA 2028-10-09 · 资产跑道</div>
+
+      <!-- 跑道刻度 -->
+      <div class="mt-5">
+        <div class="relative h-2 w-full bg-f-cardAlt rounded-full overflow-hidden">
+          <div class="absolute inset-y-0 left-0 bg-gradient-to-r from-f-positive to-teal-400" style="width: 72%"></div>
+          <div class="absolute inset-y-0 left-[72%] w-px bg-f-text"></div>
+        </div>
+        <div class="flex justify-between mt-2 text-[10px] text-f-muted ax-kpi">
+          <span>Today</span>
+          <span>Q3 2026</span>
+          <span>Q1 2027</span>
+          <span>Q3 2027</span>
+          <span class="text-f-text">EOL ▾</span>
+        </div>
+      </div>
+
+      <div class="mt-4 pt-4 border-t border-f-border grid grid-cols-2 gap-3 text-[11px]">
+        <div>
+          <div class="text-f-muted ax-kpi uppercase tracking-wider text-[10px]">Confidence</div>
+          <div class="ax-kpi text-f-dim mt-1">P50 · ±42d</div>
+        </div>
+        <div>
+          <div class="text-f-muted ax-kpi uppercase tracking-wider text-[10px]">Stress test</div>
+          <div class="ax-kpi text-f-dim mt-1">P10 · 612d</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 版块 3：麦肯锡风险矩阵 -->
+  <section class="bg-f-card border border-f-border rounded-xl shadow-flat-lg overflow-hidden">
+    <div class="px-6 py-4 border-b border-f-border flex items-center justify-between">
+      <div>
+        <h2 class="text-[14px] font-semibold tracking-tight">McKinsey Risk Matrix</h2>
+        <p class="text-[12px] text-f-muted mt-0.5">麦肯锡风险矩阵 · Probability × ROI Impact</p>
+      </div>
+      <div class="flex items-center gap-3 text-[11px] text-f-muted">
+        <span class="ax-kpi">3 active bets</span>
+        <span class="w-px h-3 bg-f-border"></span>
+        <span class="ax-kpi">Weighted exposure ¥542,000</span>
+        <span class="w-px h-3 bg-f-border"></span>
+        <span class="ax-kpi text-f-positive">Net positive convexity</span>
+      </div>
+    </div>
+
+    <div class="p-6">
+      <div class="relative ax-dot-grid bg-f-bg rounded-lg border border-f-border" style="aspect-ratio: 600/400;">
+        <svg viewBox="0 0 600 400" class="absolute inset-0 w-full h-full">
+          <!-- 网格细线 -->
+          <g stroke="#1E222F" stroke-width="0.8">
+            <line x1="60" y1="190" x2="580" y2="190" stroke-dasharray="2,4" />
+            <line x1="320" y1="20" x2="320" y2="360" stroke-dasharray="2,4" />
+            <line x1="190" y1="20" x2="190" y2="360" stroke="#161924" />
+            <line x1="450" y1="20" x2="450" y2="360" stroke="#161924" />
+            <line x1="60" y1="100" x2="580" y2="100" stroke="#161924" />
+            <line x1="60" y1="280" x2="580" y2="280" stroke="#161924" />
+          </g>
+
+          <!-- 象限染色（极轻） -->
+          <rect x="320" y="20" width="260" height="170" fill="#E11D48" fill-opacity="0.04"/>
+          <rect x="60" y="20" width="260" height="170" fill="#D97706" fill-opacity="0.03"/>
+          <rect x="60" y="190" width="260" height="170" fill="#0D9488" fill-opacity="0.04"/>
+          <rect x="320" y="190" width="260" height="170" fill="#475569" fill-opacity="0.04"/>
+
+          <!-- 轴 -->
+          <defs>
+            <marker id="arrF2" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
+              <path d="M0,0 L8,4 L0,8 Z" fill="#9CA3AF" />
+            </marker>
+          </defs>
+          <line x1="60" y1="360" x2="60" y2="14" stroke="#9CA3AF" stroke-width="1.2" marker-end="url(#arrF2)" />
+          <line x1="60" y1="360" x2="586" y2="360" stroke="#9CA3AF" stroke-width="1.2" marker-end="url(#arrF2)" />
+
+          <!-- 气泡 -->
+          <g>
+            <circle cx="455" cy="95" r="48" fill="#E11D48" fill-opacity="0.2" stroke="#E11D48" stroke-width="1.2"/>
+            <circle cx="455" cy="95" r="4" fill="#E11D48"/>
+            <text x="455" y="158" fill="#E11D48" font-size="10" font-family="JetBrains Mono" font-weight="500" text-anchor="middle">GZ-SANDBOX-01</text>
+          </g>
+
+          <g>
+            <circle cx="305" cy="195" r="32" fill="#D97706" fill-opacity="0.2" stroke="#D97706" stroke-width="1.2"/>
+            <circle cx="305" cy="195" r="3" fill="#D97706"/>
+            <text x="305" y="240" fill="#D97706" font-size="10" font-family="JetBrains Mono" font-weight="500" text-anchor="middle">SH-FINLAB-04</text>
+          </g>
+
+          <g>
+            <circle cx="165" cy="295" r="22" fill="#0D9488" fill-opacity="0.25" stroke="#0D9488" stroke-width="1.2"/>
+            <circle cx="165" cy="295" r="3" fill="#0D9488"/>
+            <text x="165" y="330" fill="#0D9488" font-size="10" font-family="JetBrains Mono" font-weight="500" text-anchor="middle">SZ-SUPPLY-02</text>
+          </g>
+
+          <!-- Y 轴刻度 -->
+          <g font-family="JetBrains Mono" font-size="9" fill="#6B7280">
+            <text x="52" y="363" text-anchor="end">0x</text>
+            <text x="52" y="295" text-anchor="end">2x</text>
+            <text x="52" y="227" text-anchor="end">4x</text>
+            <text x="52" y="160" text-anchor="end">6x</text>
+            <text x="52" y="92" text-anchor="end">8x</text>
+            <text x="52" y="24" text-anchor="end">10x</text>
+          </g>
+
+          <!-- X 轴标签 -->
+          <text x="60" y="378" fill="#6B7280" font-size="9.5" font-family="JetBrains Mono" text-anchor="start">5%</text>
+          <text x="190" y="378" fill="#6B7280" font-size="9.5" font-family="JetBrains Mono" text-anchor="middle">25%</text>
+          <text x="320" y="378" fill="#6B7280" font-size="9.5" font-family="JetBrains Mono" text-anchor="middle">50%</text>
+          <text x="450" y="378" fill="#6B7280" font-size="9.5" font-family="JetBrains Mono" text-anchor="middle">75%</text>
+          <text x="580" y="378" fill="#6B7280" font-size="9.5" font-family="JetBrains Mono" text-anchor="end">95%</text>
+
+          <text x="320" y="395" fill="#F3F4F6" font-size="11" font-family="Inter" font-weight="600" text-anchor="middle">Probability of Event · 事件发生概率 →</text>
+        </svg>
+
+        <!-- HTML 覆层 -->
+        <div class="absolute inset-0 pointer-events-none">
+          <!-- Y 轴标题 -->
+          <div class="absolute left-2 top-1/2 -rotate-90 origin-left -translate-y-1/2 whitespace-nowrap">
+            <span class="text-[11px] font-semibold text-f-text">↑ ROI Impact Multiplier · 影响倍数</span>
+          </div>
+
+          <!-- 象限标签 -->
+          <div class="absolute" style="left: 12%; top: 4%;">
+            <div class="text-[11.5px] font-semibold text-f-warning">高影响 · 低概率</div>
+            <div class="text-[10px] text-f-muted ax-kpi uppercase tracking-wider mt-0.5">High Impact / Low Prob · Hedge Pool</div>
+          </div>
+          <div class="absolute" style="right: 4%; top: 4%;">
+            <div class="text-[11.5px] font-semibold text-f-danger">高影响 · 高概率</div>
+            <div class="text-[10px] text-f-muted ax-kpi uppercase tracking-wider mt-0.5">Critical Zone · 红色警戒区</div>
+          </div>
+          <div class="absolute" style="left: 12%; bottom: 11%;">
+            <div class="text-[11.5px] font-semibold text-f-positive">低影响 · 低概率</div>
+            <div class="text-[10px] text-f-muted ax-kpi uppercase tracking-wider mt-0.5">Safe Parking · 闲置稳健仓</div>
+          </div>
+          <div class="absolute" style="right: 4%; bottom: 11%;">
+            <div class="text-[11.5px] font-semibold text-f-dim">低影响 · 高概率</div>
+            <div class="text-[10px] text-f-muted ax-kpi uppercase tracking-wider mt-0.5">Drip Cost · 持续缓慢失血</div>
+          </div>
+
+          <!-- 浮动数据卡 -->
+          <div class="absolute pointer-events-auto" style="left: 56%; top: 2%;">
+            <div class="bg-f-cardAlt border border-f-border rounded-xl shadow-flat-lg p-4 w-[240px]">
+              <div class="flex items-start justify-between mb-3">
+                <div>
+                  <div class="text-[12px] font-semibold text-f-text">广州商业沙盘</div>
+                  <div class="text-[10px] text-f-muted ax-kpi mt-0.5">GZ-SANDBOX-01 · injected 2026-05-20</div>
+                </div>
+                <span class="text-[9px] ax-kpi uppercase text-f-danger bg-f-dangerSoft/50 border border-f-danger/30 px-1.5 py-0.5 rounded">CRITICAL</span>
+              </div>
+
+              <div class="space-y-2 text-[11.5px]">
+                <div class="flex justify-between items-center">
+                  <span class="text-f-muted">Capital injected</span>
+                  <span class="ax-kpi font-medium">¥100,000.00</span>
+                </div>
+                <div class="flex justify-between items-center">
+                  <span class="text-f-muted">Forecast ROI</span>
+                  <span class="ax-kpi font-medium text-f-positive">4.50x</span>
+                </div>
+                <div class="flex justify-between items-center">
+                  <span class="text-f-muted">Risk grade</span>
+                  <span class="ax-kpi font-medium text-f-warning">MEDIUM · 中等</span>
+                </div>
+                <div class="flex justify-between items-center">
+                  <span class="text-f-muted">Holding period</span>
+                  <span class="ax-kpi font-medium">871 Days</span>
+                </div>
+              </div>
+
+              <div class="mt-3 pt-3 border-t border-f-border flex items-center justify-between">
+                <span class="text-[10px] text-f-muted ax-kpi uppercase tracking-wider">Net P&L est.</span>
+                <span class="ax-kpi text-[13px] font-semibold text-f-positive">+¥350,000.00</span>
+              </div>
+            </div>
+            <svg class="absolute -left-14 top-8" width="56" height="28">
+              <path d="M56,6 L14,22 L4,22" stroke="#E11D48" stroke-width="1.2" fill="none" stroke-dasharray="3,2"/>
+              <circle cx="4" cy="22" r="2.5" fill="#E11D48"/>
+            </svg>
+          </div>
+        </div>
+      </div>
+
+      <!-- 图例与脚注 -->
+      <div class="mt-5 grid grid-cols-3 gap-4 text-[11.5px]">
+        <div class="flex items-center gap-2 bg-f-cardAlt border border-f-border rounded-lg px-3 py-2">
+          <span class="w-2.5 h-2.5 rounded-full bg-f-danger"></span>
+          <span class="text-f-text font-medium">High exposure</span>
+          <span class="text-f-muted ax-kpi ml-auto">1 bet · ¥100k</span>
+        </div>
+        <div class="flex items-center gap-2 bg-f-cardAlt border border-f-border rounded-lg px-3 py-2">
+          <span class="w-2.5 h-2.5 rounded-full bg-f-warning"></span>
+          <span class="text-f-text font-medium">Watchlist</span>
+          <span class="text-f-muted ax-kpi ml-auto">1 bet · ¥240k</span>
+        </div>
+        <div class="flex items-center gap-2 bg-f-cardAlt border border-f-border rounded-lg px-3 py-2">
+          <span class="w-2.5 h-2.5 rounded-full bg-f-positive"></span>
+          <span class="text-f-text font-medium">Healthy</span>
+          <span class="text-f-muted ax-kpi ml-auto">1 bet · ¥202k</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 页脚 -->
+  <footer class="pt-2 flex items-center justify-between text-[11px] text-f-muted">
+    <span class="ax-kpi">Anchor 2 · ChartMogul / Stripe financial neutral · render 2026-05-21 14:32:08 UTC+8</span>
+    <span class="ax-kpi">build sha · 629ba14 · gpg verified</span>
+  </footer>
+
+</div>
+</body>
+</html>

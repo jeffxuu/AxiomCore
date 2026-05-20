@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Axiom Core 3.0 · 主权指挥舱 / Sovereign Cockpit Preview</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          colors: {
+            axiom: {
+              bg: '#0B1220',
+              card: '#111B2D',
+              border: '#1E293B',
+              positive: '#14B8A6',
+              warning: '#F59E0B',
+              danger: '#F43F5E',
+              textMuted: '#94A3B8'
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { font-family: 'Inter', sans-serif; background-color: #0B1220; color: #E2E8F0; }
+    .ax-kpi { font-family: 'JetBrains Mono', monospace; letter-spacing: -0.025em; }
+
+    /* Custom dark select reset */
+    select.ax-select {
+      -webkit-appearance: none;
+      -moz-appearance: none;
+      appearance: none;
+      background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2394A3B8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+      background-repeat: no-repeat;
+      background-position: right 0.6rem center;
+      background-size: 0.85rem;
+      padding-right: 2rem;
+    }
+    select.ax-select option {
+      background-color: #0B1220;
+      color: #E2E8F0;
+    }
+
+    /* Soft glow on focus */
+    .ax-input:focus, .ax-select:focus {
+      outline: none;
+      box-shadow: 0 0 0 1px rgba(20, 184, 166, 0.30), 0 0 24px -6px rgba(20, 184, 166, 0.35);
+      border-color: rgba(20, 184, 166, 0.55);
+    }
+
+    /* Subtle aurora gradient overlay for top hero card */
+    .ax-aurora {
+      background:
+        radial-gradient(900px 280px at 12% -10%, rgba(20, 184, 166, 0.08), transparent 60%),
+        radial-gradient(700px 240px at 95% 0%, rgba(99, 102, 241, 0.07), transparent 65%),
+        linear-gradient(180deg, #131F35 0%, #111B2D 100%);
+    }
+
+    /* Pulse dot */
+    @keyframes ax-pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.35; transform: scale(0.85); }
+    }
+    .ax-pulse { animation: ax-pulse 2.4s ease-in-out infinite; }
+
+    /* Tick line micro shadow */
+    .ax-tick { stroke: #1E293B; stroke-width: 1; }
+    .ax-axis { stroke: #334155; stroke-width: 1.25; }
+  </style>
+</head>
+<body class="bg-axiom-bg min-h-screen text-slate-200 antialiased">
+
+  <!-- Top thin status rail -->
+  <div class="w-full border-b border-axiom-border bg-[#0A1120]/80 backdrop-blur">
+    <div class="max-w-7xl mx-auto px-8 h-11 flex items-center justify-between text-[12px] text-axiom-textMuted">
+      <div class="flex items-center gap-6">
+        <div class="flex items-center gap-2">
+          <span class="w-1.5 h-1.5 rounded-full bg-axiom-positive ax-pulse"></span>
+          <span class="font-mono">AXIOM CORE · v3.0.2</span>
+        </div>
+        <span class="hidden md:inline">主权指挥舱 / Sovereign Cockpit</span>
+        <span class="hidden lg:inline text-slate-600">|</span>
+        <span class="hidden lg:inline">UTC+08 · 上海</span>
+      </div>
+      <div class="flex items-center gap-6 font-mono">
+        <span>SYS_LOAD <span class="text-slate-300">0.42</span></span>
+        <span>LATENCY <span class="text-axiom-positive">38ms</span></span>
+        <span>BUILD <span class="text-slate-300">#A7C2-21</span></span>
+        <span class="hidden md:inline">2026-05-21 · 周四</span>
+      </div>
+    </div>
+  </div>
+
+  <main class="max-w-7xl mx-auto p-8 space-y-6">
+
+    <!-- ====================================================================
+         §1 · 顶级核心指挥部 (Omni Command Console Card)
+         ==================================================================== -->
+    <section class="ax-aurora border border-axiom-border rounded-xl p-6 shadow-2xl shadow-black/40">
+      <div class="flex items-start justify-between mb-5">
+        <div>
+          <div class="flex items-center gap-2 mb-1.5">
+            <span class="text-[11px] font-mono uppercase tracking-[0.18em] text-axiom-positive/90">Omni Command Console</span>
+            <span class="text-[11px] font-mono uppercase tracking-[0.18em] text-slate-600">·</span>
+            <span class="text-[11px] font-mono uppercase tracking-[0.18em] text-axiom-textMuted">全域指挥台</span>
+          </div>
+          <h1 class="text-[20px] font-semibold text-slate-100 tracking-tight">
+            倾倒思考 · 自动归档 · 一键审计
+          </h1>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="px-2 py-1 rounded-md text-[11px] font-mono bg-axiom-positive/10 text-axiom-positive border border-axiom-positive/25">
+            ● LIVE NLP
+          </span>
+          <span class="px-2 py-1 rounded-md text-[11px] font-mono bg-slate-800/60 text-axiom-textMuted border border-axiom-border">
+            ⌘ + Enter 提交
+          </span>
+        </div>
+      </div>
+
+      <!-- Primary input -->
+      <div class="relative">
+        <textarea
+          rows="3"
+          class="ax-input w-full bg-[#0B1322] border border-axiom-border rounded-lg px-4 py-3.5 text-[14px] leading-relaxed text-slate-100 placeholder:text-slate-500 resize-none transition-all duration-200"
+          placeholder="在此倾倒今日任意商业进展、资金流水、决策或思考，AI 自动审计归档 ... 例如：「与字节供应链总监敲定 Q3 试点，预付 30% 押金 ¥30,000，预期 ROI 6.8x，纳入 AxiomCore 重构主线。」"></textarea>
+
+        <!-- Bottom action bar inside the card -->
+        <div class="mt-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+
+          <!-- Left: contextual chips -->
+          <div class="flex flex-wrap items-center gap-2">
+            <button class="px-2.5 py-1 rounded-md text-[11.5px] font-medium bg-slate-800/70 hover:bg-slate-700/80 border border-axiom-border text-slate-300 transition-colors">
+              # 资金流水
+            </button>
+            <button class="px-2.5 py-1 rounded-md text-[11.5px] font-medium bg-slate-800/70 hover:bg-slate-700/80 border border-axiom-border text-slate-300 transition-colors">
+              # 决策日志
+            </button>
+            <button class="px-2.5 py-1 rounded-md text-[11.5px] font-medium bg-slate-800/70 hover:bg-slate-700/80 border border-axiom-border text-slate-300 transition-colors">
+              # 客户进展
+            </button>
+            <button class="px-2.5 py-1 rounded-md text-[11.5px] font-medium bg-axiom-positive/10 hover:bg-axiom-positive/15 border border-axiom-positive/30 text-axiom-positive transition-colors">
+              + 附加项目标签
+            </button>
+          </div>
+
+          <!-- Right: Two independent cascading selects + submit -->
+          <div class="flex items-center gap-2">
+
+            <!-- Select 1: Provider -->
+            <div class="relative">
+              <label class="absolute -top-[8px] left-2 px-1 text-[9.5px] font-mono uppercase tracking-wider text-axiom-textMuted bg-axiom-card">
+                Provider · 厂商
+              </label>
+              <select class="ax-select bg-[#0B1322] border border-axiom-border rounded-md text-[12.5px] text-slate-100 pl-3 py-2 min-w-[170px] cursor-pointer transition-all">
+                <option selected>Anthropic · 克劳德</option>
+                <option>OpenAI · 山姆 · 奥特曼</option>
+                <option>DeepSeek · 深度求索</option>
+                <option>Google · Gemini 团队</option>
+                <option>Mistral · 法兰西开源</option>
+                <option>xAI · 马斯克 Grok</option>
+              </select>
+            </div>
+
+            <!-- Select 2: Engine -->
+            <div class="relative">
+              <label class="absolute -top-[8px] left-2 px-1 text-[9.5px] font-mono uppercase tracking-wider text-axiom-textMuted bg-axiom-card">
+                Engine · 引擎
+              </label>
+              <select class="ax-select bg-[#0B1322] border border-axiom-border rounded-md text-[12.5px] text-slate-100 pl-3 py-2 min-w-[210px] cursor-pointer transition-all">
+                <option selected>Claude 3.5 Sonnet · 动态吸附</option>
+                <option>Claude 3.5 Haiku · 极速短链</option>
+                <option>Claude 3 Opus · 深度推理</option>
+                <option>Claude 3 Sonnet · 经典均衡</option>
+                <option>Claude 3 Haiku · 轻量调度</option>
+              </select>
+            </div>
+
+            <!-- Submit -->
+            <button class="ml-1 px-4 py-2 rounded-md text-[12.5px] font-semibold text-[#062420] bg-axiom-positive hover:bg-[#0EA294] transition-colors shadow-lg shadow-axiom-positive/20">
+              提交审计 →
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ====================================================================
+         §2 · 资产跑道 KPI 看板组 (Runway Balance Sheet)
+         ==================================================================== -->
+    <section class="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+      <!-- Card A · Capital Runway -->
+      <article class="relative bg-axiom-card border border-axiom-border rounded-xl p-6 shadow-xl shadow-black/30 overflow-hidden">
+        <div class="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-axiom-positive/60 to-transparent"></div>
+        <div class="flex items-center justify-between mb-4">
+          <div class="flex items-center gap-2">
+            <div class="w-8 h-8 rounded-lg bg-axiom-positive/10 border border-axiom-positive/25 flex items-center justify-center">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-axiom-positive" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M3 17l6-6 4 4 8-8M14 7h7v7"/>
+              </svg>
+            </div>
+            <div>
+              <p class="text-[12px] font-medium text-slate-200">资金跑道</p>
+              <p class="text-[10.5px] font-mono uppercase tracking-wider text-axiom-textMuted">Capital Runway</p>
+            </div>
+          </div>
+          <span class="text-[10.5px] font-mono px-2 py-0.5 rounded bg-axiom-positive/10 text-axiom-positive border border-axiom-positive/25">
+            +3.2% MoM
+          </span>
+        </div>
+
+        <p class="ax-kpi text-axiom-positive text-3xl font-semibold leading-none">
+          +¥412,850.00
+        </p>
+        <p class="mt-2 text-[12px] text-axiom-textMuted">
+          当前净仓位 · Net Capital Position
+        </p>
+
+        <!-- mini sparkline -->
+        <div class="mt-5 pt-4 border-t border-axiom-border">
+          <svg viewBox="0 0 200 36" class="w-full h-9">
+            <polyline
+              fill="none"
+              stroke="#14B8A6"
+              stroke-width="1.6"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              points="0,28 18,24 36,26 54,20 72,21 90,16 108,18 126,12 144,14 162,9 180,11 200,5"/>
+            <polyline
+              fill="url(#gradA)"
+              stroke="none"
+              points="0,28 18,24 36,26 54,20 72,21 90,16 108,18 126,12 144,14 162,9 180,11 200,5 200,36 0,36"/>
+            <defs>
+              <linearGradient id="gradA" x1="0" x2="0" y1="0" y2="1">
+                <stop offset="0%" stop-color="#14B8A6" stop-opacity="0.35"/>
+                <stop offset="100%" stop-color="#14B8A6" stop-opacity="0"/>
+              </linearGradient>
+            </defs>
+          </svg>
+          <div class="mt-1.5 flex items-center justify-between text-[10.5px] font-mono text-slate-500">
+            <span>2025-12</span><span>2026-05</span>
+          </div>
+        </div>
+      </article>
+
+      <!-- Card B · Monthly Burn -->
+      <article class="relative bg-axiom-card border border-axiom-border rounded-xl p-6 shadow-xl shadow-black/30 overflow-hidden">
+        <div class="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-axiom-danger/60 to-transparent"></div>
+        <div class="flex items-center justify-between mb-4">
+          <div class="flex items-center gap-2">
+            <div class="w-8 h-8 rounded-lg bg-axiom-danger/10 border border-axiom-danger/25 flex items-center justify-center">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-axiom-danger" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M19 14l-7 7m0 0l-7-7m7 7V3"/>
+              </svg>
+            </div>
+            <div>
+              <p class="text-[12px] font-medium text-slate-200">月资金消耗率</p>
+              <p class="text-[10.5px] font-mono uppercase tracking-wider text-axiom-textMuted">Monthly Burn</p>
+            </div>
+          </div>
+          <span class="text-[10.5px] font-mono px-2 py-0.5 rounded bg-axiom-danger/10 text-axiom-danger border border-axiom-danger/25">
+            -1.4% MoM
+          </span>
+        </div>
+
+        <p class="ax-kpi text-axiom-danger text-3xl font-semibold leading-none">
+          -¥14,200 <span class="text-[14px] text-axiom-textMuted font-normal">/ mo</span>
+        </p>
+        <p class="mt-2 text-[12px] text-axiom-textMuted leading-relaxed">
+          安全边际净高：超支 0× 红线 · Financial Headroom
+        </p>
+
+        <!-- segmented bar -->
+        <div class="mt-5 pt-4 border-t border-axiom-border">
+          <div class="flex items-center justify-between text-[10.5px] font-mono text-slate-400 mb-2">
+            <span>结构：固定 / 项目 / 储备</span>
+            <span class="text-slate-500">¥</span>
+          </div>
+          <div class="h-2 w-full rounded-full bg-slate-800/80 overflow-hidden flex">
+            <div class="h-full bg-axiom-danger" style="width: 48%;"></div>
+            <div class="h-full bg-axiom-warning" style="width: 27%;"></div>
+            <div class="h-full bg-axiom-positive" style="width: 25%;"></div>
+          </div>
+          <div class="mt-2 flex items-center justify-between text-[10.5px] font-mono text-slate-500">
+            <span><span class="text-axiom-danger">6,820</span> · 固定</span>
+            <span><span class="text-axiom-warning">3,840</span> · 项目</span>
+            <span><span class="text-axiom-positive">3,540</span> · 储备</span>
+          </div>
+        </div>
+      </article>
+
+      <!-- Card C · Survival Horizon -->
+      <article class="relative bg-axiom-card border border-axiom-border rounded-xl p-6 shadow-xl shadow-black/30 overflow-hidden">
+        <div class="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-axiom-warning/60 to-transparent"></div>
+        <div class="flex items-center justify-between mb-4">
+          <div class="flex items-center gap-2">
+            <div class="w-8 h-8 rounded-lg bg-axiom-warning/10 border border-axiom-warning/25 flex items-center justify-center">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-axiom-warning" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 2m6-2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
+            </div>
+            <div>
+              <p class="text-[12px] font-medium text-slate-200">存活倒计时</p>
+              <p class="text-[10.5px] font-mono uppercase tracking-wider text-axiom-textMuted">Survival Horizon</p>
+            </div>
+          </div>
+          <span class="text-[10.5px] font-mono px-2 py-0.5 rounded bg-axiom-warning/10 text-axiom-warning border border-axiom-warning/30 flex items-center gap-1">
+            <span class="w-1.5 h-1.5 rounded-full bg-axiom-warning ax-pulse"></span>
+            ALERT · 关注
+          </span>
+        </div>
+
+        <div class="flex items-baseline gap-2">
+          <p class="ax-kpi text-axiom-warning text-3xl font-semibold leading-none">
+            871
+          </p>
+          <p class="ax-kpi text-axiom-warning/80 text-[16px] font-medium">Days</p>
+        </div>
+        <p class="mt-2 text-[12px] text-axiom-textMuted">
+          按当前 Burn Rate 推演 · 直至 2028-10-09
+        </p>
+
+        <!-- horizon timeline -->
+        <div class="mt-5 pt-4 border-t border-axiom-border">
+          <div class="relative h-2 w-full rounded-full bg-slate-800/80 overflow-hidden">
+            <div class="absolute inset-y-0 left-0 bg-gradient-to-r from-axiom-positive via-axiom-warning to-axiom-danger" style="width: 100%;"></div>
+            <div class="absolute -top-1 -bottom-1 w-0.5 bg-slate-100 rounded" style="left: 18%;"></div>
+          </div>
+          <div class="mt-2 flex items-center justify-between text-[10.5px] font-mono text-slate-500">
+            <span><span class="text-axiom-positive">D+0</span> 现在</span>
+            <span class="text-slate-400">里程碑 · D+365</span>
+            <span><span class="text-axiom-danger">D+871</span> 红线</span>
+          </div>
+        </div>
+      </article>
+    </section>
+
+    <!-- ====================================================================
+         §3 · 麦肯锡项目战略矩阵 (Risk-ROI Matrix)
+         ==================================================================== -->
+    <section class="bg-axiom-card border border-axiom-border rounded-xl p-6 shadow-xl shadow-black/30">
+
+      <!-- Header -->
+      <div class="flex items-start justify-between mb-5">
+        <div>
+          <div class="flex items-center gap-2 mb-1.5">
+            <span class="text-[11px] font-mono uppercase tracking-[0.18em] text-axiom-positive/90">McKinsey Matrix</span>
+            <span class="text-[11px] font-mono uppercase tracking-[0.18em] text-slate-600">·</span>
+            <span class="text-[11px] font-mono uppercase tracking-[0.18em] text-axiom-textMuted">战略象限</span>
+          </div>
+          <h2 class="text-[18px] font-semibold text-slate-100 tracking-tight">
+            麦肯锡项目战略矩阵 · Risk-ROI Matrix
+          </h2>
+          <p class="mt-1 text-[12px] text-axiom-textMuted">
+            横轴：执行风险等级（低 → 高） · 纵轴：预期投资回报倍率（0× → 10×） · 气泡大小 = 已承诺资金
+          </p>
+        </div>
+        <div class="flex items-center gap-2">
+          <button class="px-2.5 py-1.5 rounded-md text-[11px] font-mono bg-slate-800/60 hover:bg-slate-700/70 border border-axiom-border text-slate-300 transition-colors">
+            视图：象限
+          </button>
+          <button class="px-2.5 py-1.5 rounded-md text-[11px] font-mono bg-slate-800/30 hover:bg-slate-700/50 border border-axiom-border text-axiom-textMuted transition-colors">
+            导出 SVG
+          </button>
+        </div>
+      </div>
+
+      <!-- Chart container -->
+      <div class="relative w-full aspect-[600/400] bg-[#0B1322] border border-axiom-border rounded-lg overflow-hidden">
+
+        <!-- ============ INLINE SVG GRID + AXIS + BUBBLES ============ -->
+        <svg viewBox="0 0 600 400" class="absolute inset-0 w-full h-full" preserveAspectRatio="none">
+          <!-- background subtle gradient -->
+          <defs>
+            <linearGradient id="gridFade" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#0E1830"/>
+              <stop offset="100%" stop-color="#0A1120"/>
+            </linearGradient>
+            <radialGradient id="bubbleGreen" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stop-color="#14B8A6" stop-opacity="0.85"/>
+              <stop offset="100%" stop-color="#14B8A6" stop-opacity="0.35"/>
+            </radialGradient>
+            <radialGradient id="bubbleBlue" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stop-color="#6366F1" stop-opacity="0.85"/>
+              <stop offset="100%" stop-color="#6366F1" stop-opacity="0.35"/>
+            </radialGradient>
+            <radialGradient id="bubbleRed" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stop-color="#F43F5E" stop-opacity="0.85"/>
+              <stop offset="100%" stop-color="#F43F5E" stop-opacity="0.35"/>
+            </radialGradient>
+          </defs>
+
+          <rect x="0" y="0" width="600" height="400" fill="url(#gridFade)"/>
+
+          <!-- Chart plotting area: x [60..560], y [30..360]  ->  500w x 330h -->
+          <!-- Outer plot border -->
+          <rect x="60" y="30" width="500" height="330" fill="none" stroke="#1E293B" stroke-width="1"/>
+
+          <!-- 2x2 quadrant dividers (mid-lines) -->
+          <line x1="310" y1="30"  x2="310" y2="360" stroke="#334155" stroke-width="1.2" stroke-dasharray="4 4"/>
+          <line x1="60"  y1="195" x2="560" y2="195" stroke="#334155" stroke-width="1.2" stroke-dasharray="4 4"/>
+
+          <!-- Horizontal Y gridlines for ticks 0x, 2.5x, 5x, 7x, 10x -->
+          <!-- y mapping: 0x@y=360, 10x@y=30 -> 33 per 1x -->
+          <!-- 2.5x -> 360 - 2.5*33 = 360 - 82.5 = 277.5 -->
+          <!-- 5x   -> 360 - 165 = 195 (already dashed midline) -->
+          <!-- 7x   -> 360 - 231 = 129 -->
+          <line x1="60" y1="277.5" x2="560" y2="277.5" class="ax-tick"/>
+          <line x1="60" y1="129"   x2="560" y2="129"   class="ax-tick"/>
+
+          <!-- Vertical X gridlines: low, mid-low, mid, mid-high, high -->
+          <!-- x maps 60..560 -->
+          <line x1="185" y1="30" x2="185" y2="360" class="ax-tick"/>
+          <line x1="435" y1="30" x2="435" y2="360" class="ax-tick"/>
+
+          <!-- Axes -->
+          <line x1="60" y1="360" x2="560" y2="360" class="ax-axis"/>
+          <line x1="60" y1="30"  x2="60"  y2="360" class="ax-axis"/>
+
+          <!-- Axis arrowheads -->
+          <polygon points="560,360 552,356 552,364" fill="#475569"/>
+          <polygon points="60,30 56,38 64,38" fill="#475569"/>
+
+          <!-- =========== Bubbles (project portfolio) ========== -->
+
+          <!-- 1) AxiomCore 3.0 重构 — Star Bet (low risk, high ROI)  ROI 8.5x, risk ~22% -->
+          <!-- x = 60 + 500 * 0.22 = 170 ; y = 360 - 8.5*33 = 79.5 -->
+          <circle cx="170" cy="79.5" r="34" fill="url(#bubbleGreen)" fill-opacity="0.45" stroke="#14B8A6" stroke-opacity="0.85" stroke-width="1.25"/>
+          <circle cx="170" cy="79.5" r="3.5" fill="#14B8A6"/>
+          <text x="170" y="129" text-anchor="middle" font-family="Inter" font-size="10.5" font-weight="600" fill="#E2E8F0">AxiomCore 3.0</text>
+
+          <!-- 2) Claude SaaS Wrapper — Speculative (high risk, high ROI)  ROI 6.2x, risk ~78% -->
+          <!-- x = 60 + 500 * 0.78 = 450 ; y = 360 - 6.2*33 = 155.4 -->
+          <circle cx="450" cy="155.4" r="26" fill="url(#bubbleBlue)" fill-opacity="0.40" stroke="#6366F1" stroke-opacity="0.85" stroke-width="1.25"/>
+          <circle cx="450" cy="155.4" r="3.5" fill="#818CF8"/>
+          <text x="450" y="200" text-anchor="middle" font-family="Inter" font-size="10.5" font-weight="600" fill="#E2E8F0">Claude SaaS Wrapper</text>
+
+          <!-- 3) DeepSeek 套利模型 — Drains (high risk, low ROI)  ROI 1.4x, risk ~82% -->
+          <!-- x = 60 + 500 * 0.82 = 470 ; y = 360 - 1.4*33 = 313.8 -->
+          <circle cx="470" cy="313.8" r="18" fill="url(#bubbleRed)" fill-opacity="0.40" stroke="#F43F5E" stroke-opacity="0.85" stroke-width="1.25"/>
+          <circle cx="470" cy="313.8" r="3.5" fill="#FB7185"/>
+          <text x="470" y="345" text-anchor="middle" font-family="Inter" font-size="10.5" font-weight="600" fill="#E2E8F0">DeepSeek 套利</text>
+
+        </svg>
+
+        <!-- ============ HTML OVERLAY: QUADRANT LABELS ============ -->
+
+        <!-- Top-Left: Star Bets -->
+        <div class="absolute top-3 left-[12%] px-2.5 py-1 rounded-md bg-axiom-positive/10 border border-axiom-positive/30 backdrop-blur-sm">
+          <p class="text-[10.5px] font-mono uppercase tracking-[0.14em] text-axiom-positive">★ STAR BETS</p>
+          <p class="text-[10.5px] text-axiom-textMuted leading-tight">明星项目 · 重仓加注</p>
+        </div>
+
+        <!-- Top-Right: Speculative -->
+        <div class="absolute top-3 right-3 px-2.5 py-1 rounded-md bg-axiom-warning/10 border border-axiom-warning/30 backdrop-blur-sm">
+          <p class="text-[10.5px] font-mono uppercase tracking-[0.14em] text-axiom-warning">⚡ SPECULATIVE</p>
+          <p class="text-[10.5px] text-axiom-textMuted leading-tight">投机尝试 · 小注试错</p>
+        </div>
+
+        <!-- Bottom-Left: Defensive -->
+        <div class="absolute bottom-12 left-[12%] px-2.5 py-1 rounded-md bg-slate-800/70 border border-slate-600/50 backdrop-blur-sm">
+          <p class="text-[10.5px] font-mono uppercase tracking-[0.14em] text-slate-300">▣ DEFENSIVE</p>
+          <p class="text-[10.5px] text-axiom-textMuted leading-tight">防守阵地 · 守土固本</p>
+        </div>
+
+        <!-- Bottom-Right: Drains -->
+        <div class="absolute bottom-12 right-3 px-2.5 py-1 rounded-md bg-axiom-danger/10 border border-axiom-danger/30 backdrop-blur-sm">
+          <p class="text-[10.5px] font-mono uppercase tracking-[0.14em] text-axiom-danger">✗ DRAINS</p>
+          <p class="text-[10.5px] text-axiom-textMuted leading-tight">资金陷阱 · 立即止损</p>
+        </div>
+
+        <!-- ============ HTML OVERLAY: AXIS TICK LABELS ============ -->
+
+        <!-- Y-axis tick labels (font-mono, perfectly aligned with SVG gridlines) -->
+        <!-- left:60/600 = 10% (so 6%) , top by y/400 -->
+        <div class="absolute font-mono text-[11px] text-axiom-textMuted" style="left: 2.3%; top: calc(30 / 400 * 100% - 6px);">10×</div>
+        <div class="absolute font-mono text-[11px] text-axiom-textMuted" style="left: 2.8%; top: calc(129 / 400 * 100% - 6px);">7×</div>
+        <div class="absolute font-mono text-[11px] text-axiom-textMuted" style="left: 2.8%; top: calc(195 / 400 * 100% - 6px);">5×</div>
+        <div class="absolute font-mono text-[11px] text-axiom-textMuted" style="left: 1.5%; top: calc(277.5 / 400 * 100% - 6px);">2.5×</div>
+        <div class="absolute font-mono text-[11px] text-axiom-textMuted" style="left: 2.8%; top: calc(360 / 400 * 100% - 6px);">0×</div>
+
+        <!-- X-axis tick labels (low / mid-low / mid / mid-high / high) -->
+        <div class="absolute font-mono text-[11px] text-axiom-textMuted" style="left: calc(60 / 600 * 100% - 8px); top: calc(360 / 400 * 100% + 6px);">低</div>
+        <div class="absolute font-mono text-[11px] text-axiom-textMuted" style="left: calc(185 / 600 * 100% - 14px); top: calc(360 / 400 * 100% + 6px);">中低</div>
+        <div class="absolute font-mono text-[11px] text-axiom-textMuted" style="left: calc(310 / 600 * 100% - 8px); top: calc(360 / 400 * 100% + 6px);">中</div>
+        <div class="absolute font-mono text-[11px] text-axiom-textMuted" style="left: calc(435 / 600 * 100% - 14px); top: calc(360 / 400 * 100% + 6px);">中高</div>
+        <div class="absolute font-mono text-[11px] text-axiom-textMuted" style="left: calc(560 / 600 * 100% - 8px); top: calc(360 / 400 * 100% + 6px);">高</div>
+
+        <!-- Axis titles -->
+        <div class="absolute font-mono text-[10.5px] uppercase tracking-[0.16em] text-slate-500" style="left: 50%; bottom: 4px; transform: translateX(-50%);">
+          Execution Risk · 执行风险 →
+        </div>
+        <div class="absolute font-mono text-[10.5px] uppercase tracking-[0.16em] text-slate-500" style="left: -14px; top: 50%; transform: rotate(-90deg) translateX(50%); transform-origin: left top;">
+          Expected ROI · 预期回报 ↑
+        </div>
+
+        <!-- ============ FLOATING TOOLTIP CARD ============ -->
+        <!-- Bubble 1 is at SVG (170, 79.5) -> left = 170/600 = 28.3%, top = 79.5/400 = 19.9% -->
+        <div class="absolute" style="left: calc(170 / 600 * 100% + 38px); top: calc(79.5 / 400 * 100% - 14px);">
+          <!-- connecting line/notch -->
+          <div class="relative w-[252px] bg-[#0E1A2D]/95 border border-axiom-positive/40 rounded-lg shadow-2xl shadow-black/60 backdrop-blur-sm">
+            <!-- left notch -->
+            <div class="absolute -left-[7px] top-4 w-3 h-3 bg-[#0E1A2D] border-l border-b border-axiom-positive/40 rotate-45"></div>
+
+            <div class="px-3.5 py-3">
+              <div class="flex items-center justify-between mb-2">
+                <div class="flex items-center gap-1.5">
+                  <span class="w-2 h-2 rounded-full bg-axiom-positive ax-pulse"></span>
+                  <span class="text-[10px] font-mono uppercase tracking-[0.14em] text-axiom-positive">STAR BET · 明星仓位</span>
+                </div>
+                <span class="text-[9.5px] font-mono text-slate-500">#PRJ-001</span>
+              </div>
+
+              <p class="text-[12.5px] font-semibold text-slate-100 leading-snug">
+                项目：AxiomCore 3.0 重构
+              </p>
+              <p class="mt-1 text-[10.5px] text-axiom-textMuted leading-snug">
+                Thesis：焦土重塑 NLP 录入与麦肯锡大盘，统一指挥舱叙事。
+              </p>
+
+              <div class="mt-2.5 pt-2.5 border-t border-axiom-border grid grid-cols-2 gap-2">
+                <div>
+                  <p class="text-[9.5px] font-mono uppercase tracking-wider text-slate-500">ROI</p>
+                  <p class="ax-kpi text-axiom-positive text-[13px] font-semibold">8.5×</p>
+                </div>
+                <div>
+                  <p class="text-[9.5px] font-mono uppercase tracking-wider text-slate-500">Committed</p>
+                  <p class="ax-kpi text-slate-100 text-[13px] font-semibold">¥100,000</p>
+                </div>
+                <div>
+                  <p class="text-[9.5px] font-mono uppercase tracking-wider text-slate-500">Risk</p>
+                  <p class="ax-kpi text-axiom-warning text-[11.5px] font-semibold">22% · 低-中</p>
+                </div>
+                <div>
+                  <p class="text-[9.5px] font-mono uppercase tracking-wider text-slate-500">Owner</p>
+                  <p class="text-slate-200 text-[11.5px] font-medium">主权探索者</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Legend / portfolio strip below chart -->
+      <div class="mt-5 pt-5 border-t border-axiom-border grid grid-cols-1 md:grid-cols-3 gap-4 text-[12px]">
+        <div class="flex items-start gap-2.5">
+          <span class="mt-1 w-2.5 h-2.5 rounded-full bg-axiom-positive shrink-0"></span>
+          <div>
+            <p class="text-slate-100 font-medium">AxiomCore 3.0 重构 <span class="text-axiom-textMuted">· STAR BET</span></p>
+            <p class="text-[11px] text-axiom-textMuted">ROI 8.5× · 承诺 ¥100,000 · 风险 22%</p>
+          </div>
+        </div>
+        <div class="flex items-start gap-2.5">
+          <span class="mt-1 w-2.5 h-2.5 rounded-full bg-indigo-400 shrink-0"></span>
+          <div>
+            <p class="text-slate-100 font-medium">Claude SaaS Wrapper <span class="text-axiom-textMuted">· SPECULATIVE</span></p>
+            <p class="text-[11px] text-axiom-textMuted">ROI 6.2× · 承诺 ¥38,000 · 风险 78%</p>
+          </div>
+        </div>
+        <div class="flex items-start gap-2.5">
+          <span class="mt-1 w-2.5 h-2.5 rounded-full bg-axiom-danger shrink-0"></span>
+          <div>
+            <p class="text-slate-100 font-medium">DeepSeek 套利模型 <span class="text-axiom-textMuted">· DRAIN</span></p>
+            <p class="text-[11px] text-axiom-textMuted">ROI 1.4× · 承诺 ¥22,500 · 风险 82% · 建议止损</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Footer attribution -->
+    <footer class="pt-2 pb-6 flex items-center justify-between text-[11px] font-mono text-slate-600">
+      <span>© 2026 Axiom Core · 主权大脑 / Sovereign Brain</span>
+      <span>preview_theme_v2.html · Deep-Sea Microlight Skin · v2.0</span>
+    </footer>
+
+  </main>
+
+</body>
+</html>

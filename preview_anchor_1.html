@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Axiom Core · Anchor 1 · Vercel/GitHub 极简无尘室</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        fontFamily: { sans: ['Inter', 'system-ui'], mono: ['JetBrains Mono', 'monospace'] },
+        colors: {
+          v: {
+            bg: '#000000',
+            card: '#000000',
+            border: '#1F1F1F',
+            borderHover: '#2E2E2E',
+            text: '#FFFFFF',
+            muted: '#737373',
+            dim: '#A1A1A1',
+            positive: '#22C55E',
+            danger: '#EF4444',
+            warning: '#F59E0B',
+            info: '#3B82F6'
+          }
+        }
+      }
+    }
+  }
+</script>
+<style>
+  html, body { background: #000000; }
+  body { font-family: 'Inter', system-ui, sans-serif; font-feature-settings: "cv11", "ss01", "ss03"; }
+  .ax-kpi { font-family: 'JetBrains Mono', monospace; letter-spacing: -0.02em; }
+  .ax-grid-bg {
+    background-image:
+      linear-gradient(to right, #141414 1px, transparent 1px),
+      linear-gradient(to bottom, #141414 1px, transparent 1px);
+    background-size: 60px 60px;
+  }
+  .ax-hairline { border-color: #1F1F1F; }
+  select.ax-select {
+    appearance: none;
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23737373' stroke-width='2'%3e%3cpath d='M6 9l6 6 6-6'/%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    padding-right: 36px;
+  }
+  ::selection { background: #FFFFFF; color: #000000; }
+</style>
+</head>
+<body class="bg-v-bg text-v-text antialiased">
+
+<div class="max-w-7xl mx-auto p-8 space-y-6">
+
+  <!-- 顶栏：极简身份条 -->
+  <header class="flex items-center justify-between border-b border-v-border pb-5">
+    <div class="flex items-center gap-3">
+      <div class="w-7 h-7 border border-v-border rounded-md flex items-center justify-center">
+        <span class="ax-kpi text-[13px] font-bold tracking-tighter">▲</span>
+      </div>
+      <div class="flex items-baseline gap-3">
+        <span class="text-[15px] font-semibold tracking-tight">Axiom Core</span>
+        <span class="text-[11px] text-v-muted ax-kpi uppercase">v3.0.4 · production</span>
+      </div>
+    </div>
+    <nav class="flex items-center gap-6 text-[13px] text-v-muted">
+      <a class="hover:text-v-text transition-colors">Overview</a>
+      <a class="hover:text-v-text transition-colors">Treasury</a>
+      <a class="text-v-text">Oracle</a>
+      <a class="hover:text-v-text transition-colors">Risk</a>
+      <a class="hover:text-v-text transition-colors">Settings</a>
+      <span class="w-px h-4 bg-v-border"></span>
+      <button class="px-3 py-1.5 text-[12px] border border-v-border rounded-md hover:bg-v-text hover:text-v-bg transition-colors">Deploy</button>
+    </nav>
+  </header>
+
+  <!-- 版块 1：统一指挥台 -->
+  <section class="border border-v-border rounded-md">
+    <div class="flex items-center justify-between px-5 py-3 border-b border-v-border">
+      <div class="flex items-center gap-2">
+        <span class="w-1.5 h-1.5 rounded-full bg-v-positive"></span>
+        <h2 class="text-[13px] font-medium">Unified Command · 统一指挥台</h2>
+      </div>
+      <div class="flex items-center gap-3 text-[11px] text-v-muted ax-kpi uppercase">
+        <span>SESSION 0x9F2A</span>
+        <span>·</span>
+        <span>READY</span>
+      </div>
+    </div>
+
+    <div class="p-5 space-y-4">
+      <div class="relative">
+        <input
+          type="text"
+          value="昨日给广州商业沙盘注入资本10万元，风险评级设定为中等，ROI预期4.5x"
+          class="w-full bg-v-bg border border-v-border rounded-md px-4 py-3.5 pr-32 text-[14px] text-v-text placeholder-v-muted focus:outline-none focus:border-v-text font-mono"
+        />
+        <div class="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
+          <span class="text-[10px] text-v-muted ax-kpi uppercase">⌘ + ↵</span>
+          <button class="px-3 py-1 bg-v-text text-v-bg text-[12px] font-medium rounded-md hover:bg-v-dim transition-colors">Execute</button>
+        </div>
+      </div>
+
+      <div class="flex items-end justify-between gap-4">
+        <div class="flex items-center gap-4 text-[11px] text-v-muted">
+          <span class="flex items-center gap-1.5">
+            <span class="w-1 h-1 rounded-full bg-v-positive"></span>
+            <span class="ax-kpi uppercase">Parser online</span>
+          </span>
+          <span class="flex items-center gap-1.5">
+            <span class="w-1 h-1 rounded-full bg-v-positive"></span>
+            <span class="ax-kpi uppercase">Ledger writeable</span>
+          </span>
+          <span class="flex items-center gap-1.5">
+            <span class="w-1 h-1 rounded-full bg-v-warning"></span>
+            <span class="ax-kpi uppercase">Risk engine: degraded</span>
+          </span>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <div class="flex flex-col gap-1">
+            <label class="text-[10px] text-v-muted ax-kpi uppercase tracking-widest">Provider · 厂商</label>
+            <select class="ax-select bg-v-bg border border-v-border rounded-md px-3 py-2 text-[13px] text-v-text focus:outline-none focus:border-v-text min-w-[180px]">
+              <option>Anthropic</option>
+              <option>OpenAI</option>
+              <option>Google DeepMind</option>
+              <option>阿里通义 · Qwen</option>
+              <option>智谱AI · GLM</option>
+              <option>4SAPI Aggregator</option>
+            </select>
+          </div>
+          <div class="flex flex-col gap-1">
+            <label class="text-[10px] text-v-muted ax-kpi uppercase tracking-widest">Engine · 引擎</label>
+            <select class="ax-select bg-v-bg border border-v-border rounded-md px-3 py-2 text-[13px] text-v-text focus:outline-none focus:border-v-text min-w-[200px]">
+              <option>Claude Opus 4.7</option>
+              <option>Claude Sonnet 4.6</option>
+              <option>GPT-4o (2024-11)</option>
+              <option>Gemini 2.0 Pro Experimental</option>
+              <option>Qwen-Max 2025-04</option>
+              <option>GLM-4-Plus</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 版块 2：资产跑道 KPI 组 -->
+  <section class="grid grid-cols-3 gap-4">
+
+    <div class="border border-v-border rounded-md p-5">
+      <div class="flex items-center justify-between mb-4">
+        <span class="text-[11px] text-v-muted ax-kpi uppercase tracking-widest">Net Capital Flow · 净资本流入</span>
+        <span class="px-1.5 py-0.5 text-[10px] ax-kpi uppercase border border-v-positive text-v-positive rounded-sm">+24.8%</span>
+      </div>
+      <div class="ax-kpi text-[34px] font-semibold text-v-positive leading-none">+¥412,850.00</div>
+      <div class="mt-2 flex items-baseline gap-2">
+        <span class="text-[11px] text-v-muted ax-kpi uppercase">CNY · trailing 30d</span>
+      </div>
+      <div class="mt-4 pt-3 border-t border-v-border flex items-center justify-between text-[11px] text-v-muted">
+        <span class="ax-kpi">Prev period</span>
+        <span class="ax-kpi text-v-dim">¥330,712.40</span>
+      </div>
+      <!-- 极简折线 -->
+      <svg viewBox="0 0 200 36" class="mt-3 w-full h-9">
+        <polyline points="0,28 20,26 40,22 60,24 80,18 100,16 120,11 140,13 160,7 180,5 200,2"
+          fill="none" stroke="#22C55E" stroke-width="1.5"></polyline>
+      </svg>
+    </div>
+
+    <div class="border border-v-border rounded-md p-5">
+      <div class="flex items-center justify-between mb-4">
+        <span class="text-[11px] text-v-muted ax-kpi uppercase tracking-widest">Burn Rate · 月度燃烧</span>
+        <span class="px-1.5 py-0.5 text-[10px] ax-kpi uppercase border border-v-warning text-v-warning rounded-sm">Watch</span>
+      </div>
+      <div class="ax-kpi text-[34px] font-semibold text-v-danger leading-none">-¥14,200</div>
+      <div class="mt-2 flex items-baseline gap-2">
+        <span class="text-[11px] text-v-muted ax-kpi uppercase">per month · 经常性开支</span>
+      </div>
+      <div class="mt-4 pt-3 border-t border-v-border flex items-center justify-between text-[11px] text-v-muted">
+        <span class="ax-kpi">Largest line</span>
+        <span class="ax-kpi text-v-dim">Cloud infra ¥6,820</span>
+      </div>
+      <svg viewBox="0 0 200 36" class="mt-3 w-full h-9">
+        <polyline points="0,8 20,10 40,9 60,12 80,11 100,14 120,16 140,17 160,21 180,24 200,27"
+          fill="none" stroke="#EF4444" stroke-width="1.5"></polyline>
+      </svg>
+    </div>
+
+    <div class="border border-v-border rounded-md p-5">
+      <div class="flex items-center justify-between mb-4">
+        <span class="text-[11px] text-v-muted ax-kpi uppercase tracking-widest">Runway · 资产跑道</span>
+        <span class="px-1.5 py-0.5 text-[10px] ax-kpi uppercase border border-v-positive text-v-positive rounded-sm">Healthy</span>
+      </div>
+      <div class="ax-kpi text-[34px] font-semibold text-v-text leading-none">871 Days</div>
+      <div class="mt-2 flex items-baseline gap-2">
+        <span class="text-[11px] text-v-muted ax-kpi uppercase">≈ 2.39 years · 截至 2028-10-09</span>
+      </div>
+      <div class="mt-4 pt-3 border-t border-v-border flex items-center justify-between text-[11px] text-v-muted">
+        <span class="ax-kpi">Confidence</span>
+        <span class="ax-kpi text-v-dim">P50 model · ±42d</span>
+      </div>
+      <!-- 进度条极简 -->
+      <div class="mt-3 h-1.5 w-full bg-v-border rounded-sm overflow-hidden">
+        <div class="h-full bg-v-text" style="width: 72%"></div>
+      </div>
+      <div class="flex justify-between mt-1 text-[10px] text-v-muted ax-kpi">
+        <span>0d</span><span>365d</span><span>730d</span><span>1095d</span>
+      </div>
+    </div>
+
+  </section>
+
+  <!-- 版块 3：麦肯锡风险矩阵 -->
+  <section class="border border-v-border rounded-md">
+    <div class="flex items-center justify-between px-5 py-3 border-b border-v-border">
+      <div class="flex items-center gap-2">
+        <span class="w-1.5 h-1.5 rounded-full bg-v-danger"></span>
+        <h2 class="text-[13px] font-medium">McKinsey Risk Matrix · 麦肯锡风险矩阵</h2>
+      </div>
+      <div class="flex items-center gap-4 text-[11px] text-v-muted ax-kpi uppercase">
+        <span>3 active bets</span>
+        <span>·</span>
+        <span>weighted exposure ¥542k</span>
+      </div>
+    </div>
+
+    <div class="p-5">
+      <div class="relative" style="aspect-ratio: 600/400;">
+        <!-- SVG 底座 -->
+        <svg viewBox="0 0 600 400" class="absolute inset-0 w-full h-full">
+          <!-- 网格线 -->
+          <g stroke="#1F1F1F" stroke-width="1">
+            <line x1="60" y1="20" x2="60" y2="360" />
+            <line x1="60" y1="360" x2="580" y2="360" />
+            <line x1="60" y1="190" x2="580" y2="190" stroke-dasharray="3,3" />
+            <line x1="320" y1="20" x2="320" y2="360" stroke-dasharray="3,3" />
+            <line x1="190" y1="20" x2="190" y2="360" stroke="#141414" />
+            <line x1="450" y1="20" x2="450" y2="360" stroke="#141414" />
+            <line x1="60" y1="100" x2="580" y2="100" stroke="#141414" />
+            <line x1="60" y1="280" x2="580" y2="280" stroke="#141414" />
+          </g>
+
+          <!-- 坐标轴箭头 -->
+          <defs>
+            <marker id="arrV1" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
+              <path d="M0,0 L8,4 L0,8 Z" fill="#FFFFFF" />
+            </marker>
+          </defs>
+          <line x1="60" y1="360" x2="60" y2="14" stroke="#FFFFFF" stroke-width="1.5" marker-end="url(#arrV1)" />
+          <line x1="60" y1="360" x2="586" y2="360" stroke="#FFFFFF" stroke-width="1.5" marker-end="url(#arrV1)" />
+
+          <!-- 轴标签 -->
+          <text x="60" y="380" fill="#737373" font-size="10" font-family="JetBrains Mono" text-anchor="start">LOW · 低</text>
+          <text x="575" y="380" fill="#737373" font-size="10" font-family="JetBrains Mono" text-anchor="end">HIGH · 高</text>
+          <text x="320" y="395" fill="#FFFFFF" font-size="11" font-family="Inter" font-weight="500" text-anchor="middle">Probability · 发生概率 →</text>
+
+          <!-- 气泡：广州商业沙盘 -->
+          <g>
+            <circle cx="455" cy="95" r="48" fill="#EF4444" fill-opacity="0.18" stroke="#EF4444" stroke-width="1" />
+            <circle cx="455" cy="95" r="4" fill="#EF4444" />
+            <text x="455" y="155" fill="#EF4444" font-size="10" font-family="JetBrains Mono" text-anchor="middle">GZ-SANDBOX-01</text>
+          </g>
+
+          <!-- 气泡：上海金融实验室 -->
+          <g>
+            <circle cx="305" cy="195" r="32" fill="#F59E0B" fill-opacity="0.18" stroke="#F59E0B" stroke-width="1" />
+            <circle cx="305" cy="195" r="3" fill="#F59E0B" />
+            <text x="305" y="240" fill="#F59E0B" font-size="10" font-family="JetBrains Mono" text-anchor="middle">SH-FINLAB-04</text>
+          </g>
+
+          <!-- 气泡：深圳供应链 -->
+          <g>
+            <circle cx="165" cy="295" r="22" fill="#22C55E" fill-opacity="0.18" stroke="#22C55E" stroke-width="1" />
+            <circle cx="165" cy="295" r="3" fill="#22C55E" />
+            <text x="165" y="328" fill="#22C55E" font-size="10" font-family="JetBrains Mono" text-anchor="middle">SZ-SUPPLY-02</text>
+          </g>
+
+          <!-- Y 轴刻度 -->
+          <g font-family="JetBrains Mono" font-size="9" fill="#737373">
+            <text x="50" y="363" text-anchor="end">0x</text>
+            <text x="50" y="295" text-anchor="end">2x</text>
+            <text x="50" y="227" text-anchor="end">4x</text>
+            <text x="50" y="160" text-anchor="end">6x</text>
+            <text x="50" y="92" text-anchor="end">8x</text>
+            <text x="50" y="24" text-anchor="end">10x</text>
+          </g>
+        </svg>
+
+        <!-- HTML 覆层 -->
+        <div class="absolute inset-0 pointer-events-none">
+          <!-- Y 轴标题 -->
+          <div class="absolute left-0 top-1/2 -rotate-90 origin-left -translate-y-1/2 text-[11px] font-medium text-v-text ax-kpi">
+            ↑ Impact · ROI 影响倍数
+          </div>
+
+          <!-- 象限标签 -->
+          <div class="absolute" style="left: 14%; top: 6%;">
+            <div class="text-[11px] font-semibold text-v-dim">高影响 · 低概率</div>
+            <div class="text-[10px] text-v-muted ax-kpi uppercase">Hedge / 对冲池</div>
+          </div>
+          <div class="absolute" style="right: 6%; top: 6%;">
+            <div class="text-[11px] font-semibold text-v-danger">高影响 · 高概率</div>
+            <div class="text-[10px] text-v-muted ax-kpi uppercase">Critical zone · 警戒区</div>
+          </div>
+          <div class="absolute" style="left: 14%; bottom: 12%;">
+            <div class="text-[11px] font-semibold text-v-positive">低影响 · 低概率</div>
+            <div class="text-[10px] text-v-muted ax-kpi uppercase">Safe parking · 闲置仓</div>
+          </div>
+          <div class="absolute" style="right: 6%; bottom: 12%;">
+            <div class="text-[11px] font-semibold text-v-warning">低影响 · 高概率</div>
+            <div class="text-[10px] text-v-muted ax-kpi uppercase">Drip cost · 缓慢失血</div>
+          </div>
+
+          <!-- 浮动数据卡（挂在广州气泡旁） -->
+          <div class="absolute pointer-events-auto" style="left: 55%; top: 4%;">
+            <div class="border border-v-danger rounded-md bg-v-bg p-3 w-[208px]">
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-[11px] font-semibold text-v-danger">GZ · 广州商业沙盘</span>
+                <span class="text-[9px] ax-kpi uppercase text-v-muted px-1 py-0.5 border border-v-border rounded-sm">LIVE</span>
+              </div>
+              <div class="space-y-1.5 text-[11px]">
+                <div class="flex justify-between">
+                  <span class="text-v-muted">注入资本</span>
+                  <span class="ax-kpi text-v-text">¥100,000.00</span>
+                </div>
+                <div class="flex justify-between">
+                  <span class="text-v-muted">ROI 预期</span>
+                  <span class="ax-kpi text-v-positive">4.5x</span>
+                </div>
+                <div class="flex justify-between">
+                  <span class="text-v-muted">风险评级</span>
+                  <span class="ax-kpi text-v-warning">中等 · MEDIUM</span>
+                </div>
+                <div class="flex justify-between">
+                  <span class="text-v-muted">持续周期</span>
+                  <span class="ax-kpi text-v-text">871 Days</span>
+                </div>
+                <div class="flex justify-between pt-1.5 border-t border-v-border mt-1.5">
+                  <span class="text-v-muted">预测净收益</span>
+                  <span class="ax-kpi text-v-positive">+¥350,000</span>
+                </div>
+              </div>
+            </div>
+            <!-- 指向线 -->
+            <svg class="absolute -left-12 top-6" width="48" height="24">
+              <path d="M48,4 L12,18 L4,18" stroke="#EF4444" stroke-width="1" fill="none" />
+              <circle cx="4" cy="18" r="2" fill="#EF4444" />
+            </svg>
+          </div>
+        </div>
+      </div>
+
+      <!-- 图例 -->
+      <div class="mt-5 pt-4 border-t border-v-border flex items-center justify-between text-[11px] text-v-muted ax-kpi">
+        <div class="flex items-center gap-5">
+          <span class="flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full bg-v-danger"></span>
+            <span class="uppercase">High exposure</span>
+          </span>
+          <span class="flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full bg-v-warning"></span>
+            <span class="uppercase">Watch</span>
+          </span>
+          <span class="flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full bg-v-positive"></span>
+            <span class="uppercase">Healthy</span>
+          </span>
+        </div>
+        <span class="uppercase">气泡半径 ∝ 持仓占比 · radius ∝ position size</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- 极简页脚 -->
+  <footer class="pt-4 flex items-center justify-between text-[11px] text-v-muted ax-kpi uppercase">
+    <span>Anchor 1 · Vercel / GitHub minimalism</span>
+    <span>render @ 2026-05-21 · build 0x3D2A</span>
+  </footer>
+
+</div>
+</body>
+</html>

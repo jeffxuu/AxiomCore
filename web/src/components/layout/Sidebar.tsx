@@ -1,4 +1,4 @@
-import { useState, type ComponentType, type SVGProps } from "react";
+import { useMemo, useState, type ComponentType, type SVGProps } from "react";
 import {
   Activity,
   BarChart3,
@@ -72,18 +72,30 @@ export function Sidebar({
   hideHeader?: boolean;
 }) {
   const brand = useBrand();
-  const t = useT();
+  const rawT = useT();
   const [filter, setFilter] = useState("");
+  const t = (key: string) => {
+    try {
+      return typeof rawT === "function" ? rawT(key) : key;
+    } catch {
+      return key;
+    }
+  };
+  const currentPath = path || "/";
+  const brandName = brand?.brandName || "Axiom Core";
+  const safeNavigate = (href: string) => {
+    if (typeof navigate === "function") navigate(href);
+  };
 
-  const consoleItems = buildConsole(t);
-  const domainItems = buildDomains();
+  const consoleItems = useMemo(() => buildConsole(t), [rawT]);
+  const domainItems = useMemo(() => buildDomains(), []);
   const needle = filter.trim().toLowerCase();
   const filteredConsole = needle
-    ? consoleItems.filter((item) => item.label.toLowerCase().includes(needle))
-    : consoleItems;
+    ? (consoleItems ?? []).filter((item) => (item?.label ?? "").toLowerCase().includes(needle))
+    : consoleItems ?? [];
   const filteredDomains = needle
-    ? domainItems.filter((item) => item.label.toLowerCase().includes(needle) || item.id.includes(needle))
-    : domainItems;
+    ? (domainItems ?? []).filter((item) => (item?.label ?? "").toLowerCase().includes(needle) || (item?.id ?? "").includes(needle))
+    : domainItems ?? [];
 
   return (
     <div className="flex h-full w-full flex-col">
@@ -91,8 +103,8 @@ export function Sidebar({
       {hideHeader ? null : (
         <button
           type="button"
-          onClick={() => navigate("/app")}
-          className="flex items-center gap-2.5 border-b px-5 py-4 text-left"
+          onClick={() => safeNavigate("/app")}
+          className="flex items-center gap-2.5 border-b px-6 py-4.5 text-left"
           style={{ borderColor: "var(--ax-border)" }}
         >
           <span
@@ -102,14 +114,14 @@ export function Sidebar({
               color: "var(--ax-bg)",
             }}
           >
-            <span className="ax-kpi text-[11px] font-bold tracking-wider">AX</span>
+            <span className="ax-kpi text-[11px] font-medium tracking-wider">AX</span>
           </span>
           <span className="min-w-0 leading-tight">
             <span
-              className="block truncate text-[13px] font-semibold tracking-tight"
+              className="block truncate text-[13px] font-medium tracking-tight"
               style={{ color: "var(--ax-text)" }}
             >
-              {brand.brandName}
+              {brandName}
             </span>
             <span
               className="ax-kpi block truncate text-[9.5px]"
@@ -148,12 +160,12 @@ export function Sidebar({
           <p className="ax-section-title px-2 pb-1.5">Console</p>
           <ul className="space-y-0">
             {filteredConsole.map(({ href, label, Icon }) => {
-              const active = isActive(path, href);
+              const active = isActive(currentPath, href);
               return (
                 <li key={href}>
                   <button
                     type="button"
-                    onClick={() => navigate(href)}
+                    onClick={() => safeNavigate(href)}
                     className={cn("ax-nav-item w-full text-left", active && "active")}
                   >
                     <Icon className="size-[14px] shrink-0" strokeWidth={1.8} />
@@ -172,7 +184,7 @@ export function Sidebar({
               <li key={id}>
                 <button
                   type="button"
-                  onClick={() => navigate(`/vault?doc=${encodeURIComponent(id)}`)}
+                  onClick={() => safeNavigate(`/vault?doc=${encodeURIComponent(id)}`)}
                   className="ax-nav-item w-full text-left"
                 >
                   <span
@@ -191,7 +203,7 @@ export function Sidebar({
 
       {/* ── Telemetry footer ── */}
       <div
-        className="space-y-1.5 border-t px-4 py-3"
+        className="space-y-1.5 border-t px-6 py-4.5"
         style={{ borderColor: "var(--ax-border)" }}
       >
         <div className="flex items-center justify-between text-[11px]">
