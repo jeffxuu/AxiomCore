@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { loadBaseline, loadDecisions, loadProjects, loadTransactions } from "@/api";
-import { PageHeader } from "@/components/axiom/primitives";
+import { loadBaseline, loadDecisions, loadProjects, loadTransactions, type CommandParseResponse } from "@/api";
+import { OmniCommandBar } from "@/components/axiom/OmniCommandBar";
 import { InsightCard } from "@/components/analytics/InsightCard";
 import { RiskRoiMatrix } from "@/components/analytics/RiskRoiMatrix";
 import { RunwayVelocityChart } from "@/components/analytics/RunwayVelocityChart";
@@ -45,6 +45,13 @@ export function InsightsPage({ onStatus }: { onStatus: (status: string) => void 
     void refresh();
   }, [refresh]);
 
+  const onIngested = useCallback(
+    (_result: CommandParseResponse) => {
+      void refresh();
+    },
+    [refresh],
+  );
+
   const exposureAlert = useMemo(() => {
     const live = projects.filter((p) => p.status !== "killed");
     const total = live.reduce((acc, p) => acc + Math.max(0, p.capital_committed), 0);
@@ -56,61 +63,67 @@ export function InsightsPage({ onStatus }: { onStatus: (status: string) => void 
   }, [projects]);
 
   return (
-    <div className="min-h-full bg-[#F8FAFC] dark:bg-[#0B1220]">
-      <PageHeader
-        eyebrow={t("insights.eyebrow")}
-        title={t("insights.title")}
-        description={t("insights.desc")}
-      />
+    <div className="space-y-5">
+      <OmniCommandBar onIngested={onIngested} />
 
-      <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
-        <InsightCard
-          title={t("insights.matrix.title")}
-          subtitle={t("insights.matrix.subtitle")}
-        >
-          <RiskRoiMatrix projects={projects} />
-        </InsightCard>
+      {/* ───── 65 / 35 ASYMMETRIC GRID ───── */}
+      <section
+        className="grid gap-4"
+        style={{ gridTemplateColumns: "repeat(20, minmax(0, 1fr))" }}
+      >
+        {/* ━━━━━━ LEFT MAIN (13/20 = 65%) ━━━━━━ */}
+        <div className="space-y-4" style={{ gridColumn: "span 13 / span 13" }}>
+          <InsightCard
+            title={t("insights.runway.title")}
+            subtitle={t("insights.runway.subtitle")}
+          >
+            <RunwayVelocityChart baseline={baseline} transactions={transactions} />
+          </InsightCard>
 
-        <InsightCard
-          title={t("insights.runway.title")}
-          subtitle={t("insights.runway.subtitle")}
-        >
-          <RunwayVelocityChart baseline={baseline} transactions={transactions} />
-        </InsightCard>
+          <InsightCard
+            title={t("insights.matrix.title")}
+            subtitle={t("insights.matrix.subtitle")}
+          >
+            <RiskRoiMatrix projects={projects} />
+          </InsightCard>
+        </div>
 
-        <InsightCard
-          title={t("insights.allocation.title")}
-          subtitle={t("insights.allocation.subtitle")}
-        >
-          <CapitalAllocationTree projects={projects} />
-        </InsightCard>
+        {/* ━━━━━━ RIGHT AUDIT (7/20 = 35%) ━━━━━━ */}
+        <div className="space-y-4" style={{ gridColumn: "span 7 / span 7" }}>
+          <InsightCard
+            title={t("insights.waterfall.title")}
+            subtitle={t("insights.waterfall.subtitle")}
+          >
+            <DomainContributionWaterfall
+              transactions={transactions}
+              decisions={decisions}
+              projects={projects}
+            />
+          </InsightCard>
 
-        <InsightCard
-          title={t("insights.funnel.title")}
-          subtitle={t("insights.funnel.subtitle")}
-        >
-          <DecisionFunnel decisions={decisions} />
-        </InsightCard>
+          <InsightCard
+            title={t("insights.funnel.title")}
+            subtitle={t("insights.funnel.subtitle")}
+          >
+            <DecisionFunnel decisions={decisions} />
+          </InsightCard>
 
-        <InsightCard
-          title={t("insights.exposure.title")}
-          subtitle={t("insights.exposure.subtitle")}
-          alert={exposureAlert}
-        >
-          <RiskExposureRadar projects={projects} />
-        </InsightCard>
+          <InsightCard
+            title={t("insights.allocation.title")}
+            subtitle={t("insights.allocation.subtitle")}
+          >
+            <CapitalAllocationTree projects={projects} />
+          </InsightCard>
 
-        <InsightCard
-          title={t("insights.waterfall.title")}
-          subtitle={t("insights.waterfall.subtitle")}
-        >
-          <DomainContributionWaterfall
-            transactions={transactions}
-            decisions={decisions}
-            projects={projects}
-          />
-        </InsightCard>
-      </div>
+          <InsightCard
+            title={t("insights.exposure.title")}
+            subtitle={t("insights.exposure.subtitle")}
+            alert={exposureAlert}
+          >
+            <RiskExposureRadar projects={projects} />
+          </InsightCard>
+        </div>
+      </section>
     </div>
   );
 }

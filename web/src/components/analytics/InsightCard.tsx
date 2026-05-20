@@ -19,41 +19,51 @@ export function InsightCard({
   return (
     <section
       className={cn(
-        "relative overflow-hidden rounded-xl border bg-[#FFFFFF] shadow-sm transition-colors",
-        "dark:bg-[#111B2D]",
-        alert
-          ? "border-[#E11D48]/50 dark:border-[#F43F5E]/55 ring-1 ring-[#E11D48]/10 dark:ring-[#F43F5E]/15"
-          : "border-[#E2E8F0] dark:border-[#1E293B]",
-        className
+        "ax-card relative overflow-hidden",
+        alert ? "ring-1" : null,
+        className,
       )}
+      style={
+        alert
+          ? {
+              borderColor: "var(--ax-danger)",
+              boxShadow: "0 0 0 1px color-mix(in srgb, var(--ax-danger) 18%, transparent)",
+            }
+          : undefined
+      }
     >
-      <header className="flex items-start justify-between gap-3 border-b border-[#E2E8F0] px-5 py-3.5 dark:border-[#1E293B]">
+      <header
+        className="flex items-start justify-between gap-3 border-b px-6 py-[18px]"
+        style={{ borderColor: "var(--ax-border)" }}
+      >
         <div className="min-w-0">
           <h2
-            className={cn(
-              "font-sans text-[13px] font-semibold leading-tight tracking-tight",
-              alert ? "text-[#E11D48] dark:text-[#F43F5E]" : "text-[#0F172A] dark:text-[#F8FAFC]"
-            )}
+            className={cn("ax-h-title")}
+            style={alert ? { color: "var(--ax-danger)" } : undefined}
           >
             {title}
           </h2>
-          {subtitle ? (
-            <p className="mt-1 font-sans text-[11px] leading-snug tracking-tight text-[#64748B] dark:text-[#94A3B8]">
-              {subtitle}
-            </p>
-          ) : null}
+          {subtitle ? <p className="ax-h-sub">{subtitle}</p> : null}
         </div>
         {badge ? <div className="shrink-0">{badge}</div> : null}
       </header>
-      <div className="p-5">{children}</div>
+      <div className="px-6 py-[18px]">{children}</div>
     </section>
   );
 }
 
 export function EmptyCanvas({ label }: { label: string }) {
   return (
-    <div className="flex h-full min-h-[260px] items-center justify-center rounded-md border border-dashed border-[#CBD5E1] bg-[#F8FAFC] dark:border-[#1E293B] dark:bg-[#0B1220]/60">
-      <p className="font-sans text-[11px] tracking-tight text-[#94A3B8] dark:text-[#475569]">{label}</p>
+    <div
+      className="flex h-full min-h-[260px] items-center justify-center rounded-md border border-dashed"
+      style={{ borderColor: "var(--ax-border-strong)", background: "var(--ax-canvas)" }}
+    >
+      <p
+        className="font-sans text-[11px] tracking-tight"
+        style={{ color: "var(--ax-muted)" }}
+      >
+        {label}
+      </p>
     </div>
   );
 }

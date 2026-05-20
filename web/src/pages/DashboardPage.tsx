@@ -198,8 +198,12 @@ export function DashboardPage({
         </div>
       </Panel>
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-2">
+      <div
+        className="mt-6 grid gap-4"
+        style={{ gridTemplateColumns: "repeat(20, minmax(0, 1fr))" }}
+      >
         <Panel
+          className="[grid-column:span_13/span_13] min-w-0"
           title={t("dashboard.projects.title")}
           subtitle={
             data
@@ -257,6 +261,7 @@ export function DashboardPage({
         </Panel>
 
         <Panel
+          className="[grid-column:span_7/span_7] min-w-0"
           title={t("dashboard.decisions.title")}
           subtitle={
             data

@@ -1,53 +1,57 @@
+import { useState, type ComponentType, type SVGProps } from "react";
 import {
+  Activity,
+  BarChart3,
+  Banknote,
   BookOpen,
+  Brain,
+  Briefcase,
+  CheckSquare,
+  Compass,
   GitBranch,
+  HeartPulse,
   LayoutDashboard,
   LineChart,
-  Receipt,
-  Scale,
+  Search,
   Settings,
   Sparkles,
-  type LucideIcon,
+  Users,
+  Wand2,
 } from "lucide-react";
 import { useBrand } from "@/lib/brandConfig";
 import { useT } from "@/lib/i18nConfig";
 import { cn } from "@/lib/utils";
 
-type NavItem = {
-  href: string;
-  labelKey: string;
-  hintKey: string;
-  Icon: LucideIcon;
-};
+type IconType = ComponentType<SVGProps<SVGSVGElement>>;
+type NavItem = { href: string; label: string; Icon: IconType };
+type DomainItem = { id: string; label: string; Icon: IconType };
 
-const SECTIONS: { titleKey: string; items: NavItem[] }[] = [
-  {
-    titleKey: "nav.section.sandbox",
-    items: [
-      { href: "/app", labelKey: "nav.dashboard", hintKey: "nav.dashboard.hint", Icon: LayoutDashboard },
-      { href: "/projects", labelKey: "nav.projects", hintKey: "nav.projects.hint", Icon: GitBranch },
-      { href: "/decisions", labelKey: "nav.decisions", hintKey: "nav.decisions.hint", Icon: Scale },
-      { href: "/ledger", labelKey: "nav.ledger", hintKey: "nav.ledger.hint", Icon: Receipt },
-    ],
-  },
-  {
-    titleKey: "nav.section.intelligence",
-    items: [
-      { href: "/insights", labelKey: "nav.insights", hintKey: "nav.insights.hint", Icon: LineChart },
-    ],
-  },
-  {
-    titleKey: "nav.section.knowledge",
-    items: [
-      { href: "/vault", labelKey: "nav.vault", hintKey: "nav.vault.hint", Icon: BookOpen },
-      { href: "/oracle", labelKey: "nav.oracle", hintKey: "nav.oracle.hint", Icon: Sparkles },
-    ],
-  },
-  {
-    titleKey: "nav.section.system",
-    items: [{ href: "/settings", labelKey: "nav.settings", hintKey: "", Icon: Settings }],
-  },
-];
+function buildConsole(t: (key: string) => string): NavItem[] {
+  return [
+    { href: "/app", label: t("nav.dashboard"), Icon: LayoutDashboard },
+    { href: "/insights", label: t("nav.insights"), Icon: LineChart },
+    { href: "/projects", label: t("nav.projects"), Icon: GitBranch },
+    { href: "/decisions", label: t("nav.decisions"), Icon: CheckSquare },
+    { href: "/ledger", label: t("nav.ledger"), Icon: Banknote },
+    { href: "/vault", label: t("nav.vault"), Icon: BookOpen },
+    { href: "/oracle", label: t("nav.oracle"), Icon: Sparkles },
+    { href: "/settings", label: t("nav.settings"), Icon: Settings },
+  ];
+}
+
+function buildDomains(): DomainItem[] {
+  return [
+    { id: "01", label: "Health · 健康",        Icon: HeartPulse },
+    { id: "02", label: "Cashflow · 现金流",    Icon: Banknote },
+    { id: "03", label: "Career · 职业",        Icon: Briefcase },
+    { id: "04", label: "Skills · 技能",        Icon: Wand2 },
+    { id: "05", label: "Projects · 项目",      Icon: BarChart3 },
+    { id: "06", label: "Cognition · 认知",     Icon: Brain },
+    { id: "07", label: "Relationships",        Icon: Users },
+    { id: "08", label: "Decisions · 决策",     Icon: Compass },
+    { id: "09", label: "Principles · 原则",    Icon: Activity },
+  ];
+}
 
 function isActive(path: string, href: string): boolean {
   if (href === "/app") return path === "/" || path === "/app";
@@ -69,67 +73,152 @@ export function Sidebar({
 }) {
   const brand = useBrand();
   const t = useT();
+  const [filter, setFilter] = useState("");
+
+  const consoleItems = buildConsole(t);
+  const domainItems = buildDomains();
+  const needle = filter.trim().toLowerCase();
+  const filteredConsole = needle
+    ? consoleItems.filter((item) => item.label.toLowerCase().includes(needle))
+    : consoleItems;
+  const filteredDomains = needle
+    ? domainItems.filter((item) => item.label.toLowerCase().includes(needle) || item.id.includes(needle))
+    : domainItems;
+
   return (
-    <div className="flex h-full w-full flex-col bg-[var(--sidebar)] text-[var(--sidebar-foreground)]">
+    <div className="flex h-full w-full flex-col">
+      {/* ── Brand ── */}
       {hideHeader ? null : (
         <button
           type="button"
-          className="flex h-14 items-center gap-2.5 border-b border-[var(--sidebar-border)] px-4 text-left"
           onClick={() => navigate("/app")}
+          className="flex items-center gap-2.5 border-b px-5 py-4 text-left"
+          style={{ borderColor: "var(--ax-border)" }}
         >
-          <span className="flex size-7 items-center justify-center rounded-md border border-[var(--sidebar-border)] bg-[var(--sidebar-accent)] text-[11px] font-semibold tracking-tight text-foreground">
-            A
+          <span
+            className="flex size-8 shrink-0 items-center justify-center rounded-md"
+            style={{
+              background: "linear-gradient(135deg, var(--ax-ink-1), var(--ax-ink-2))",
+              color: "var(--ax-bg)",
+            }}
+          >
+            <span className="ax-kpi text-[11px] font-bold tracking-wider">AX</span>
           </span>
-          <span className="min-w-0">
-            <span className="block truncate text-sm font-semibold tracking-tight text-foreground">{brand.brandName}</span>
-            <span className="block truncate text-[11px] text-muted-foreground">{t("brand.tagline")}</span>
+          <span className="min-w-0 leading-tight">
+            <span
+              className="block truncate text-[13px] font-semibold tracking-tight"
+              style={{ color: "var(--ax-text)" }}
+            >
+              {brand.brandName}
+            </span>
+            <span
+              className="ax-kpi block truncate text-[9.5px]"
+              style={{ color: "var(--ax-muted)" }}
+            >
+              v3.0 · SOVEREIGN OS
+            </span>
           </span>
         </button>
       )}
 
-      <nav className="flex flex-1 flex-col gap-6 overflow-y-auto px-3 py-5" aria-label="Primary">
-        {SECTIONS.map((section) => (
-          <div key={section.titleKey} className="space-y-1.5">
-            <p className="px-2 ax-eyebrow">{t(section.titleKey)}</p>
-            <ul className="space-y-0.5">
-              {section.items.map(({ href, labelKey, hintKey, Icon }) => {
-                const active = isActive(path, href);
-                return (
-                  <li key={href}>
-                    <button
-                      type="button"
-                      onClick={() => navigate(href)}
-                      className={cn(
-                        "group flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-[13px] font-medium transition-colors",
-                        active
-                          ? "bg-[var(--sidebar-accent)] text-foreground"
-                          : "text-muted-foreground hover:bg-[var(--sidebar-accent)]/70 hover:text-foreground"
-                      )}
-                    >
-                      <Icon
-                        className={cn(
-                          "size-4 shrink-0",
-                          active ? "text-foreground" : "text-muted-foreground group-hover:text-foreground"
-                        )}
-                        strokeWidth={1.8}
-                      />
-                      <span className="min-w-0 flex-1 truncate">{t(labelKey)}</span>
-                      {hintKey ? (
-                        <span className="hidden truncate text-[11px] text-muted-foreground/80 group-hover:text-muted-foreground lg:inline">
-                          {t(hintKey)}
-                        </span>
-                      ) : null}
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-        ))}
+      {/* ── Search ── */}
+      <div className="px-3 pt-3">
+        <div className="relative">
+          <Search
+            className="pointer-events-none absolute left-2.5 top-1/2 size-[13px] -translate-y-1/2"
+            style={{ color: "var(--ax-muted)" }}
+            strokeWidth={2}
+          />
+          <input
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+            className="ax-input pl-8 text-[12px]"
+            placeholder="Jump to module…  ⌘K"
+            aria-label={t("common.search")}
+          />
+        </div>
+      </div>
+
+      {/* ── Nav ── */}
+      <nav
+        className="scroll-thin flex-1 space-y-3 overflow-y-auto px-3 py-3"
+        aria-label="Primary"
+      >
+        <div>
+          <p className="ax-section-title px-2 pb-1.5">Console</p>
+          <ul className="space-y-0">
+            {filteredConsole.map(({ href, label, Icon }) => {
+              const active = isActive(path, href);
+              return (
+                <li key={href}>
+                  <button
+                    type="button"
+                    onClick={() => navigate(href)}
+                    className={cn("ax-nav-item w-full text-left", active && "active")}
+                  >
+                    <Icon className="size-[14px] shrink-0" strokeWidth={1.8} />
+                    <span className="min-w-0 flex-1 truncate">{label}</span>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+
+        <div>
+          <p className="ax-section-title px-2 pb-1.5">Domains · 9 领域</p>
+          <ul className="space-y-0">
+            {filteredDomains.map(({ id, label }) => (
+              <li key={id}>
+                <button
+                  type="button"
+                  onClick={() => navigate(`/vault?doc=${encodeURIComponent(id)}`)}
+                  className="ax-nav-item w-full text-left"
+                >
+                  <span
+                    className="ax-kpi text-[10px]"
+                    style={{ color: "var(--ax-muted)" }}
+                  >
+                    {id}
+                  </span>
+                  <span className="min-w-0 flex-1 truncate">{label}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
       </nav>
 
-      <div className="border-t border-[var(--sidebar-border)] px-4 py-3 text-[11px] text-muted-foreground">
-        <span>{t("footer.version")}</span>
+      {/* ── Telemetry footer ── */}
+      <div
+        className="space-y-1.5 border-t px-4 py-3"
+        style={{ borderColor: "var(--ax-border)" }}
+      >
+        <div className="flex items-center justify-between text-[11px]">
+          <span className="ax-muted">SQLite Tables</span>
+          <span className="ax-kpi" style={{ color: "var(--ax-text)" }}>
+            4 · OK
+          </span>
+        </div>
+        <div className="flex items-center justify-between text-[11px]">
+          <span className="ax-muted">4SAPI Pool</span>
+          <span
+            className="ax-kpi flex items-center gap-1.5"
+            style={{ color: "var(--ax-text)" }}
+          >
+            <span
+              className="ax-chip-dot"
+              style={{ background: "var(--ax-positive)" }}
+            />
+            27 / 27
+          </span>
+        </div>
+        <div className="flex items-center justify-between text-[11px]">
+          <span className="ax-muted">Build</span>
+          <span className="ax-kpi" style={{ color: "var(--ax-muted)" }}>
+            {t("footer.version")}
+          </span>
+        </div>
       </div>
     </div>
   );

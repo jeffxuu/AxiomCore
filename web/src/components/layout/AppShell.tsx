@@ -1,5 +1,5 @@
-import { useState, type ReactNode } from "react";
-import { Languages, LogOut, Menu, Moon, Sun, X } from "lucide-react";
+import { useMemo, useState, type ReactNode } from "react";
+import { ChevronRight, Languages, LogOut, Menu, Moon, Sun, X } from "lucide-react";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider, Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,24 @@ function statusKey(status: string): { token: string; tone: "positive" | "warning
   if (/sync|loading|saving/i.test(status)) return { token: "shell.status.sync", tone: "warning" };
   return { token: "shell.status.live", tone: "positive" };
 }
+
+type Crumb = { label: string; href?: string };
+
+const PATH_CRUMBS: Record<string, string> = {
+  "/": "nav.dashboard",
+  "/app": "nav.dashboard",
+  "/projects": "nav.projects",
+  "/decisions": "nav.decisions",
+  "/ledger": "nav.ledger",
+  "/insights": "nav.insights",
+  "/vault": "nav.vault",
+  "/files": "nav.vault",
+  "/library": "nav.vault",
+  "/oracle": "nav.oracle",
+  "/ai": "nav.oracle",
+  "/settings": "nav.settings",
+  "/more": "nav.settings",
+};
 
 export function AppShell({
   children,
@@ -51,11 +69,21 @@ export function AppShell({
   const themeLabel = theme === "dark" ? t("shell.theme.toggle.light") : t("shell.theme.toggle.dark");
   const langLabel = t("shell.lang.toggle");
 
+  const crumbs = useMemo<Crumb[]>(() => {
+    const trail: Crumb[] = [{ label: t("nav.section.sandbox") }];
+    const key = PATH_CRUMBS[path] || PATH_CRUMBS["/"];
+    trail.push({ label: t(key) });
+    return trail;
+  }, [path, t]);
+
   return (
     <TooltipProvider delayDuration={150}>
-      <div className="flex min-h-screen w-full bg-background text-foreground">
-        {/* Desktop sidebar */}
-        <aside className="hidden w-60 shrink-0 border-r border-border md:flex">
+      <div className="flex h-screen w-full overflow-hidden bg-[var(--ax-bg)] text-[var(--ax-text)]">
+        {/* ═══════════ LEFT SIDEBAR · 240px ═══════════ */}
+        <aside
+          className="hidden w-[240px] shrink-0 flex-col border-r md:flex"
+          style={{ background: "var(--ax-card)", borderColor: "var(--ax-border)" }}
+        >
           <Sidebar path={path} navigate={navigate} />
         </aside>
 
@@ -63,14 +91,20 @@ export function AppShell({
         {open ? (
           <div className="fixed inset-0 z-50 md:hidden">
             <div className="absolute inset-0 bg-black/40" onClick={() => setOpen(false)} />
-            <aside className="absolute left-0 top-0 h-full w-64 border-r border-border bg-[var(--sidebar)] shadow-xl">
-              <div className="flex h-14 items-center justify-between px-4">
-                <span className="text-sm font-semibold tracking-tight">{brand.brandName}</span>
+            <aside
+              className="absolute left-0 top-0 h-full w-[260px] border-r shadow-xl"
+              style={{ background: "var(--ax-card)", borderColor: "var(--ax-border)" }}
+            >
+              <div
+                className="flex h-[52px] items-center justify-between border-b px-4"
+                style={{ borderColor: "var(--ax-border)" }}
+              >
+                <span className="text-[13px] font-semibold tracking-tight">{brand.brandName}</span>
                 <Button variant="ghost" size="icon-sm" onClick={() => setOpen(false)} aria-label={t("shell.menu.close")}>
                   <X className="size-4" />
                 </Button>
               </div>
-              <div className="h-[calc(100%-3.5rem)]">
+              <div className="h-[calc(100%-52px)]">
                 <Sidebar
                   path={path}
                   navigate={(href) => {
@@ -84,35 +118,61 @@ export function AppShell({
           </div>
         ) : null}
 
-        {/* Main column */}
-        <div className="flex min-w-0 flex-1 flex-col">
-          <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-3 border-b border-border bg-background/85 px-4 backdrop-blur md:px-6">
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              className="md:hidden"
-              onClick={() => setOpen(true)}
-              aria-label={t("shell.menu.open")}
-            >
-              <Menu className="size-4" />
-            </Button>
-            <div className="flex items-center gap-2 md:hidden">
-              <span className="text-sm font-semibold tracking-tight">{brand.brandName}</span>
-            </div>
-            <div className="ml-auto flex items-center gap-1.5">
+        {/* ═══════════ MAIN CANVAS ═══════════ */}
+        <main className="flex h-full min-w-0 flex-1 flex-col overflow-hidden">
+          {/* TOP HEADER — breadcrumb + theme toggle */}
+          <header
+            className="flex h-[52px] shrink-0 items-center justify-between border-b px-4 md:px-6"
+            style={{ background: "var(--ax-card)", borderColor: "var(--ax-border)" }}
+          >
+            <div className="flex min-w-0 items-center gap-2 text-[12px]">
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                className="md:hidden"
+                onClick={() => setOpen(true)}
+                aria-label={t("shell.menu.open")}
+              >
+                <Menu className="size-4" />
+              </Button>
+              <span className="hidden truncate ax-muted md:inline">Console</span>
+              {crumbs.map((c, i) => (
+                <span key={`${c.label}-${i}`} className="flex items-center gap-2">
+                  {i > 0 ? (
+                    <ChevronRight className="size-3 shrink-0" style={{ color: "var(--ax-muted)" }} />
+                  ) : null}
+                  <span
+                    className={cn(
+                      "truncate",
+                      i === crumbs.length - 1 ? "font-medium" : "ax-muted",
+                    )}
+                    style={i === crumbs.length - 1 ? { color: "var(--ax-text)" } : undefined}
+                  >
+                    {c.label}
+                  </span>
+                </span>
+              ))}
               <span
                 className={cn(
-                  "ax-status hidden sm:inline-flex",
-                  statusInfo.tone === "danger"
-                    ? "ax-status-danger"
-                    : statusInfo.tone === "warning"
-                    ? "ax-status-warning"
-                    : "ax-status-positive"
+                  "ax-chip ml-3 hidden sm:inline-flex",
                 )}
               >
+                <span
+                  className="ax-chip-dot"
+                  style={{
+                    background:
+                      statusInfo.tone === "danger"
+                        ? "var(--ax-danger)"
+                        : statusInfo.tone === "warning"
+                        ? "var(--ax-warning)"
+                        : "var(--ax-positive)",
+                  }}
+                />
                 {statusLabel}
               </span>
+            </div>
 
+            <div className="flex items-center gap-3">
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
@@ -129,11 +189,23 @@ export function AppShell({
                 <TooltipContent>{langLabel}</TooltipContent>
               </Tooltip>
 
+              {/* Physical Sovereign theme toggle */}
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button variant="ghost" size="icon-sm" onClick={toggleTheme} aria-label={themeLabel}>
-                    {theme === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />}
-                  </Button>
+                  <button
+                    type="button"
+                    onClick={toggleTheme}
+                    aria-label={themeLabel}
+                    className="ax-toggle-shell"
+                  >
+                    <span className="ax-toggle-knob">
+                      {theme === "dark" ? (
+                        <Moon className="size-[11px]" strokeWidth={2} />
+                      ) : (
+                        <Sun className="size-[11px]" strokeWidth={2} />
+                      )}
+                    </span>
+                  </button>
                 </TooltipTrigger>
                 <TooltipContent>{themeLabel}</TooltipContent>
               </Tooltip>
@@ -148,12 +220,30 @@ export function AppShell({
                   <TooltipContent>{t("shell.signout")}</TooltipContent>
                 </Tooltip>
               </form>
+
+              {/* Operator avatar */}
+              <span
+                className="ax-kpi flex size-8 items-center justify-center rounded-full border text-[11px] font-semibold"
+                style={{
+                  background: "var(--ax-hover)",
+                  color: "var(--ax-text)",
+                  borderColor: "var(--ax-border)",
+                }}
+                aria-hidden
+              >
+                JX
+              </span>
             </div>
           </header>
-          <main className="min-w-0 flex-1 px-4 py-6 md:px-8 md:py-8">
-            <div className="mx-auto w-full max-w-[1240px]">{children}</div>
-          </main>
-        </div>
+
+          {/* SCROLLABLE WORKSPACE */}
+          <div
+            className="scroll-thin flex-1 overflow-y-auto px-4 py-5 md:px-6"
+            style={{ background: "var(--ax-bg)" }}
+          >
+            <div className="mx-auto w-full max-w-[1440px] space-y-5">{children}</div>
+          </div>
+        </main>
 
         <Toaster position="top-right" theme={theme} />
       </div>
