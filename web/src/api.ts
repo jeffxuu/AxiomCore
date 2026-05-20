@@ -257,11 +257,11 @@ export function saveOracleConfig(input: { api_key?: string; model_name: string }
   });
 }
 
-export function generateOracleBrief(): Promise<{ ok: true; report: OracleReport }> {
+export function generateOracleBrief(kind: "manual" | "daily" | "weekly" = "manual"): Promise<{ ok: true; report: OracleReport }> {
   return requestJson<{ ok: true; report: OracleReport }>("/api/oracle/generate_now", {
     method: "POST",
     headers: jsonHeaders,
-    body: JSON.stringify({}),
+    body: JSON.stringify({ kind }),
   });
 }
 
@@ -294,4 +294,25 @@ export type DomainOption = { id: string; label: string };
 
 export function loadDomains(): Promise<{ ok: true; domains: DomainOption[] }> {
   return requestJson<{ ok: true; domains: DomainOption[] }>("/api/domains");
+}
+
+// ── Omni Command Bar (NLP ingestion) ─────────────────────────────
+export type CommandParseTarget = "capital_tx" | "decisions" | "projects" | "github_vault";
+
+export type CommandParseResponse = {
+  ok: true;
+  target_table: CommandParseTarget;
+  domain_tag: string;
+  summary: string;
+  record?: Record<string, unknown>;
+  vault?: { relative_path: string; appended_bytes: number };
+  markdown?: string;
+};
+
+export function parseCommand(text: string): Promise<CommandParseResponse> {
+  return requestJson<CommandParseResponse>("/api/command/parse", {
+    method: "POST",
+    headers: jsonHeaders,
+    body: JSON.stringify({ text }),
+  });
 }

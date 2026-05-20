@@ -120,6 +120,14 @@ const DICT: Record<Lang, Dict> = {
       "Net position has crossed the configured floor of {x} CNY. Halt commits that increase burn until inflow recovers.",
     "dashboard.fetch.fail": "Dashboard fetch failed",
 
+    // ── Omni Command Bar (NLP ingestion)
+    "omni.placeholder": "Drop any commercial event — cashflow, decision, project, or principle. AI audits & files it.",
+    "omni.send": "Send",
+    "omni.sending": "Auditing…",
+    "omni.hint": "Press Enter to log. The model writes to capital_tx / decisions / projects, or appends Markdown to the matching domain README.",
+    "omni.toast.ok": "Logged",
+    "omni.toast.fail": "Audit failed",
+
     // ── Projects
     "projects.eyebrow": "Sandbox",
     "projects.title": "Project arena",
@@ -452,6 +460,14 @@ const DICT: Record<Lang, Dict> = {
     "dashboard.floor.title": "已跌破绝对地板",
     "dashboard.floor.desc": "净仓位已穿越配置的地板 {x} CNY。在收入回升前，禁止任何放大消耗的承诺。",
     "dashboard.fetch.fail": "仪表板拉取失败",
+
+    // ── 智能命令栏（自然语言录入）
+    "omni.placeholder": "输入今日任意商业进展、资金流水、决策或思考，AI 自动审计归档……",
+    "omni.send": "回执",
+    "omni.sending": "审计中…",
+    "omni.hint": "回车提交。模型自动写入 capital_tx / decisions / projects，或将思考以 Markdown 形式追加到对应领域 README。",
+    "omni.toast.ok": "已归档",
+    "omni.toast.fail": "审计失败",
 
     // ── 项目
     "projects.eyebrow": "沙盘",

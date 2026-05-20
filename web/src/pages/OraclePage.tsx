@@ -50,7 +50,7 @@ export function OraclePage({ onStatus }: { onStatus: (status: string) => void })
   const [reports, setReports] = useState<OracleReport[]>([]);
   const [reportsLoading, setReportsLoading] = useState(true);
   const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
-  const [generating, setGenerating] = useState(false);
+  const [generatingKind, setGeneratingKind] = useState<null | "manual" | "weekly">(null);
 
   const maskedFromServer = config?.api_key_masked || "";
   const inputDisplaysMask = !keyDirty && maskedFromServer;
@@ -170,15 +170,15 @@ export function OraclePage({ onStatus }: { onStatus: (status: string) => void })
     }
   };
 
-  const trigger = async () => {
+  const trigger = async (kind: "manual" | "weekly") => {
     if (!config?.api_key_set || !selectedModel) {
       toast.error(t("oracle.control.engine.required"));
       return;
     }
-    setGenerating(true);
+    setGeneratingKind(kind);
     onStatus("Sync");
     try {
-      const payload = await generateOracleBrief();
+      const payload = await generateOracleBrief(kind);
       setReports((prev) => [payload.report, ...prev]);
       setSelectedReportId(payload.report.id);
       onStatus("Live");
@@ -188,7 +188,7 @@ export function OraclePage({ onStatus }: { onStatus: (status: string) => void })
       onStatus("Sync failed");
       toast.error(message);
     } finally {
-      setGenerating(false);
+      setGeneratingKind(null);
     }
   };
 
@@ -199,7 +199,7 @@ export function OraclePage({ onStatus }: { onStatus: (status: string) => void })
 
   const canVerify = keyDirty && apiKeyInput.trim().length > 0 && !apiKeyInput.includes("***") && !verifying;
   const canSave = !!selectedModel && !saving && !verifying;
-  const canTrigger = !generating && !!config?.api_key_set && !!selectedModel;
+  const canTrigger = generatingKind === null && !!config?.api_key_set && !!selectedModel;
 
   const statusLabel = config?.api_key_set
     ? t("oracle.status.set", { key: maskedFromServer || "***", model: config.model_name || "—" })
@@ -304,14 +304,25 @@ export function OraclePage({ onStatus }: { onStatus: (status: string) => void })
 
           {/* Execution + automation column */}
           <div className="flex flex-col gap-4">
-            <Button
-              onClick={trigger}
-              disabled={!canTrigger}
-              className="h-11 w-full rounded-md bg-foreground text-base font-medium text-background hover:bg-foreground/90"
-            >
-              {generating ? <Loader2 className="size-4 animate-spin" /> : <PlayCircle className="size-4" />}
-              {generating ? t("oracle.execution.triggering") : t("oracle.execution.trigger")}
-            </Button>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              <Button
+                onClick={() => trigger("manual")}
+                disabled={!canTrigger}
+                className="h-11 w-full rounded-md bg-foreground text-[13px] font-medium text-background hover:bg-foreground/90"
+              >
+                {generatingKind === "manual" ? <Loader2 className="size-4 animate-spin" /> : <PlayCircle className="size-4" />}
+                {generatingKind === "manual" ? t("oracle.execution.triggering") : t("oracle.execution.trigger")}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => trigger("weekly")}
+                disabled={!canTrigger}
+                className="h-11 w-full rounded-md text-[13px] font-medium"
+              >
+                {generatingKind === "weekly" ? <Loader2 className="size-4 animate-spin" /> : <PlayCircle className="size-4" />}
+                {generatingKind === "weekly" ? t("oracle.execution.weekly.triggering") : t("oracle.execution.weekly")}
+              </Button>
+            </div>
 
             <div className="space-y-2.5 rounded-md border border-border/70 bg-muted/20 px-3.5 py-3">
               <div className="flex items-start justify-between gap-3">

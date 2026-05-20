@@ -1,24 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ArrowDownRight, ArrowRight, ArrowUpRight, GitBranch, Plus, Scale, ShieldAlert } from "lucide-react";
-import { toast } from "sonner";
+import { ArrowDownRight, ArrowRight, ArrowUpRight, GitBranch, Scale, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { createTransaction, loadDashboard } from "@/api";
-import { DomainSelect, EmptyHint, PageHeader, Panel, StatusDot, formatCNY, netTone } from "@/components/axiom/primitives";
+import { loadDashboard, type CommandParseResponse } from "@/api";
+import { OmniCommandBar } from "@/components/axiom/OmniCommandBar";
+import { EmptyHint, PageHeader, Panel, StatusDot, formatCNY, netTone } from "@/components/axiom/primitives";
 import { useT } from "@/lib/i18nConfig";
 import type { DashboardPayload, TimelinePoint } from "@/types";
 import { cn } from "@/lib/utils";
-
-type FormState = { kind: "income" | "expense"; amount: string; note: string; domain_tag: string };
 
 function runwayTone(months: number | null, netPosition: number, floor: number): "positive" | "warning" | "danger" {
   if (months === null) return "positive";
@@ -88,9 +76,6 @@ export function DashboardPage({
   const t = useT();
   const [data, setData] = useState<DashboardPayload | null>(null);
   const [error, setError] = useState("");
-  const [quickOpen, setQuickOpen] = useState(false);
-  const [form, setForm] = useState<FormState>({ kind: "expense", amount: "", note: "", domain_tag: "" });
-  const [submitting, setSubmitting] = useState(false);
 
   const refresh = useCallback(async () => {
     try {
@@ -109,30 +94,12 @@ export function DashboardPage({
     void refresh();
   }, [refresh]);
 
-  const submitTx = async () => {
-    const amount = Number(form.amount);
-    if (!Number.isFinite(amount) || amount <= 0) {
-      toast.error(t("dashboard.quick.amount.invalid"));
-      return;
-    }
-    setSubmitting(true);
-    try {
-      await createTransaction({ kind: form.kind, amount, note: form.note.trim(), domain_tag: form.domain_tag || undefined });
-      toast.success(
-        t("dashboard.quick.toast", {
-          kind: form.kind === "income" ? t("dashboard.quick.income") : t("dashboard.quick.expense"),
-          x: formatCNY(amount),
-        })
-      );
-      setQuickOpen(false);
-      setForm({ kind: "expense", amount: "", note: "", domain_tag: "" });
+  const onIngested = useCallback(
+    (_result: CommandParseResponse) => {
       void refresh();
-    } catch (exc) {
-      toast.error(exc instanceof Error ? exc.message : t("dashboard.quick.fail"));
-    } finally {
-      setSubmitting(false);
-    }
-  };
+    },
+    [refresh],
+  );
 
   const cap = data?.capital;
   const baseline = data?.baseline;
@@ -148,16 +115,9 @@ export function DashboardPage({
         eyebrow={t("dashboard.eyebrow")}
         title={t("dashboard.title")}
         description={t("dashboard.desc")}
-        actions={
-          <Button
-            onClick={() => setQuickOpen(true)}
-            className="h-9 rounded-lg bg-foreground text-background hover:bg-foreground/90"
-          >
-            <Plus className="size-4" />
-            {t("dashboard.action.log")}
-          </Button>
-        }
       />
+
+      <OmniCommandBar onIngested={onIngested} />
 
       {error ? (
         <div className="mb-4 rounded-lg border border-[var(--danger)]/40 bg-[var(--danger)]/5 px-4 py-3 text-[13px] text-[var(--danger)]">
@@ -388,80 +348,6 @@ export function DashboardPage({
           </div>
         )}
       </Panel>
-
-      <Dialog open={quickOpen} onOpenChange={setQuickOpen}>
-        <DialogContent className="rounded-xl border-border bg-card">
-          <DialogHeader>
-            <DialogTitle className="text-base">{t("dashboard.quick.title")}</DialogTitle>
-            <DialogDescription className="text-[12px] text-muted-foreground">
-              {t("dashboard.quick.desc")}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 py-2">
-            <div className="grid grid-cols-2 gap-2">
-              {(["expense", "income"] as const).map((kind) => (
-                <button
-                  key={kind}
-                  type="button"
-                  onClick={() => setForm((s) => ({ ...s, kind }))}
-                  className={cn(
-                    "rounded-lg border px-3 py-2 text-left text-[13px] transition-colors",
-                    form.kind === kind
-                      ? "border-foreground/70 bg-foreground/5 text-foreground"
-                      : "border-border text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  <span className="block text-[11px] uppercase tracking-wider text-muted-foreground">
-                    {kind === "expense" ? t("dashboard.quick.outflow") : t("dashboard.quick.inflow")}
-                  </span>
-                  {kind === "expense" ? t("dashboard.quick.expense") : t("dashboard.quick.income")}
-                </button>
-              ))}
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="amount" className="text-[11px] uppercase tracking-wider text-muted-foreground">
-                {t("dashboard.quick.amount")}
-              </Label>
-              <Input
-                id="amount"
-                inputMode="decimal"
-                placeholder={t("dashboard.quick.amount.ph")}
-                value={form.amount}
-                onChange={(e) => setForm((s) => ({ ...s, amount: e.target.value }))}
-                className="h-9 rounded-md"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="note" className="text-[11px] uppercase tracking-wider text-muted-foreground">
-                {t("dashboard.quick.note")}
-              </Label>
-              <Input
-                id="note"
-                placeholder={t("dashboard.quick.note.ph")}
-                value={form.note}
-                onChange={(e) => setForm((s) => ({ ...s, note: e.target.value }))}
-                className="h-9 rounded-md"
-              />
-            </div>
-            <DomainSelect
-              value={form.domain_tag}
-              onChange={(next) => setForm((s) => ({ ...s, domain_tag: next }))}
-            />
-          </div>
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setQuickOpen(false)} disabled={submitting} className="h-9 rounded-md">
-              {t("common.cancel")}
-            </Button>
-            <Button
-              onClick={submitTx}
-              disabled={submitting || !form.amount.trim()}
-              className="h-9 rounded-md bg-foreground text-background hover:bg-foreground/90"
-            >
-              {submitting ? t("dashboard.quick.submitting") : t("dashboard.quick.confirm")}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {cap && cap.net_position <= cap.floor ? (
         <div className="mt-6 flex items-start gap-3 rounded-lg border border-[var(--danger)]/40 bg-[var(--danger)]/5 px-4 py-3 text-[13px]">

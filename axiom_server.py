@@ -236,6 +236,16 @@ class OracleAutoConfigIn(BaseModel):
     auto_weekly: bool | None = None
 
 
+class OracleGenerateIn(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    kind: str | None = "manual"  # 'manual' | 'daily' | 'weekly'
+
+
+class CommandParseIn(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    text: str
+
+
 # ─── Utilities ──────────────────────────────────────────────────────
 def now_iso() -> str:
     return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -1337,6 +1347,287 @@ async def oracle_auto_daily_brief() -> None:
         _oracle_log.exception("auto_daily_brief failed: %r", exc)
 
 
+# ─── NLP omni-command engine ──────────────────────────────────────
+# The Omni Command Bar collapses every record-creation flow (capital_tx /
+# decisions / projects / GitHub vault) into a single natural-language prompt.
+# The model returns a strict JSON envelope; we dispatch from that envelope.
+
+NLP_DOMAIN_ENUM = [
+    "01_Health", "02_Cashflow", "03_Career", "04_Skills", "05_Projects",
+    "06_Cognition", "07_Relationships", "08_Decisions", "09_Principles",
+]
+NLP_DOMAIN_TITLE_TO_ID = {
+    "01_Health": "01_health",
+    "02_Cashflow": "02_cashflow",
+    "03_Career": "03_career",
+    "04_Skills": "04_skills",
+    "05_Projects": "05_projects",
+    "06_Cognition": "06_cognition",
+    "07_Relationships": "07_relationships",
+    "08_Decisions": "08_decisions",
+    "09_Principles": "09_principles",
+}
+NLP_DOMAIN_DIR_BY_ID = {d["id"]: d["dir"] for d in DOMAIN_TAGS}
+
+
+NLP_SYSTEM_PROMPT = (
+    "你是 Axiom Core 的资深审计员。运营者会用一句自然中文（或英文）描述一件刚发生的事；"
+    "你必须把它解析成一条严格的 JSON 命令——禁止解释、禁止寒暄、禁止任何 Markdown 外壳。\n\n"
+    "目标表 target_table 枚举：\n"
+    "- capital_tx：现金流入或流出（钱、付款、买、收入、退款、报销、订阅）。\n"
+    "- decisions：在多个选项中做出了取舍（“要不要”、“在 A 和 B 之间选”、“最后决定”）。\n"
+    "- projects：开启 / 暂停 / 复盘一个新的商业项目（必须含项目名 name）。\n"
+    "- github_vault：宏观感悟、原则、复盘心得、思想火花、警句、行业洞察——会以 Markdown 形式追加到对应领域 README 末尾。\n\n"
+    "domain_tag 必须是九大领域之一：" + ", ".join(NLP_DOMAIN_ENUM) + "。\n\n"
+    "payload 的字段必须严格匹配目标表：\n"
+    "- capital_tx → { kind: 'income'|'expense', amount: number(正数), note: string, category?: string, project_name?: string, occurred_at?: 'YYYY-MM-DD' }\n"
+    "- decisions  → { context: string, options: string[](≥1), choice?: string, rationale?: string, expected_outcome?: string, status?: 'open'|'committed'|'reviewed' }\n"
+    "- projects   → { name: string, status?: 'active'|'paused'|'killed'|'shipped', thesis?: string, roi_projection?: number, risk_level?: 'low'|'medium'|'high'|'extreme', kill_criteria?: string }\n"
+    "- github_vault → payload 可为空对象 {}；同时必须提供 vault_markdown 字段（一段干净、可直接追加到 README 末尾的 Markdown，标题用 ### 加日期，正文 1-3 段）。\n\n"
+    "总返回结构（必须是合法 JSON，且只返回这一个对象）：\n"
+    "{\n"
+    '  "target_table": "...",\n'
+    '  "domain_tag": "...",\n'
+    '  "payload": {...},\n'
+    '  "vault_markdown": "..."（仅当 target_table=github_vault 时存在）,\n'
+    '  "summary": "对运营者的一句中文回执（≤30 字），例如：已记一笔 340 元的阿里云续费，归档至 02_现金流"\n'
+    "}\n\n"
+    "禁止 ```json``` 外壳。禁止字段缺失。amount 必须为正数（kind 表方向）。"
+)
+
+
+def nlp_strip_markdown_fence(raw: str) -> str:
+    text = (raw or "").strip()
+    if text.startswith("```"):
+        # Drop the first fence line + optional language tag, then trailing fence.
+        text = re.sub(r"^```[a-zA-Z]*\n?", "", text)
+        text = re.sub(r"\n?```\s*$", "", text)
+    return text.strip()
+
+
+def nlp_normalize_domain(value: Any) -> str:
+    """Accept either title-case (01_Health) or lowercase (01_health)."""
+    if value is None:
+        return ""
+    raw = str(value).strip()
+    if not raw:
+        return ""
+    if raw in NLP_DOMAIN_TITLE_TO_ID:
+        return NLP_DOMAIN_TITLE_TO_ID[raw]
+    lower = raw.lower()
+    if lower in DOMAIN_IDS:
+        return lower
+    raise HTTPException(status_code=400, detail=f"模型返回了未知 domain_tag: {value}")
+
+
+def nlp_resolve_project_id(project_name: str) -> str | None:
+    """Find a project by case-insensitive name match. Returns None if no match."""
+    needle = (project_name or "").strip()
+    if not needle:
+        return None
+    with connect() as conn:
+        row = conn.execute(
+            "SELECT id FROM projects WHERE lower(name) = lower(?) LIMIT 1",
+            (needle,),
+        ).fetchone()
+        if row:
+            return row["id"]
+        # Loose substring match as a fallback.
+        row = conn.execute(
+            "SELECT id FROM projects WHERE lower(name) LIKE lower(?) LIMIT 1",
+            (f"%{needle}%",),
+        ).fetchone()
+        return row["id"] if row else None
+
+
+def nlp_vault_append(domain_id: str, markdown_text: str) -> dict[str, Any]:
+    """Atomically append a fragment to the domain README. Returns path + size."""
+    dir_name = NLP_DOMAIN_DIR_BY_ID.get(domain_id)
+    if not dir_name:
+        raise HTTPException(status_code=400, detail=f"无法定位领域目录: {domain_id}")
+    target_dir = ROOT / dir_name
+    target_dir.mkdir(parents=True, exist_ok=True)
+    readme = target_dir / "README.md"
+    fragment = (markdown_text or "").strip()
+    if not fragment:
+        raise HTTPException(status_code=400, detail="模型未返回可写入的 Markdown 片段")
+    stamp = datetime.now(SHANGHAI_TZ).strftime("%Y-%m-%d %H:%M")
+    block = f"\n\n<!-- omni:{stamp} -->\n{fragment}\n"
+    if readme.exists():
+        existing = readme.read_text(encoding="utf-8", errors="replace")
+        if not existing.endswith("\n"):
+            existing += "\n"
+        readme.write_text(existing + block, encoding="utf-8")
+    else:
+        readme.write_text(f"# {dir_name}\n{block}", encoding="utf-8")
+    return {
+        "relative_path": f"{dir_name}/README.md",
+        "appended_bytes": len(block.encode("utf-8")),
+    }
+
+
+async def nlp_call_4sapi(text: str) -> dict[str, Any]:
+    """Ask 4SAPI for the structured envelope. Raises HTTPException on failure."""
+    api_key, model_name = oracle_load_credentials()
+    if not api_key or not model_name:
+        raise HTTPException(status_code=400, detail="Oracle 尚未配置 API 密钥或模型引擎，请先打开 /oracle 页面保存。")
+    client = AsyncOpenAI(api_key=api_key, base_url=ORACLE_BASE_URL, timeout=ORACLE_TIMEOUT_SECONDS)
+    try:
+        completion = await client.chat.completions.create(
+            model=model_name,
+            messages=[
+                {"role": "system", "content": NLP_SYSTEM_PROMPT},
+                {"role": "user", "content": text.strip()},
+            ],
+            temperature=0.2,
+            max_tokens=900,
+            stream=False,
+            response_format={"type": "json_object"},
+        )
+    except (APIStatusError, APIError) as exc:
+        # response_format may be unsupported by the chosen model — retry once
+        # without it and rely on prompt-level discipline.
+        try:
+            completion = await client.chat.completions.create(
+                model=model_name,
+                messages=[
+                    {"role": "system", "content": NLP_SYSTEM_PROMPT},
+                    {"role": "user", "content": text.strip()},
+                ],
+                temperature=0.2,
+                max_tokens=900,
+                stream=False,
+            )
+        except Exception as inner:
+            raise HTTPException(status_code=502, detail=f"4SAPI 通信失败：{inner!s}") from inner
+        _oracle_log.info("nlp_call_4sapi retried without response_format due to: %r", exc)
+    finally:
+        try:
+            await client.close()
+        except Exception:
+            pass
+
+    if not completion.choices:
+        raise HTTPException(status_code=502, detail="4SAPI 返回空响应。")
+    raw = (completion.choices[0].message.content or "").strip()
+    body = nlp_strip_markdown_fence(raw)
+    try:
+        parsed = json.loads(body)
+    except json.JSONDecodeError as exc:
+        _oracle_log.warning("nlp_parse_failed raw=%r", raw[:400])
+        raise HTTPException(status_code=502, detail=f"模型未返回合法 JSON：{exc!s}") from exc
+    if not isinstance(parsed, dict):
+        raise HTTPException(status_code=502, detail="模型返回的不是 JSON 对象。")
+    return parsed
+
+
+def nlp_dispatch(parsed: dict[str, Any]) -> dict[str, Any]:
+    """Apply the parsed envelope to the correct sink. Returns a result payload."""
+    target = (parsed.get("target_table") or "").strip()
+    if target not in {"capital_tx", "decisions", "projects", "github_vault"}:
+        raise HTTPException(status_code=400, detail=f"未知 target_table: {target}")
+    domain_id = nlp_normalize_domain(parsed.get("domain_tag"))
+    payload = parsed.get("payload") or {}
+    if not isinstance(payload, dict):
+        raise HTTPException(status_code=400, detail="payload 必须是对象。")
+    summary = (parsed.get("summary") or "").strip()
+
+    if target == "capital_tx":
+        kind = (payload.get("kind") or "").strip().lower()
+        if kind not in {"income", "expense"}:
+            raise HTTPException(status_code=400, detail="capital_tx.kind 必须是 income 或 expense。")
+        amount = to_float(payload.get("amount"), 0.0)
+        project_name = (payload.get("project_name") or "").strip()
+        project_id = nlp_resolve_project_id(project_name) if project_name else None
+        tx_in = CapitalTxIn(
+            kind=kind,
+            amount=amount,
+            occurred_at=str(payload.get("occurred_at") or "").strip() or None,
+            note=str(payload.get("note") or "").strip(),
+            category=str(payload.get("category") or "").strip(),
+            project_id=project_id,
+            domain_tag=domain_id,
+        )
+        record = insert_capital_tx(tx_in)
+        return {
+            "target_table": target,
+            "domain_tag": domain_id,
+            "summary": summary or "已记录一笔流水",
+            "record": record,
+        }
+
+    if target == "decisions":
+        context = str(payload.get("context") or "").strip()
+        if not context:
+            raise HTTPException(status_code=400, detail="decisions.context 不能为空。")
+        raw_options = payload.get("options") or []
+        if not isinstance(raw_options, list):
+            raw_options = [raw_options]
+        options = [str(o).strip() for o in raw_options if str(o).strip()]
+        status = (payload.get("status") or "open").strip()
+        if status not in {"open", "committed", "reviewed"}:
+            status = "committed" if (payload.get("choice") or "").strip() else "open"
+        dec_in = DecisionIn(
+            context=context,
+            options=options,
+            choice=str(payload.get("choice") or "").strip(),
+            rationale=str(payload.get("rationale") or "").strip(),
+            expected_outcome=str(payload.get("expected_outcome") or "").strip(),
+            status=status,
+            decided_at=None,
+            domain_tag=domain_id,
+        )
+        record = insert_decision(dec_in)
+        return {
+            "target_table": target,
+            "domain_tag": domain_id,
+            "summary": summary or "已归档一条决策",
+            "record": record,
+        }
+
+    if target == "projects":
+        name = str(payload.get("name") or "").strip()
+        if not name:
+            raise HTTPException(status_code=400, detail="projects.name 不能为空。")
+        prj_in = ProjectIn(
+            name=name,
+            status=(payload.get("status") or "active").strip() or "active",
+            thesis=str(payload.get("thesis") or "").strip(),
+            roi_projection=to_float(payload.get("roi_projection"), 0.0),
+            risk_level=(payload.get("risk_level") or "medium").strip() or "medium",
+            kill_criteria=str(payload.get("kill_criteria") or "").strip(),
+            capital_committed=to_float(payload.get("capital_committed"), 0.0),
+            capital_spent=to_float(payload.get("capital_spent"), 0.0),
+            domain_tag=domain_id or "05_projects",
+        )
+        record = insert_project(prj_in)
+        return {
+            "target_table": target,
+            "domain_tag": prj_in.domain_tag,
+            "summary": summary or f"已建立项目「{name}」",
+            "record": record,
+        }
+
+    # github_vault
+    if not domain_id:
+        raise HTTPException(status_code=400, detail="github_vault 必须指定 domain_tag。")
+    fragment = str(parsed.get("vault_markdown") or "").strip()
+    if not fragment:
+        # Some models emit the markdown inside payload.body — accept that too.
+        fallback = payload.get("body") or payload.get("markdown") or payload.get("text")
+        fragment = str(fallback or "").strip()
+    if not fragment:
+        raise HTTPException(status_code=400, detail="github_vault 缺少 vault_markdown 内容。")
+    appended = nlp_vault_append(domain_id, fragment)
+    return {
+        "target_table": target,
+        "domain_tag": domain_id,
+        "summary": summary or f"已追加思考到 {NLP_DOMAIN_DIR_BY_ID.get(domain_id, domain_id)}",
+        "vault": appended,
+        "markdown": fragment,
+    }
+
+
 async def oracle_auto_weekly_brief() -> None:
     """Scheduled Sun 23:00 Asia/Shanghai. Idempotent + toggle-gated + activity-gated."""
     try:
@@ -1836,9 +2127,24 @@ def create_app() -> FastAPI:
         }
 
     @app.post("/api/oracle/generate_now")
-    async def oracle_generate_now() -> dict[str, Any]:
-        report = await oracle_generate_brief("manual")
+    async def oracle_generate_now(payload: Annotated[OracleGenerateIn, Body(default=None)] = None) -> dict[str, Any]:
+        kind = (payload.kind if payload else None) or "manual"
+        kind_norm = kind.strip().lower()
+        if kind_norm not in {"manual", "daily", "weekly"}:
+            raise HTTPException(status_code=400, detail="kind 必须为 manual / daily / weekly。")
+        report = await oracle_generate_brief("weekly" if kind_norm == "weekly" else "manual")
         return {"ok": True, "report": report}
+
+    @app.post("/api/command/parse")
+    async def command_parse(payload: Annotated[CommandParseIn, Body()]) -> dict[str, Any]:
+        text = (payload.text or "").strip()
+        if not text:
+            raise HTTPException(status_code=400, detail="请先输入一段自然语言。")
+        if len(text) > 2000:
+            raise HTTPException(status_code=400, detail="单条命令请控制在 2000 字以内。")
+        parsed = await nlp_call_4sapi(text)
+        result = nlp_dispatch(parsed)
+        return {"ok": True, **result}
 
     @app.get("/api/oracle/reports")
     def oracle_reports_index(limit: int = Query(default=50, ge=1, le=200)) -> dict[str, Any]:

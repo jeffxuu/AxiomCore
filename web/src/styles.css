@@ -369,4 +369,13 @@
     --normal-border: var(--border);
     font-family: var(--font-sans);
   }
+
+  @keyframes ax-omni-stream {
+    0%   { transform: translateX(-110%); }
+    50%  { transform: translateX(60%); }
+    100% { transform: translateX(220%); }
+  }
+  .ax-omni-stream {
+    animation: ax-omni-stream 1.1s cubic-bezier(.4, 0, .2, 1) infinite;
+  }
 }
