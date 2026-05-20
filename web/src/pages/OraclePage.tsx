@@ -130,6 +130,8 @@ export function OraclePage({ onStatus }: { onStatus: (status: string) => void })
     try {
       if (selectedProvider) {
         window.localStorage.setItem(ORACLE_PROVIDER_STORAGE_KEY, selectedProvider);
+      } else {
+        window.localStorage.removeItem(ORACLE_PROVIDER_STORAGE_KEY);
       }
     } catch {
       /* ignore */

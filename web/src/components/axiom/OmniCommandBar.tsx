@@ -88,7 +88,11 @@ export function OmniCommandBar({ onIngested }: { onIngested: (result: CommandPar
 
   useEffect(() => {
     try {
-      if (selectedProvider) window.localStorage.setItem(PROVIDER_STORAGE_KEY, selectedProvider);
+      if (selectedProvider) {
+        window.localStorage.setItem(PROVIDER_STORAGE_KEY, selectedProvider);
+      } else {
+        window.localStorage.removeItem(PROVIDER_STORAGE_KEY);
+      }
     } catch {
       /* ignore */
     }
@@ -96,7 +100,11 @@ export function OmniCommandBar({ onIngested }: { onIngested: (result: CommandPar
 
   useEffect(() => {
     try {
-      if (selectedModel) window.localStorage.setItem(MODEL_STORAGE_KEY, selectedModel);
+      if (selectedModel) {
+        window.localStorage.setItem(MODEL_STORAGE_KEY, selectedModel);
+      } else {
+        window.localStorage.removeItem(MODEL_STORAGE_KEY);
+      }
     } catch {
       /* ignore */
     }
@@ -206,77 +214,88 @@ export function OmniCommandBar({ onIngested }: { onIngested: (result: CommandPar
         <div className={cn("h-full w-1/3 rounded-full bg-foreground/70", busy ? "ax-omni-stream" : "")} />
       </div>
 
-      <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-border/60 px-5 py-2.5">
-        <p className="min-w-0 flex-1 text-[11px] leading-5 text-muted-foreground">{t("omni.hint")}</p>
-        <div className="flex flex-wrap items-center gap-3">
-          <label className="group relative flex items-center gap-1.5 text-[11px] text-muted-foreground">
+      {/* Two-tier cascading selector — two independent dropdowns side-by-side.
+          Left: vendor (static 4 providers). Right: engines under the chosen vendor. */}
+      <div
+        role="group"
+        aria-label={t("omni.console.cascade.aria")}
+        className="grid grid-cols-1 gap-2 border-t border-border/60 px-5 py-3 sm:grid-cols-2 sm:gap-3"
+      >
+        <div className="space-y-1.5">
+          <span className="flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
             <Boxes className="size-3 text-muted-foreground/80" />
-            <span className="uppercase tracking-wider">{t("omni.console.provider")}</span>
-            <span className="relative inline-flex items-center">
-              <select
-                aria-label={t("omni.console.provider")}
-                value={selectedProvider}
-                disabled={providerSelectDisabled}
-                onChange={(e) => onProviderChange(e.target.value as ProviderId | "")}
-                className={cn(
-                  "h-7 max-w-[160px] appearance-none truncate rounded-md border border-border bg-background pl-2 pr-6 text-[11px]",
-                  "font-medium text-foreground transition-colors",
-                  "hover:border-foreground/40 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-foreground/30",
-                  "disabled:cursor-not-allowed disabled:opacity-50",
-                )}
-              >
-                {!selectedProvider ? (
-                  <option value="">{t("omni.console.provider.empty")}</option>
-                ) : null}
-                {PROVIDER_ORDER.map((p) => (
-                  <option key={p} value={p}>
-                    {t(`provider.${p}`)}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown className="pointer-events-none absolute right-1.5 size-3 text-muted-foreground" />
-            </span>
-          </label>
-
-          <label className="group relative flex items-center gap-1.5 text-[11px] text-muted-foreground">
-            <Cpu className="size-3 text-muted-foreground/80" />
-            <span className="uppercase tracking-wider">{t("omni.console.model")}</span>
-            <span className="relative inline-flex items-center">
-              <select
-                aria-label={t("omni.console.model")}
-                value={selectedModel}
-                disabled={engineSelectDisabled}
-                onChange={(e) => setSelectedModel(e.target.value)}
-                className={cn(
-                  "h-7 max-w-[200px] appearance-none truncate rounded-md border border-border bg-background pl-2 pr-6 text-[11px]",
-                  "font-medium text-foreground transition-colors",
-                  "hover:border-foreground/40 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-foreground/30",
-                  "disabled:cursor-not-allowed disabled:opacity-50",
-                )}
-              >
-                {!selectedProvider ? (
-                  <option value="">{t("omni.console.model.empty")}</option>
-                ) : engineOptions.length === 0 ? (
-                  <option value="">{t("omni.console.engine.empty")}</option>
-                ) : (
-                  <>
-                    <option value="">
-                      {defaultModel
-                        ? `${t("omni.console.model.default")} (${defaultModel})`
-                        : t("omni.console.model.default")}
-                    </option>
-                    {engineOptions.map((m) => (
-                      <option key={m} value={m}>
-                        {m}
-                      </option>
-                    ))}
-                  </>
-                )}
-              </select>
-              <ChevronDown className="pointer-events-none absolute right-1.5 size-3 text-muted-foreground" />
-            </span>
-          </label>
+            {t("omni.console.provider")}
+          </span>
+          <span className="relative block">
+            <select
+              aria-label={t("omni.console.provider")}
+              value={selectedProvider}
+              disabled={providerSelectDisabled}
+              onChange={(e) => onProviderChange(e.target.value as ProviderId | "")}
+              className={cn(
+                "h-9 w-full appearance-none truncate rounded-md border border-border bg-background pl-3 pr-8 text-[12px]",
+                "font-medium text-foreground transition-colors",
+                "hover:border-foreground/40 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-foreground/30",
+                "disabled:cursor-not-allowed disabled:opacity-50",
+              )}
+            >
+              {!selectedProvider ? (
+                <option value="">{t("omni.console.provider.placeholder")}</option>
+              ) : null}
+              {PROVIDER_ORDER.map((p) => (
+                <option key={p} value={p}>
+                  {t(`provider.${p}`)}
+                </option>
+              ))}
+            </select>
+            <ChevronDown className="pointer-events-none absolute right-2 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+          </span>
         </div>
+
+        <div className="space-y-1.5">
+          <span className="flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+            <Cpu className="size-3 text-muted-foreground/80" />
+            {t("omni.console.model")}
+          </span>
+          <span className="relative block">
+            <select
+              aria-label={t("omni.console.model")}
+              value={selectedModel}
+              disabled={engineSelectDisabled}
+              onChange={(e) => setSelectedModel(e.target.value)}
+              className={cn(
+                "h-9 w-full appearance-none truncate rounded-md border border-border bg-background pl-3 pr-8 text-[12px]",
+                "font-medium text-foreground transition-colors",
+                "hover:border-foreground/40 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-foreground/30",
+                "disabled:cursor-not-allowed disabled:opacity-50",
+              )}
+            >
+              {!selectedProvider ? (
+                <option value="">{t("omni.console.engine.locked")}</option>
+              ) : engineOptions.length === 0 ? (
+                <option value="">{t("omni.console.engine.empty")}</option>
+              ) : (
+                <>
+                  <option value="">
+                    {defaultModel
+                      ? `${t("omni.console.model.default")} (${defaultModel})`
+                      : t("omni.console.engine.placeholder")}
+                  </option>
+                  {engineOptions.map((m) => (
+                    <option key={m} value={m}>
+                      {m}
+                    </option>
+                  ))}
+                </>
+              )}
+            </select>
+            <ChevronDown className="pointer-events-none absolute right-2 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+          </span>
+        </div>
+      </div>
+
+      <footer className="border-t border-border/60 px-5 py-2.5">
+        <p className="text-[11px] leading-5 text-muted-foreground">{t("omni.hint")}</p>
       </footer>
     </section>
   );

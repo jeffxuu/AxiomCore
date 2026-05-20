@@ -141,9 +141,12 @@ const DICT: Record<Lang, Dict> = {
     "omni.console.model": "Inference Engine",
     "omni.console.model.default": "Server default",
     "omni.console.model.empty": "Configure in Oracle first",
-    "omni.console.provider.empty": "Verify Oracle first",
+    "omni.console.provider.empty": "Select provider",
+    "omni.console.provider.placeholder": "Select provider",
     "omni.console.engine.empty": "No engines available",
     "omni.console.engine.placeholder": "Select engine",
+    "omni.console.engine.locked": "Select a provider first",
+    "omni.console.cascade.aria": "Inference engine selector",
 
     // ── Providers
     "provider.anthropic": "Anthropic (Claude)",
@@ -608,9 +611,12 @@ const DICT: Record<Lang, Dict> = {
     "omni.console.model": "解析引擎",
     "omni.console.model.default": "系统默认引擎",
     "omni.console.model.empty": "请先在 Oracle 页面配置模型",
-    "omni.console.provider.empty": "请先验证 Oracle 配置",
+    "omni.console.provider.empty": "选择厂商",
+    "omni.console.provider.placeholder": "选择厂商",
     "omni.console.engine.empty": "当前厂商暂无可用引擎",
     "omni.console.engine.placeholder": "选择推理引擎",
+    "omni.console.engine.locked": "请先选择厂商",
+    "omni.console.cascade.aria": "推理引擎二级联动选择器",
 
     // ── 模型厂商
     "provider.anthropic": "Anthropic（克劳德）",
