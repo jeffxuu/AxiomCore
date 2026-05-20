@@ -211,12 +211,11 @@ remote_app=$RemoteApp
 skip_build=$skipBuildFlag
 wipe_db=$wipeDbFlag
 
-echo '  mkdir + extract tarball'
+echo '  mkdir + overlay extract tarball'
 mkdir -p `$remote_app
 cd `$remote_app
-# Wipe everything except the data/ directory so an existing axiom_core.db is preserved on redeploy.
-# On first install the data/ dir will be empty.
-find . -mindepth 1 -maxdepth 1 ! -name data -exec rm -rf {} +
+# Overlay tracked release files in place. This keeps data/ intact and avoids
+# batch-deleting the remote application tree during routine redeploys.
 tar -xzf /tmp/axiom_core_deploy.tgz -C `$remote_app
 rm -f /tmp/axiom_core_deploy.tgz
 mkdir -p `$remote_app/data `$remote_app/logs/daily
