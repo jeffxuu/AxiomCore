@@ -1,11 +1,32 @@
-import { useCallback, useEffect, useState, type KeyboardEvent } from "react";
-import { ChevronDown, Cpu, Loader2, Send, Sparkles } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState, type KeyboardEvent } from "react";
+import { Boxes, ChevronDown, Cpu, Loader2, Send, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { loadOracleConfig, parseCommand, type CommandParseResponse } from "@/api";
 import { useT } from "@/lib/i18nConfig";
 import { cn } from "@/lib/utils";
+import {
+  detectProvider,
+  groupModels,
+  providersWithEngines,
+  PROVIDER_ORDER,
+  type ProviderId,
+} from "@/lib/modelGrouping";
 
 const MODEL_STORAGE_KEY = "axiom.omni.parse_model";
+const PROVIDER_STORAGE_KEY = "axiom.omni.parse_provider";
+
+function readStored(key: string): string {
+  try {
+    return window.localStorage.getItem(key) || "";
+  } catch {
+    return "";
+  }
+}
+
+function readStoredProvider(): ProviderId | "" {
+  const value = readStored(PROVIDER_STORAGE_KEY);
+  return (PROVIDER_ORDER as string[]).includes(value) ? (value as ProviderId) : "";
+}
 
 /**
  * OmniCommandBar — top-level Core Command Console.
@@ -13,8 +34,9 @@ const MODEL_STORAGE_KEY = "axiom.omni.parse_model";
  * One free-text prompt routed through the server-side 4SAPI parser. The model
  * returns a strict envelope (target_table, domain_tag, payload, vault_markdown)
  * which the backend dispatches to the right sink. The operator can pick which
- * 4SAPI inference engine handles each submission via the right-side selector
- * (e.g. Claude for precision, DeepSeek for fast journaling).
+ * 4SAPI inference engine handles each submission via the two-tier cascade —
+ * choose provider (Anthropic / OpenAI / Google / DeepSeek / Other), then a
+ * specific engine inside that provider.
  */
 export function OmniCommandBar({ onIngested }: { onIngested: (result: CommandParseResponse) => void }) {
   const t = useT();
@@ -22,13 +44,12 @@ export function OmniCommandBar({ onIngested }: { onIngested: (result: CommandPar
   const [busy, setBusy] = useState(false);
   const [models, setModels] = useState<string[]>([]);
   const [defaultModel, setDefaultModel] = useState<string>("");
-  const [selectedModel, setSelectedModel] = useState<string>(() => {
-    try {
-      return window.localStorage.getItem(MODEL_STORAGE_KEY) || "";
-    } catch {
-      return "";
-    }
-  });
+  const [selectedProvider, setSelectedProvider] = useState<ProviderId | "">(() => readStoredProvider());
+  const [selectedModel, setSelectedModel] = useState<string>(() => readStored(MODEL_STORAGE_KEY));
+
+  const groups = useMemo(() => groupModels(models), [models]);
+  const availableProviders = useMemo(() => providersWithEngines(groups), [groups]);
+  const engineOptions = selectedProvider ? groups[selectedProvider] : [];
 
   const hydrate = useCallback(async () => {
     try {
@@ -36,10 +57,29 @@ export function OmniCommandBar({ onIngested }: { onIngested: (result: CommandPar
       const pool = cfg.models && cfg.models.length ? cfg.models : cfg.model_name ? [cfg.model_name] : [];
       setModels(pool);
       setDefaultModel(cfg.model_name || "");
-      setSelectedModel((prev) => {
-        if (prev && pool.includes(prev)) return prev;
-        return cfg.model_name || pool[0] || "";
-      });
+
+      const groupsLocal = groupModels(pool);
+      const candidates = providersWithEngines(groupsLocal);
+
+      const storedProvider = readStoredProvider();
+      const storedModel = readStored(MODEL_STORAGE_KEY);
+      const fallbackModel = cfg.model_name || pool[0] || "";
+      const candidateModel = storedModel && pool.includes(storedModel) ? storedModel : fallbackModel;
+      const inferredProvider = candidateModel ? detectProvider(candidateModel) : "";
+
+      let nextProvider: ProviderId | "" = "";
+      if (storedProvider && candidates.includes(storedProvider)) {
+        nextProvider = storedProvider;
+      } else if (inferredProvider && candidates.includes(inferredProvider as ProviderId)) {
+        nextProvider = inferredProvider as ProviderId;
+      } else {
+        nextProvider = candidates[0] || "";
+      }
+      setSelectedProvider(nextProvider);
+
+      const bucket = nextProvider ? groupsLocal[nextProvider] : [];
+      const nextModel = bucket.includes(candidateModel) ? candidateModel : bucket[0] || "";
+      setSelectedModel(nextModel);
     } catch {
       /* Oracle not configured yet — silent. */
     }
@@ -51,11 +91,31 @@ export function OmniCommandBar({ onIngested }: { onIngested: (result: CommandPar
 
   useEffect(() => {
     try {
+      if (selectedProvider) window.localStorage.setItem(PROVIDER_STORAGE_KEY, selectedProvider);
+    } catch {
+      /* ignore */
+    }
+  }, [selectedProvider]);
+
+  useEffect(() => {
+    try {
       if (selectedModel) window.localStorage.setItem(MODEL_STORAGE_KEY, selectedModel);
     } catch {
       /* ignore */
     }
   }, [selectedModel]);
+
+  const onProviderChange = (next: ProviderId | "") => {
+    setSelectedProvider(next);
+    if (!next) {
+      setSelectedModel("");
+      return;
+    }
+    const bucket = groups[next] || [];
+    if (!bucket.includes(selectedModel)) {
+      setSelectedModel(bucket[0] || "");
+    }
+  };
 
   const submit = async () => {
     const value = text.trim();
@@ -63,7 +123,7 @@ export function OmniCommandBar({ onIngested }: { onIngested: (result: CommandPar
     setBusy(true);
     try {
       const result = await parseCommand(value, selectedModel || null);
-      toast.success(result.summary || t("omni.toast.ok"));
+      toast.success(result.summary || t("omni.success"));
       setText("");
       onIngested(result);
     } catch (exc) {
@@ -81,7 +141,8 @@ export function OmniCommandBar({ onIngested }: { onIngested: (result: CommandPar
     }
   };
 
-  const selectorDisabled = busy || models.length === 0;
+  const providerSelectDisabled = busy || availableProviders.length === 0;
+  const engineSelectDisabled = busy || !selectedProvider || engineOptions.length === 0;
 
   return (
     <section
@@ -133,7 +194,7 @@ export function OmniCommandBar({ onIngested }: { onIngested: (result: CommandPar
           )}
         >
           {busy ? <Loader2 className="size-3.5 animate-spin" /> : <Send className="size-3.5" />}
-          {busy ? t("omni.sending") : t("omni.send")}
+          {busy ? t("omni.streaming") : t("omni.send")}
         </button>
       </div>
 
@@ -150,42 +211,81 @@ export function OmniCommandBar({ onIngested }: { onIngested: (result: CommandPar
 
       <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-border/60 px-5 py-2.5">
         <p className="min-w-0 flex-1 text-[11px] leading-5 text-muted-foreground">{t("omni.hint")}</p>
-        <label className="group relative flex items-center gap-1.5 text-[11px] text-muted-foreground">
-          <Cpu className="size-3 text-muted-foreground/80" />
-          <span className="uppercase tracking-wider">{t("omni.console.model")}</span>
-          <span className="relative inline-flex items-center">
-            <select
-              aria-label={t("omni.console.model")}
-              value={selectedModel}
-              disabled={selectorDisabled}
-              onChange={(e) => setSelectedModel(e.target.value)}
-              className={cn(
-                "h-7 max-w-[180px] appearance-none truncate rounded-md border border-border bg-background pl-2 pr-6 text-[11px]",
-                "font-medium text-foreground transition-colors",
-                "hover:border-foreground/40 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-foreground/30",
-                "disabled:cursor-not-allowed disabled:opacity-50",
-              )}
-            >
-              {models.length === 0 ? (
-                <option value="">{t("omni.console.model.empty")}</option>
-              ) : (
-                <>
-                  <option value="">
-                    {defaultModel
-                      ? `${t("omni.console.model.default")} (${defaultModel})`
-                      : t("omni.console.model.default")}
-                  </option>
-                  {models.map((m) => (
-                    <option key={m} value={m}>
-                      {m}
+        <div className="flex flex-wrap items-center gap-3">
+          <label className="group relative flex items-center gap-1.5 text-[11px] text-muted-foreground">
+            <Boxes className="size-3 text-muted-foreground/80" />
+            <span className="uppercase tracking-wider">{t("omni.console.provider")}</span>
+            <span className="relative inline-flex items-center">
+              <select
+                aria-label={t("omni.console.provider")}
+                value={selectedProvider}
+                disabled={providerSelectDisabled}
+                onChange={(e) => onProviderChange(e.target.value as ProviderId | "")}
+                className={cn(
+                  "h-7 max-w-[160px] appearance-none truncate rounded-md border border-border bg-background pl-2 pr-6 text-[11px]",
+                  "font-medium text-foreground transition-colors",
+                  "hover:border-foreground/40 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-foreground/30",
+                  "disabled:cursor-not-allowed disabled:opacity-50",
+                )}
+              >
+                {availableProviders.length === 0 ? (
+                  <option value="">{t("omni.console.provider.empty")}</option>
+                ) : (
+                  <>
+                    {!selectedProvider ? (
+                      <option value="">{t("omni.console.provider.empty")}</option>
+                    ) : null}
+                    {availableProviders.map((p) => (
+                      <option key={p} value={p}>
+                        {t(`provider.${p}`)}
+                      </option>
+                    ))}
+                  </>
+                )}
+              </select>
+              <ChevronDown className="pointer-events-none absolute right-1.5 size-3 text-muted-foreground" />
+            </span>
+          </label>
+
+          <label className="group relative flex items-center gap-1.5 text-[11px] text-muted-foreground">
+            <Cpu className="size-3 text-muted-foreground/80" />
+            <span className="uppercase tracking-wider">{t("omni.console.model")}</span>
+            <span className="relative inline-flex items-center">
+              <select
+                aria-label={t("omni.console.model")}
+                value={selectedModel}
+                disabled={engineSelectDisabled}
+                onChange={(e) => setSelectedModel(e.target.value)}
+                className={cn(
+                  "h-7 max-w-[200px] appearance-none truncate rounded-md border border-border bg-background pl-2 pr-6 text-[11px]",
+                  "font-medium text-foreground transition-colors",
+                  "hover:border-foreground/40 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-foreground/30",
+                  "disabled:cursor-not-allowed disabled:opacity-50",
+                )}
+              >
+                {!selectedProvider ? (
+                  <option value="">{t("omni.console.model.empty")}</option>
+                ) : engineOptions.length === 0 ? (
+                  <option value="">{t("omni.console.engine.empty")}</option>
+                ) : (
+                  <>
+                    <option value="">
+                      {defaultModel
+                        ? `${t("omni.console.model.default")} (${defaultModel})`
+                        : t("omni.console.model.default")}
                     </option>
-                  ))}
-                </>
-              )}
-            </select>
-            <ChevronDown className="pointer-events-none absolute right-1.5 size-3 text-muted-foreground" />
-          </span>
-        </label>
+                    {engineOptions.map((m) => (
+                      <option key={m} value={m}>
+                        {m}
+                      </option>
+                    ))}
+                  </>
+                )}
+              </select>
+              <ChevronDown className="pointer-events-none absolute right-1.5 size-3 text-muted-foreground" />
+            </span>
+          </label>
+        </div>
       </footer>
     </section>
   );

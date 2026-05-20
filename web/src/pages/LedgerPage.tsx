@@ -333,7 +333,7 @@ export function LedgerPage({ onStatus }: { onStatus: (status: string) => void })
                 inputMode="decimal"
                 value={baselineForm.starting_position}
                 onChange={(e) => setBaselineForm((s) => ({ ...s, starting_position: e.target.value }))}
-                placeholder="-50000"
+                placeholder={t("ledger.baseline.starting.ph")}
                 className="h-9 rounded-md"
               />
             </div>

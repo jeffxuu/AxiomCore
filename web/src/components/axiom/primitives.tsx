@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { loadDomains, type DomainOption } from "@/api";
 import { Label } from "@/components/ui/label";
+import { useT } from "@/lib/i18nConfig";
 import { cn } from "@/lib/utils";
 
 /**
@@ -121,8 +122,8 @@ export function useDomains(): DomainOption[] {
 export function DomainSelect({
   value,
   onChange,
-  label = "归档至领域",
-  placeholder = "未归档（可稍后补）",
+  label,
+  placeholder,
   className,
   disabled,
 }: {
@@ -133,18 +134,21 @@ export function DomainSelect({
   className?: string;
   disabled?: boolean;
 }) {
+  const t = useT();
   const domains = useDomains();
+  const resolvedLabel = label ?? t("domain.label");
+  const resolvedPlaceholder = placeholder ?? t("domain.placeholder");
   return (
     <div className={cn("space-y-1.5", className)}>
-      <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">{label}</Label>
+      <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">{resolvedLabel}</Label>
       <select
-        aria-label={label}
+        aria-label={resolvedLabel}
         value={value || ""}
         onChange={(e) => onChange(e.target.value)}
         disabled={disabled}
         className="h-9 w-full rounded-md border border-border bg-background px-2 text-[13px] disabled:opacity-50"
       >
-        <option value="">{placeholder}</option>
+        <option value="">{resolvedPlaceholder}</option>
         {domains.map((d) => (
           <option key={d.id} value={d.id}>
             {d.label}

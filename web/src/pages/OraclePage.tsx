@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { CalendarClock, KeyRound, Loader2, PlayCircle, RefreshCw, Save, Sparkles, Telescope, Trash2 } from "lucide-react";
+import { Boxes, CalendarClock, KeyRound, Loader2, PlayCircle, RefreshCw, Save, Sparkles, Telescope, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,19 +21,40 @@ import {
   type OracleConfig,
   type OracleReport,
 } from "@/api";
-import { useT } from "@/lib/i18nConfig";
+import { useI18n, useT } from "@/lib/i18nConfig";
 import { cn } from "@/lib/utils";
+import {
+  detectProvider,
+  groupModels,
+  providersWithEngines,
+  PROVIDER_ORDER,
+  type ProviderId,
+} from "@/lib/modelGrouping";
 
-function formatReportTimestamp(value: string): string {
+const ORACLE_PROVIDER_STORAGE_KEY = "axiom.oracle.provider";
+
+function formatReportTimestamp(value: string, lang: "en" | "zh"): string {
   if (!value) return "";
   const normalized = value.includes("T") ? value : value.replace(" ", "T");
   const date = new Date(normalized);
   if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleString("zh-CN", { hour12: false });
+  const locale = lang === "zh" ? "zh-CN" : "en-GB";
+  return date.toLocaleString(locale, { hour12: false });
+}
+
+function readStoredProvider(): ProviderId | "" {
+  try {
+    const value = window.localStorage.getItem(ORACLE_PROVIDER_STORAGE_KEY);
+    if (value && (PROVIDER_ORDER as string[]).includes(value)) return value as ProviderId;
+  } catch {
+    /* ignore */
+  }
+  return "";
 }
 
 export function OraclePage({ onStatus }: { onStatus: (status: string) => void }) {
   const t = useT();
+  const { lang } = useI18n();
 
   const [config, setConfig] = useState<OracleConfig | null>(null);
   const [auto, setAuto] = useState<OracleAutoConfig | null>(null);
@@ -44,9 +65,14 @@ export function OraclePage({ onStatus }: { onStatus: (status: string) => void })
 
   const [models, setModels] = useState<string[]>([]);
   const [selectedModel, setSelectedModel] = useState("");
+  const [selectedProvider, setSelectedProvider] = useState<ProviderId | "">(() => readStoredProvider());
   const [verifying, setVerifying] = useState(false);
   const [saving, setSaving] = useState(false);
   const [savingAuto, setSavingAuto] = useState(false);
+
+  const groups = useMemo(() => groupModels(models), [models]);
+  const availableProviders = useMemo(() => providersWithEngines(groups), [groups]);
+  const engineOptions = selectedProvider ? groups[selectedProvider] : [];
 
   const [reports, setReports] = useState<OracleReport[]>([]);
   const [reportsLoading, setReportsLoading] = useState(true);
@@ -65,10 +91,20 @@ export function OraclePage({ onStatus }: { onStatus: (status: string) => void })
       setAuto(a);
       const pool = c.models && c.models.length ? c.models : c.model_name ? [c.model_name] : [];
       if (pool.length) setModels(pool);
-      if (c.model_name) {
-        setSelectedModel(c.model_name);
-      } else if (pool[0]) {
-        setSelectedModel(pool[0]);
+      const initialModel = c.model_name || pool[0] || "";
+      if (initialModel) {
+        setSelectedModel(initialModel);
+        const inferred = detectProvider(initialModel);
+        const stored = readStoredProvider();
+        const groupsLocal = groupModels(pool);
+        const candidates = providersWithEngines(groupsLocal);
+        const next: ProviderId | "" =
+          stored && candidates.includes(stored)
+            ? stored
+            : candidates.includes(inferred)
+              ? inferred
+              : candidates[0] || "";
+        setSelectedProvider(next);
       }
       setApiKeyInput("");
       setKeyDirty(false);
@@ -99,6 +135,28 @@ export function OraclePage({ onStatus }: { onStatus: (status: string) => void })
     loadReportsOnce();
   }, [loadAll, loadReportsOnce]);
 
+  useEffect(() => {
+    try {
+      if (selectedProvider) {
+        window.localStorage.setItem(ORACLE_PROVIDER_STORAGE_KEY, selectedProvider);
+      }
+    } catch {
+      /* ignore */
+    }
+  }, [selectedProvider]);
+
+  const handleProviderChange = (next: ProviderId | "") => {
+    setSelectedProvider(next);
+    if (!next) {
+      setSelectedModel("");
+      return;
+    }
+    const bucket = groups[next] || [];
+    if (!bucket.includes(selectedModel)) {
+      setSelectedModel(bucket[0] || "");
+    }
+  };
+
   const verify = async () => {
     // When the user hasn't typed a new key (or only sees the masked stub), we
     // intentionally send an empty string; the server hydrates the plaintext
@@ -113,10 +171,22 @@ export function OraclePage({ onStatus }: { onStatus: (status: string) => void })
     onStatus("Sync");
     try {
       const payload = await verifyOracleKey(candidate);
-      setModels(payload.models || []);
-      if (payload.models?.length) {
-        const next = payload.models.includes(selectedModel) ? selectedModel : payload.models[0];
-        setSelectedModel(next);
+      const fetched = payload.models || [];
+      setModels(fetched);
+      if (fetched.length) {
+        const groupsLocal = groupModels(fetched);
+        const candidates = providersWithEngines(groupsLocal);
+        const inferred = detectProvider(selectedModel || fetched[0]);
+        const nextProvider: ProviderId =
+          selectedProvider && candidates.includes(selectedProvider)
+            ? selectedProvider
+            : candidates.includes(inferred)
+              ? inferred
+              : candidates[0] || "other";
+        setSelectedProvider(nextProvider);
+        const bucket = groupsLocal[nextProvider];
+        const keep = bucket.includes(selectedModel) ? selectedModel : bucket[0] || "";
+        setSelectedModel(keep);
       }
       onStatus("Live");
       toast.success(t("oracle.control.verified", { count: payload.total }));
@@ -299,30 +369,68 @@ export function OraclePage({ onStatus }: { onStatus: (status: string) => void })
               <p className="text-[11px] text-muted-foreground">{t("oracle.control.apikey.hint")}</p>
             </div>
 
-            <div className="space-y-2">
-              <Label className="flex items-center gap-1.5 text-[11px] uppercase tracking-wider text-muted-foreground">
-                <Sparkles className="size-3" />
-                {t("oracle.control.engine")}
-              </Label>
-              <select
-                aria-label={t("oracle.control.engine")}
-                value={selectedModel}
-                onChange={(e) => setSelectedModel(e.target.value)}
-                disabled={configLoading || (models.length === 0 && !selectedModel)}
-                className="h-9 w-full rounded-md border border-border bg-background px-2 text-[13px] disabled:opacity-50"
-              >
-                {!selectedModel && models.length === 0 ? (
-                  <option value="">{t("oracle.control.engine.placeholder")}</option>
-                ) : null}
-                {selectedModel && !models.includes(selectedModel) ? (
-                  <option value={selectedModel}>{selectedModel}</option>
-                ) : null}
-                {models.map((m) => (
-                  <option key={m} value={m}>
-                    {m}
-                  </option>
-                ))}
-              </select>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label className="flex items-center gap-1.5 text-[11px] uppercase tracking-wider text-muted-foreground">
+                  <Boxes className="size-3" />
+                  {t("oracle.control.provider")}
+                </Label>
+                <select
+                  aria-label={t("oracle.control.provider")}
+                  value={selectedProvider}
+                  onChange={(e) => handleProviderChange(e.target.value as ProviderId | "")}
+                  disabled={configLoading || availableProviders.length === 0}
+                  className="h-9 w-full rounded-md border border-border bg-background px-2 text-[13px] disabled:opacity-50"
+                >
+                  {availableProviders.length === 0 ? (
+                    <option value="">{t("oracle.control.provider.locked")}</option>
+                  ) : (
+                    <>
+                      {!selectedProvider ? (
+                        <option value="">{t("oracle.control.provider.placeholder")}</option>
+                      ) : null}
+                      {availableProviders.map((p) => (
+                        <option key={p} value={p}>
+                          {t(`provider.${p}`)}
+                        </option>
+                      ))}
+                    </>
+                  )}
+                </select>
+              </div>
+              <div className="space-y-2">
+                <Label className="flex items-center gap-1.5 text-[11px] uppercase tracking-wider text-muted-foreground">
+                  <Sparkles className="size-3" />
+                  {t("oracle.control.engine")}
+                </Label>
+                <select
+                  aria-label={t("oracle.control.engine")}
+                  value={selectedModel}
+                  onChange={(e) => setSelectedModel(e.target.value)}
+                  disabled={configLoading || !selectedProvider || engineOptions.length === 0}
+                  className="h-9 w-full rounded-md border border-border bg-background px-2 text-[13px] disabled:opacity-50"
+                >
+                  {!selectedProvider ? (
+                    <option value="">{t("oracle.control.engine.locked")}</option>
+                  ) : engineOptions.length === 0 ? (
+                    <option value="">{t("oracle.control.engine.placeholder")}</option>
+                  ) : (
+                    <>
+                      {selectedModel && !engineOptions.includes(selectedModel) ? (
+                        <option value={selectedModel}>{selectedModel}</option>
+                      ) : null}
+                      {!selectedModel ? (
+                        <option value="">{t("oracle.control.engine.placeholder")}</option>
+                      ) : null}
+                      {engineOptions.map((m) => (
+                        <option key={m} value={m}>
+                          {m}
+                        </option>
+                      ))}
+                    </>
+                  )}
+                </select>
+              </div>
             </div>
 
             <div className="flex items-center justify-end">
@@ -464,7 +572,7 @@ export function OraclePage({ onStatus }: { onStatus: (status: string) => void })
                             {badgeLabel}
                           </span>
                         </div>
-                        <p className="mt-1 text-[11px] text-muted-foreground">{formatReportTimestamp(r.created_at)}</p>
+                        <p className="mt-1 text-[11px] text-muted-foreground">{formatReportTimestamp(r.created_at, lang)}</p>
                       </button>
                       <button
                         type="button"
@@ -495,7 +603,7 @@ export function OraclePage({ onStatus }: { onStatus: (status: string) => void })
 
         <Panel
           title={t("oracle.output")}
-          subtitle={activeReport ? formatReportTimestamp(activeReport.created_at) : t("oracle.report.empty")}
+          subtitle={activeReport ? formatReportTimestamp(activeReport.created_at, lang) : t("oracle.report.empty")}
         >
           {activeReport ? (
             <ScrollArea className="max-h-[70vh] pr-3">
