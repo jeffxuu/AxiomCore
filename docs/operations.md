@@ -220,3 +220,35 @@ systemctl reload nginx
 - 检查 `.sync_logs/` 是否有反复出现的同步错误
 - 检查云端磁盘使用 `df -h /opt`
 - 检查 `/etc/axiom-core/env` 权限 `ls -la /etc/axiom-core/env`（应该是 root:root 0640）
+
+## 已知技术债
+
+### Deploy 脚本: PowerShell here-string 注入 UTF-8 BOM
+
+`scripts/deploy_axiom_cloud.ps1` 通过 SSH stdin 投递 here-string 远程脚本时，PowerShell 的 string-to-stdin 路径会在首字节注入一个 U+FEFF BOM。部署日志里偶发出现：
+
+```
+/bin/bash: line 1: ﻿set: command not found
+```
+
+无害：bash 把 BOM-prefixed token 当成未知命令报错，但下一行的 `set -e` 接管，后续命令照常 fail-fast。本次部署到 commit `f3fbadd` 时复现过一次，服务最终正常上线，9 路就位信号全绿。
+
+修复方向（任一即可，优先级低）：
+
+- 在 `Invoke-Ssh` 的每个 here-string `@"..."@` 第一行加一句 `true;`，让 BOM 落到 no-op 上
+- 改用显式无 BOM UTF-8 字节流投喂 ssh stdin：
+
+  ```powershell
+  $utf8NoBom = [Text.UTF8Encoding]::new($false)
+  $bytes     = $utf8NoBom.GetBytes($RemoteCommand)
+  $psi = [Diagnostics.ProcessStartInfo]::new('ssh')
+  $SshOpts + @($SshTarget, $RemoteShell) | ForEach-Object { $psi.ArgumentList.Add($_) }
+  $psi.RedirectStandardInput = $true
+  $psi.UseShellExecute        = $false
+  $p = [Diagnostics.Process]::Start($psi)
+  $p.StandardInput.BaseStream.Write($bytes, 0, $bytes.Length)
+  $p.StandardInput.Close()
+  $p.WaitForExit()
+  ```
+
+不阻塞日常部署，下次顺手做架构清理时一并处理即可。
