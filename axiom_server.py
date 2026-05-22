@@ -52,7 +52,9 @@ SPA_NOT_BUILT = (
     "Frontend bundle missing.\n\n"
     "Run `cd web && npm ci && npm run build` then restart axiom-core.</pre>"
 )
-DOC_ID_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
+# Doc ids accept lowercase alphanumerics, hyphens, and underscores so verbose
+# domain slugs like "01_health" pass the gate alongside short "01" / "product-vision".
+DOC_ID_RE = re.compile(r"^[a-z0-9][a-z0-9_\-]*$")
 
 
 SESSION_COOKIE = "axiom_session"
@@ -95,17 +97,38 @@ def floor_position() -> float:
 
 
 # ─── Document vault ─────────────────────────────────────────────────
+# Two-tier vault: editorial whitepapers under docs/ + the 9 operator domain
+# READMEs under the numbered folders at repo root. The sidebar Domains pane
+# navigates to /vault?doc=<NN> using two-digit ids, so the registry must
+# expose matching ids ("01".."09") and also accept the verbose folder-name
+# slug ("01_health".."09_principles") for legacy/manual links.
 DOC_SPECS = [
-    {"id": "product-vision",    "title": "Product Vision",     "section": "Axiom Core", "summary": "What Axiom Core solves; what it explicitly does not do.", "relative_path": Path("docs") / "product-vision.md"},
-    {"id": "decision-engine",   "title": "Decision Engine",    "section": "Axiom Core", "summary": "Capital, ROI and hard-veto rules that gate every commit.", "relative_path": Path("docs") / "decision-engine.md"},
-    {"id": "ai-agent",          "title": "AI Agent Charter",   "section": "Axiom Core", "summary": "The CDO persona, observable inputs, hard boundaries.", "relative_path": Path("docs") / "ai-agent.md"},
-    {"id": "roadmap",           "title": "Roadmap",            "section": "Axiom Core", "summary": "Near-term, quarterly and annual evolution path.", "relative_path": Path("docs") / "roadmap.md"},
-    {"id": "architecture",      "title": "System Architecture", "section": "System",    "summary": "Front/back tiers, local + cloud topology, data flow.", "relative_path": Path("docs") / "architecture.md"},
-    {"id": "data-flow",         "title": "Data Flow",          "section": "System",    "summary": "How records propagate between local, cloud, and disk artifacts.", "relative_path": Path("docs") / "data-flow.md"},
-    {"id": "data-model",        "title": "Data Model",         "section": "System",    "summary": "SQLite schema and JSON Schema alignment.", "relative_path": Path("docs") / "data-model.md"},
-    {"id": "security",          "title": "Security & Privacy", "section": "Ops",       "summary": "Sensitive-data rules for the public repo + credentials handling.", "relative_path": Path("docs") / "security.md"},
-    {"id": "deployment",        "title": "Deployment",         "section": "Ops",       "summary": "Operator-facing deploy flow + rollback playbook.", "relative_path": Path("docs") / "deployment.md"},
-    {"id": "operations",        "title": "Day-to-day Ops",     "section": "Ops",       "summary": "Local services, scheduled jobs, log paths, troubleshooting.", "relative_path": Path("docs") / "operations.md"},
+    {"id": "product-vision",    "title": "Product Vision",      "section": "Axiom Core", "summary": "What Axiom Core solves; what it explicitly does not do.", "relative_path": Path("docs") / "product-vision.md"},
+    {"id": "decision-engine",   "title": "Decision Engine",     "section": "Axiom Core", "summary": "Capital, ROI and hard-veto rules that gate every commit.", "relative_path": Path("docs") / "decision-engine.md"},
+    {"id": "ai-agent",          "title": "AI Agent Charter",    "section": "Axiom Core", "summary": "The CDO persona, observable inputs, hard boundaries.", "relative_path": Path("docs") / "ai-agent.md"},
+    {"id": "roadmap",           "title": "Roadmap",             "section": "Axiom Core", "summary": "Near-term, quarterly and annual evolution path.", "relative_path": Path("docs") / "roadmap.md"},
+    {"id": "architecture",      "title": "System Architecture", "section": "System",     "summary": "Front/back tiers, local + cloud topology, data flow.", "relative_path": Path("docs") / "architecture.md"},
+    {"id": "data-flow",         "title": "Data Flow",           "section": "System",     "summary": "How records propagate between local, cloud, and disk artifacts.", "relative_path": Path("docs") / "data-flow.md"},
+    {"id": "data-model",        "title": "Data Model",          "section": "System",     "summary": "SQLite schema and JSON Schema alignment.", "relative_path": Path("docs") / "data-model.md"},
+    {"id": "security",          "title": "Security & Privacy",  "section": "Ops",        "summary": "Sensitive-data rules for the public repo + credentials handling.", "relative_path": Path("docs") / "security.md"},
+    {"id": "deployment",        "title": "Deployment",          "section": "Ops",        "summary": "Operator-facing deploy flow + rollback playbook.", "relative_path": Path("docs") / "deployment.md"},
+    {"id": "operations",        "title": "Day-to-day Ops",      "section": "Ops",        "summary": "Local services, scheduled jobs, log paths, troubleshooting.", "relative_path": Path("docs") / "operations.md"},
+]
+
+# Nine operator domains backed by README.md inside each numbered folder.
+# `id` matches what the Sidebar emits; `aliases` lets the resolver answer
+# verbose ids like "01_health", "domain-01", or even bare folder names like
+# "01_Health" (lowercased on lookup).
+DOMAIN_DOC_SPECS: list[dict[str, Any]] = [
+    {"id": "01", "folder": "01_Health",        "title": "01 · Health · 健康与精力",        "summary": "Physical baseline — sleep, energy, mood; the multiplier on every other metric."},
+    {"id": "02", "folder": "02_Cashflow",      "title": "02 · Cashflow · 现金流",           "summary": "Hard capital floor, monthly burn, runway; the survival clock."},
+    {"id": "03", "folder": "03_Career",        "title": "03 · Career · 职业",               "summary": "Income engine — job pipeline, offer leverage, role positioning."},
+    {"id": "04", "folder": "04_Skills",        "title": "04 · Skills · 技能",               "summary": "Compounding deposits — what you keep learning, what you ship to prove it."},
+    {"id": "05", "folder": "05_Projects",      "title": "05 · Projects · 项目",             "summary": "Capital-committed bets — active, paused, killed, shipped."},
+    {"id": "06", "folder": "06_Cognition",     "title": "06 · Cognition · 认知",            "summary": "Mental models, biases, decision quality — the upstream of every other domain."},
+    {"id": "07", "folder": "07_Relationships", "title": "07 · Relationships · 关系",        "summary": "Trust graph — family, partner, allies; emotional reserves."},
+    {"id": "08", "folder": "08_Decisions",     "title": "08 · Decisions · 决策",            "summary": "The decision ledger — context, options, rationale, reviewed outcome."},
+    {"id": "09", "folder": "09_Principles",    "title": "09 · Principles · 原则",           "summary": "Operating principles, hard vetos, irreversible commitments."},
 ]
 
 
@@ -745,6 +768,23 @@ def markdown_excerpt(content: str, limit: int = 160) -> str:
     return excerpt[:limit].rstrip() + ("..." if len(excerpt) > limit else "")
 
 
+def _pick_domain_markdown(folder: Path) -> Path:
+    """Find the canonical markdown for a domain folder.
+
+    Prefer README.md (the operator's curated index). Fall back to the first
+    .md asset by name so a freshly-added domain stub still renders without
+    having to touch this registry.
+    """
+    readme = folder / "README.md"
+    if readme.exists() and readme.is_file():
+        return readme
+    if folder.exists() and folder.is_dir():
+        for child in sorted(folder.iterdir()):
+            if child.is_file() and child.suffix.lower() == ".md":
+                return child
+    return readme  # canonical missing target — read_markdown_file will 404
+
+
 def docs_registry() -> dict[str, dict[str, Any]]:
     registry: dict[str, dict[str, Any]] = {}
     for spec in DOC_SPECS:
@@ -755,6 +795,21 @@ def docs_registry() -> dict[str, dict[str, Any]]:
             "section": str(spec["section"]),
             "summary": str(spec["summary"]),
             "relativePath": str(spec["relative_path"]).replace("\\", "/"),
+            "updatedAt": doc_updated_at(doc_path),
+            "sensitive": False,
+            "kind": "markdown",
+            "path": doc_path,
+        }
+    for spec in DOMAIN_DOC_SPECS:
+        folder = ROOT / str(spec["folder"])
+        doc_path = _pick_domain_markdown(folder)
+        relative = doc_path.relative_to(ROOT) if doc_path.exists() else (Path(str(spec["folder"])) / "README.md")
+        registry[str(spec["id"])] = {
+            "id": str(spec["id"]),
+            "title": str(spec["title"]),
+            "section": "Domains · 9 领域",
+            "summary": str(spec["summary"]),
+            "relativePath": str(relative).replace("\\", "/"),
             "updatedAt": doc_updated_at(doc_path),
             "sensitive": False,
             "kind": "markdown",
@@ -771,12 +826,53 @@ def list_docs() -> list[dict[str, Any]]:
     return [serialize_doc_meta(item) for item in docs_registry().values()]
 
 
+def _resolve_doc_alias(doc_id: str, registry: dict[str, dict[str, Any]]) -> str | None:
+    """Map legacy / verbose ids to the canonical registry key.
+
+    The frontend Sidebar emits two-digit ids ("01".."09"), the URL bar may
+    carry verbose slugs ("01_health", "domain-01", "health"), and CLI users
+    sometimes paste the bare folder name ("01_Health"). All three shapes
+    must resolve to the matching DOMAIN_DOC_SPECS entry without the user
+    seeing a 404.
+    """
+    needle = doc_id.strip().lower()
+    if not needle:
+        return None
+    if needle in registry:
+        return needle
+    # Direct numeric prefix: "01" → DOMAIN_DOC_SPECS where id == "01"
+    digits = needle.split("_", 1)[0].split("-", 1)[0]
+    if digits.isdigit() and len(digits) <= 2:
+        padded = digits.zfill(2)
+        if padded in registry:
+            return padded
+    # Folder-style ids: "01_health", "01_Health", "domain-01", "health-01"
+    for spec in DOMAIN_DOC_SPECS:
+        folder_lower = str(spec["folder"]).lower()
+        digit_id = str(spec["id"])
+        candidates = {
+            digit_id,
+            folder_lower,
+            folder_lower.replace("_", "-"),
+            folder_lower.split("_", 1)[1] if "_" in folder_lower else folder_lower,
+            f"domain-{digit_id}",
+            f"domain_{digit_id}",
+            f"{digit_id}-{folder_lower.split('_', 1)[1] if '_' in folder_lower else folder_lower}",
+            f"{digit_id}_{folder_lower.split('_', 1)[1] if '_' in folder_lower else folder_lower}",
+        }
+        if needle in candidates:
+            return digit_id
+    return None
+
+
 def get_doc_payload(doc_id: str) -> dict[str, Any]:
     if not DOC_ID_RE.match(doc_id):
         raise HTTPException(status_code=404, detail="Document not found")
-    item = docs_registry().get(doc_id)
-    if not item:
+    registry = docs_registry()
+    canonical = _resolve_doc_alias(doc_id, registry)
+    if not canonical:
         raise HTTPException(status_code=404, detail="Document not found")
+    item = registry[canonical]
     content = read_markdown_file(item["path"])
     payload = serialize_doc_meta(item)
     payload["content"] = content

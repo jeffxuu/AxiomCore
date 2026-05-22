@@ -456,7 +456,7 @@ export function OraclePage({ onStatus }: { onStatus: (status: string) => void })
     : t("oracle.status.unset");
 
   return (
-    <div>
+    <div className="w-full min-w-0">
       <PageHeader
         eyebrow={t("oracle.eyebrow")}
         title={t("oracle.title")}

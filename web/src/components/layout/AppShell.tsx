@@ -247,12 +247,19 @@ export function AppShell({
             </div>
           </header>
 
-          {/* SCROLLABLE WORKSPACE */}
+          {/* SCROLLABLE WORKSPACE
+              `min-w-0` on the flex child + `overflow-x-hidden` on the scroll
+              shell are the load-bearing pair that keeps the 240px sidebar
+              from getting shoved off-screen when an inner page (e.g. Oracle
+              briefing) declares a wide CSS Grid track ( 320px + 1fr, etc.).
+              Without these, the workspace can balloon past the parent flex
+              row's intrinsic min-content, which Chromium resolves by
+              clipping the leading aside, not the trailing main column. */}
           <div
-            className="scroll-thin flex-1 overflow-y-auto px-6 py-4.5"
+            className="scroll-thin min-w-0 flex-1 overflow-x-hidden overflow-y-auto px-6 py-4.5"
             style={{ background: "var(--ax-bg)" }}
           >
-            <div className="mx-auto w-full max-w-[1440px] space-y-5">{children}</div>
+            <div className="mx-auto w-full min-w-0 max-w-[1440px] space-y-5">{children}</div>
           </div>
         </main>
 
