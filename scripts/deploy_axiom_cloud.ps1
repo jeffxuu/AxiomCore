@@ -270,11 +270,15 @@ Invoke-Ssh -RemoteCommand $bootstrap
 # ------------------------------------------------------------------
 # Step 5: health check
 # ------------------------------------------------------------------
+# Probe the canonical production origin so the request hits the
+# letsencrypt-signed cert bound to jeffxu.cc — direct IP probes always trip
+# the TLS trust check because the cert SAN list is domain-only.
+$HealthCheckUrl = 'https://jeffxu.cc/api/health'
 Write-Host ""
-Write-Host "[Step 5] Health check via https://$SshHost/api/health ..." -ForegroundColor Yellow
+Write-Host "[Step 5] Health check via $HealthCheckUrl ..." -ForegroundColor Yellow
 if (-not $DryRun) {
     try {
-        $resp = Invoke-RestMethod -Uri "https://$SshHost/api/health" -TimeoutSec 10
+        $resp = Invoke-RestMethod -Uri $HealthCheckUrl -TimeoutSec 10
         $resp | ConvertTo-Json -Compress | Write-Host
         if ($resp.service -ne 'Axiom Core') {
             Write-Warning "service field is '$($resp.service)', expected 'Axiom Core'"

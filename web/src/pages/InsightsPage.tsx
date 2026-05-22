@@ -34,6 +34,7 @@ export const InsightsPage: React.FC = () => {
         </div>
         <div className="flex items-center space-x-4">
           <button
+            type="button"
             onClick={() => dispatch(toggleTheme())}
             className="text-[10px] uppercase tracking-wider font-semibold opacity-70 hover:opacity-100 font-mono transition-opacity"
           >
