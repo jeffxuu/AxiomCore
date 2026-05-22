@@ -147,6 +147,7 @@ export function Sidebar({
             className="ax-input pl-8 text-[12px]"
             placeholder="Jump to module…  ⌘K"
             aria-label={t("common.search")}
+            autoComplete="off"
           />
         </div>
       </div>

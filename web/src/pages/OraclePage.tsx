@@ -484,7 +484,7 @@ export function OraclePage({ onStatus }: { onStatus: (status: string) => void })
               <div className="flex items-center gap-2">
                 <Input
                   type="password"
-                  autoComplete="off"
+                  autoComplete="new-password"
                   spellCheck={false}
                   value={apiKeyForUI}
                   onChange={(e) => {
