@@ -100,7 +100,7 @@ function App() {
     if (route.path === "/projects") return <ProjectsPage onStatus={setStatus} />;
     if (route.path === "/decisions") return <DecisionsPage onStatus={setStatus} />;
     if (route.path === "/ledger") return <LedgerPage onStatus={setStatus} />;
-    if (route.path === "/insights") return <InsightsPage onStatus={setStatus} />;
+    if (route.path === "/insights") return <InsightsPage />;
     if (route.path === "/vault" || route.path === "/files" || route.path === "/library") {
       return <VaultPage selectedId={new URLSearchParams(route.search).get("doc") || undefined} navigate={navigate} />;
     }
