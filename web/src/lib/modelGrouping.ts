@@ -16,20 +16,20 @@ export interface Provider {
 // this table is rendered with the vendor key title-cased.
 export const PROVIDER_LABEL_MAP: Record<string, { zh: string; en: string }> = {
   openai: { zh: "OpenAI ( ChatGPT )", en: "OpenAI ( ChatGPT )" },
-  anthropic: { zh: "Anthropic ( 克劳德 )", en: "Anthropic ( Claude )" },
-  google: { zh: "Google ( 双子座 )", en: "Google ( Gemini )" },
+  anthropic: { zh: "Anthropic ( Claude )", en: "Anthropic ( Claude )" },
+  google: { zh: "Google ( Gemini )", en: "Google ( Gemini )" },
   deepseek: { zh: "DeepSeek ( 深度求索 )", en: "DeepSeek" },
   alibaba: { zh: "Alibaba ( 通义千问 )", en: "Alibaba ( Qwen )" },
   tencent: { zh: "Tencent ( 腾讯混元 )", en: "Tencent ( Hunyuan )" },
   baidu: { zh: "Baidu ( 文心一言 )", en: "Baidu ( Ernie )" },
-  meta: { zh: "Meta ( Llama 架构 )", en: "Meta ( Llama )" },
-  moonshot: { zh: "Moonshot ( Kimi 秘塔 )", en: "Moonshot ( Kimi )" },
-  mistral: { zh: "Mistral AI ( 欧洲智库 )", en: "Mistral AI" },
+  meta: { zh: "Meta ( Llama )", en: "Meta ( Llama )" },
+  moonshot: { zh: "Moonshot AI ( Kimi )", en: "Moonshot ( Kimi )" },
+  mistral: { zh: "Mistral AI", en: "Mistral AI" },
   yi: { zh: "01.AI ( 零一万物 )", en: "01.AI ( Yi )" },
-  zhipu: { zh: "Zhipu ( 智谱清言 )", en: "Zhipu AI" },
+  zhipu: { zh: "智谱 AI ( GLM )", en: "Zhipu AI" },
   xai: { zh: "xAI ( Grok )", en: "xAI ( Grok )" },
-  cohere: { zh: "Cohere ( 指令模型 )", en: "Cohere" },
-  perplexity: { zh: "Perplexity ( 检索增强 )", en: "Perplexity" },
+  cohere: { zh: "Cohere", en: "Cohere" },
+  perplexity: { zh: "Perplexity", en: "Perplexity" },
 };
 
 // Preferred ordering when several known vendors show up. Anything outside

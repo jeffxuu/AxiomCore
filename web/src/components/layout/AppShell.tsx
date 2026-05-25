@@ -146,7 +146,7 @@ export function AppShell({
               >
                 <Menu className="size-4" />
               </Button>
-              <span className="hidden truncate ax-muted md:inline">Console</span>
+              <span className="hidden truncate ax-muted md:inline">{t("shell.console")}</span>
               {crumbs.map((c, i) => (
                 <span key={`${c.label}-${i}`} className="flex items-center gap-2">
                   {i > 0 ? (
@@ -256,7 +256,7 @@ export function AppShell({
               row's intrinsic min-content, which Chromium resolves by
               clipping the leading aside, not the trailing main column. */}
           <div
-            className="scroll-thin min-w-0 flex-1 overflow-x-hidden overflow-y-auto px-6 py-4.5"
+            className="scroll-thin min-w-0 flex-1 overflow-x-hidden overflow-y-auto px-4 py-4 md:px-6 md:py-4.5"
             style={{ background: "var(--ax-bg)" }}
           >
             <div className="mx-auto w-full min-w-0 max-w-[1440px] space-y-5">{children}</div>

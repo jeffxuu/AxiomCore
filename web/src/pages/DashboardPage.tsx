@@ -103,18 +103,17 @@ export function DashboardPage({
 
       {/* ─── C + D : Asymmetric work grid (13/7) ─── */}
       <section
-        className="grid gap-4"
-        style={{ gridTemplateColumns: "repeat(20, minmax(0, 1fr))" }}
+        className="grid grid-cols-1 gap-4 xl:[grid-template-columns:repeat(20,minmax(0,1fr))]"
       >
         {/* LEFT main column (13/20 = 65%) */}
-        <div className="min-w-0 space-y-4 [grid-column:span_13/span_13]">
+        <div className="min-w-0 space-y-4 xl:[grid-column:span_13/span_13]">
           <RunwayHorizon baseline={baseline} transactions={transactions} capital={cap} />
           <RiskRoiMatrix projects={activeProjects} />
           <CashflowPulse timeline={data?.timeline ?? []} />
         </div>
 
         {/* RIGHT audit column (7/20 = 35%) */}
-        <div className="min-w-0 space-y-4 [grid-column:span_7/span_7]">
+        <div className="min-w-0 space-y-4 xl:[grid-column:span_7/span_7]">
           <DomainAudit transactions={transactions} decisions={decisions} projects={projects} />
           <DecisionFunnel decisions={decisions} transactions={transactions} />
           <CapitalMECE projects={projects} capital={cap} />
@@ -155,18 +154,18 @@ export function DashboardPage({
         style={{ color: "var(--ax-muted)" }}
       >
         <div className="flex flex-wrap items-center gap-4">
-          <span className="ax-kpi">Axiom Core 3.0 · sovereign-mode</span>
+          <span className="ax-kpi">{t("dashboard.footer.release")}</span>
           <span aria-hidden>·</span>
-          <span>SQLite 4 tables · ledger / projects / decisions / capital_tx</span>
+          <span>{t("dashboard.footer.tables")}</span>
           <span aria-hidden>·</span>
-          <span>4SAPI gateway · multi-vendor</span>
+          <span>{t("dashboard.footer.gateway")}</span>
         </div>
         <div className="flex items-center gap-3">
           <span className="flex items-center gap-1.5">
             <span className="ax-chip-dot" style={{ background: "var(--ax-positive)" }} />
-            All systems nominal
+            {t("dashboard.footer.nominal")}
           </span>
-          <span className="ax-kpi">build {new Date().toISOString().slice(0, 10)}</span>
+          <span className="ax-kpi">{t("dashboard.footer.build", { date: new Date().toISOString().slice(0, 10) })}</span>
         </div>
       </footer>
     </div>

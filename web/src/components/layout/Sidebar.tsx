@@ -19,6 +19,7 @@ import {
   Wand2,
 } from "lucide-react";
 import { useBrand } from "@/lib/brandConfig";
+import { domainName } from "@/lib/domainLabels";
 import { useT } from "@/lib/i18nConfig";
 import { cn } from "@/lib/utils";
 
@@ -39,17 +40,17 @@ function buildConsole(t: (key: string) => string): NavItem[] {
   ];
 }
 
-function buildDomains(): DomainItem[] {
+function buildDomains(t: (key: string) => string): DomainItem[] {
   return [
-    { id: "01", label: "Health · 健康",        Icon: HeartPulse },
-    { id: "02", label: "Cashflow · 现金流",    Icon: Banknote },
-    { id: "03", label: "Career · 职业",        Icon: Briefcase },
-    { id: "04", label: "Skills · 技能",        Icon: Wand2 },
-    { id: "05", label: "Projects · 项目",      Icon: BarChart3 },
-    { id: "06", label: "Cognition · 认知",     Icon: Brain },
-    { id: "07", label: "Relationships",        Icon: Users },
-    { id: "08", label: "Decisions · 决策",     Icon: Compass },
-    { id: "09", label: "Principles · 原则",    Icon: Activity },
+    { id: "01", label: domainName("01", t), Icon: HeartPulse },
+    { id: "02", label: domainName("02", t), Icon: Banknote },
+    { id: "03", label: domainName("03", t), Icon: Briefcase },
+    { id: "04", label: domainName("04", t), Icon: Wand2 },
+    { id: "05", label: domainName("05", t), Icon: BarChart3 },
+    { id: "06", label: domainName("06", t), Icon: Brain },
+    { id: "07", label: domainName("07", t), Icon: Users },
+    { id: "08", label: domainName("08", t), Icon: Compass },
+    { id: "09", label: domainName("09", t), Icon: Activity },
   ];
 }
 
@@ -88,7 +89,7 @@ export function Sidebar({
   };
 
   const consoleItems = useMemo(() => buildConsole(t), [rawT]);
-  const domainItems = useMemo(() => buildDomains(), []);
+  const domainItems = useMemo(() => buildDomains(t), [rawT]);
   const needle = filter.trim().toLowerCase();
   const filteredConsole = needle
     ? (consoleItems ?? []).filter((item) => (item?.label ?? "").toLowerCase().includes(needle))
@@ -127,7 +128,7 @@ export function Sidebar({
               className="ax-kpi block truncate text-[9.5px]"
               style={{ color: "var(--ax-muted)" }}
             >
-              v3.0 · SOVEREIGN OS
+              v3.0 · {t("sidebar.os")}
             </span>
           </span>
         </button>
@@ -145,7 +146,7 @@ export function Sidebar({
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
             className="ax-input pl-8 text-[12px]"
-            placeholder="Jump to module…  ⌘K"
+            placeholder={t("sidebar.search.placeholder")}
             aria-label={t("common.search")}
             autoComplete="off"
           />
@@ -155,10 +156,10 @@ export function Sidebar({
       {/* ── Nav ── */}
       <nav
         className="scroll-thin flex-1 space-y-3 overflow-y-auto px-3 py-3"
-        aria-label="Primary"
+        aria-label={t("sidebar.navigation")}
       >
         <div>
-          <p className="ax-section-title px-2 pb-1.5">Console</p>
+          <p className="ax-section-title px-2 pb-1.5">{t("sidebar.console")}</p>
           <ul className="space-y-0">
             {filteredConsole.map(({ href, label, Icon }) => {
               const active = isActive(currentPath, href);
@@ -179,7 +180,7 @@ export function Sidebar({
         </div>
 
         <div>
-          <p className="ax-section-title px-2 pb-1.5">Domains · 9 领域</p>
+          <p className="ax-section-title px-2 pb-1.5">{t("sidebar.domains")}</p>
           <ul className="space-y-0">
             {filteredDomains.map(({ id, label }) => (
               <li key={id}>
@@ -208,13 +209,13 @@ export function Sidebar({
         style={{ borderColor: "var(--ax-border)" }}
       >
         <div className="flex items-center justify-between text-[11px]">
-          <span className="ax-muted">SQLite Tables</span>
+          <span className="ax-muted">{t("sidebar.sqlite")}</span>
           <span className="ax-kpi" style={{ color: "var(--ax-text)" }}>
             4 · OK
           </span>
         </div>
         <div className="flex items-center justify-between text-[11px]">
-          <span className="ax-muted">4SAPI Pool</span>
+          <span className="ax-muted">{t("sidebar.pool")}</span>
           <span
             className="ax-kpi flex items-center gap-1.5"
             style={{ color: "var(--ax-text)" }}
@@ -227,7 +228,7 @@ export function Sidebar({
           </span>
         </div>
         <div className="flex items-center justify-between text-[11px]">
-          <span className="ax-muted">Build</span>
+          <span className="ax-muted">{t("sidebar.build")}</span>
           <span className="ax-kpi" style={{ color: "var(--ax-muted)" }}>
             {t("footer.version")}
           </span>

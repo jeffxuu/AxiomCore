@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { useT } from "@/lib/i18nConfig";
 import type { Baseline, CapitalSnapshot, Transaction } from "@/types";
 
 const FLOOR_VALUE = -100_000;
@@ -87,6 +88,7 @@ export function RunwayHorizon({
   transactions: Transaction[];
   capital: CapitalSnapshot | null;
 }) {
+  const t = useT();
   const data = useMemo(() => {
     const history = buildHistorical(baseline, transactions);
     if (!history.length) return null;
@@ -147,9 +149,9 @@ export function RunwayHorizon({
   if (!data) {
     return (
       <div className="ax-card p-5">
-        <div className="ax-h-title">资金跑道收敛 · Runway Horizon</div>
+        <div className="ax-h-title">{t("dashboard.runwayChart.title")}</div>
         <div className="mt-6 rounded-md border border-dashed p-10 text-center text-[12px]" style={{ borderColor: "var(--ax-border-strong)", color: "var(--ax-muted)" }}>
-          请先录入基线与一笔流水以驱动跑道曲线。
+          {t("dashboard.runwayChart.empty")}
         </div>
       </div>
     );
@@ -177,9 +179,12 @@ export function RunwayHorizon({
     tone === "positive" ? "var(--ax-positive)" : tone === "warning" ? "var(--ax-warning)" : "var(--ax-danger)";
 
   const exhaustDateLabel = (() => {
-    if (data.survivalDays === null) return "∞ · 现金正流";
+    if (data.survivalDays === null) return t("dashboard.runwayChart.exhaustPositive");
     if (!data.floorIntersectDate) return "—";
-    return `⊥ ${data.floorIntersectDate.toISOString().slice(0, 10)}  · ${data.survivalDays}d`;
+    return t("dashboard.runwayChart.exhaustDate", {
+      date: data.floorIntersectDate.toISOString().slice(0, 10),
+      days: data.survivalDays,
+    });
   })();
 
   // Y-axis labels at 5 levels.
@@ -204,55 +209,57 @@ export function RunwayHorizon({
 
   return (
     <div className="ax-card p-5">
-      <div className="flex items-start justify-between">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <div className="ax-h-title">资金跑道收敛 · Runway Horizon</div>
+          <div className="ax-h-title">{t("dashboard.runwayChart.title")}</div>
           <div className="ax-h-sub">
-            现金净额向 ¥{fmtCNY(FLOOR_VALUE)} 极限红线推演 ·{" "}
-            {data.survivalDays === null ? "正现金流 · 跑道无限" : `当前剩余 ${data.survivalDays} 天`}
+            {data.survivalDays === null
+              ? t("dashboard.runwayChart.subtitle.positive", { floor: fmtCNY(FLOOR_VALUE) })
+              : t("dashboard.runwayChart.subtitle.days", { floor: fmtCNY(FLOOR_VALUE), days: data.survivalDays })}
           </div>
         </div>
         <span className="ax-chip" style={{ color: toneVar }}>
           <span className="ax-chip-dot" style={{ background: toneVar }} />
-          Active capital
+          {t("dashboard.runwayChart.active")}
         </span>
       </div>
 
       <div className="mt-3 flex flex-wrap items-end gap-6 border-b border-[var(--ax-border)] pb-3">
         <div>
-          <div className="ax-section-title">Cash on hand</div>
+          <div className="ax-section-title">{t("dashboard.runwayChart.cash")}</div>
           <div className="ax-kpi mt-0.5 text-[28px] font-semibold" style={{ color: "var(--ax-text)" }}>
             ¥{fmtCNY(data.lastNet, true)}
           </div>
         </div>
         <div>
-          <div className="ax-section-title">Days to red line</div>
+          <div className="ax-section-title">{t("dashboard.runwayChart.toFloor")}</div>
           <div className="ax-kpi mt-0.5 text-[28px] font-semibold" style={{ color: toneVar }}>
             {data.survivalDays === null ? "∞" : data.survivalDays}
-            <span className="ml-1 text-[14px]" style={{ color: "var(--ax-muted)" }}>d</span>
+            <span className="ml-1 text-[14px]" style={{ color: "var(--ax-muted)" }}> {t("dashboard.kpi.days")}</span>
           </div>
         </div>
         <div>
-          <div className="ax-section-title">Monthly burn</div>
+          <div className="ax-section-title">{t("dashboard.runwayChart.monthlyBurn")}</div>
           <div className="ax-kpi mt-0.5 text-[20px] font-semibold" style={{ color: "var(--ax-text-soft)" }}>
             ¥{fmtCNY(Math.abs(Math.round(data.monthlyBurn)))}
           </div>
         </div>
         <div>
-          <div className="ax-section-title">Red line</div>
+          <div className="ax-section-title">{t("dashboard.runwayChart.floor")}</div>
           <div className="ax-kpi mt-0.5 text-[20px] font-semibold" style={{ color: "var(--ax-danger)" }}>
             ¥{fmtCNY(FLOOR_VALUE)}
           </div>
         </div>
         <div className="ml-auto text-right">
-          <div className="ax-section-title">Burn estimate</div>
+          <div className="ax-section-title">{t("dashboard.runwayChart.estimate")}</div>
           <div className="ax-kpi mt-0.5 text-[14px]" style={{ color: "var(--ax-text-soft)" }}>
-            30d moving · live
+            {t("dashboard.runwayChart.moving")}
           </div>
         </div>
       </div>
 
-      <svg viewBox={`0 0 ${VIEW_W} ${VIEW_H}`} className="mt-3 w-full" style={{ height: 220 }}>
+      <div className="ax-chart-scroll">
+      <svg viewBox={`0 0 ${VIEW_W} ${VIEW_H}`} className="ax-chart-canvas mt-3 w-full" style={{ height: 220 }}>
         <defs>
           <linearGradient id="runwayPast" x1="0" x2="0" y1="0" y2="1">
             <stop offset="0%" stopColor="var(--ax-positive)" stopOpacity={0.22} />
@@ -286,7 +293,7 @@ export function RunwayHorizon({
         {/* Red floor line */}
         <line x1={PLOT_X0} y1={FLOOR_Y} x2={PLOT_X1} y2={FLOOR_Y} stroke="var(--ax-danger)" strokeWidth={1} strokeDasharray="3 4" />
         <text x={PLOT_X1 - 4} y={FLOOR_Y - 4} className="ax-axis-text" fill="var(--ax-danger)" textAnchor="end">
-          RED LINE · ¥{fmtCNY(FLOOR_VALUE)}
+          {t("dashboard.runwayChart.floorLabel", { amount: fmtCNY(FLOOR_VALUE) })}
         </text>
 
         {/* Past area + line */}
@@ -308,7 +315,7 @@ export function RunwayHorizon({
             <g transform={`translate(${x}, ${Math.max(PLOT_Y0 + 4, data.nowY - 50)})`}>
               <rect width={tooltipW} height={34} rx={6} fill="var(--ax-card)" stroke="var(--ax-border-strong)" />
               <text x={10} y={14} className="ax-axis-text" fill="var(--ax-muted)">
-                NOW · {new Date().toISOString().slice(0, 10)}
+                {t("dashboard.runwayChart.now", { date: new Date().toISOString().slice(0, 10) })}
               </text>
               <text x={10} y={28} className="ax-axis-text" fill="var(--ax-text)" fontWeight={600}>
                 ¥{fmtCNY(data.lastNet, true)}
@@ -334,6 +341,7 @@ export function RunwayHorizon({
           </text>
         ))}
       </svg>
+      </div>
     </div>
   );
 }

@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { loadDomains, type DomainOption } from "@/api";
 import { Label } from "@/components/ui/label";
+import { domainLabel } from "@/lib/domainLabels";
 import { useT } from "@/lib/i18nConfig";
 import { cn } from "@/lib/utils";
 
@@ -151,7 +152,7 @@ export function DomainSelect({
         <option value="">{resolvedPlaceholder}</option>
         {domains.map((d) => (
           <option key={d.id} value={d.id}>
-            {d.label}
+            {domainLabel(d.id, t, d.label)}
           </option>
         ))}
       </select>
@@ -160,9 +161,11 @@ export function DomainSelect({
 }
 
 export function DomainBadge({ tag }: { tag: string }) {
+  const t = useT();
   const domains = useDomains();
   if (!tag) return null;
-  const label = domains.find((d) => d.id === tag)?.label ?? tag;
+  const fallback = domains.find((d) => d.id === tag)?.label ?? tag;
+  const label = domainLabel(tag, t, fallback);
   return (
     <span className="inline-flex items-center rounded-md border border-border/70 bg-muted/40 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
       {label}

@@ -19,21 +19,44 @@ function MiniMeta({ children }: { children: string }) {
   );
 }
 
+function formatDuration(seconds: number, t: (key: string, vars?: Record<string, string | number>) => string): string {
+  if (seconds % 86_400 === 0) return t("login.duration.days", { n: seconds / 86_400 });
+  if (seconds % 3_600 === 0) return t("login.duration.hours", { n: seconds / 3_600 });
+  if (seconds % 60 === 0) return t("login.duration.minutes", { n: seconds / 60 });
+  return t("login.duration.seconds", { n: seconds });
+}
+
+const LOGIN_ERROR_TRANSLATIONS: Record<string, string> = {
+  "登录暂时不可用，请稍后重试。": "login.error.unavailable",
+  "服务暂时不可用，请稍后重试。": "login.error.serviceUnavailable",
+  "请求频率过高，请稍后再试。": "login.error.rateLimited",
+  "登录失败次数过多，请稍后再试。": "login.error.attemptsExceeded",
+  "登录请求格式错误，请重试。": "login.error.invalidRequest",
+  "请输入账号和密码。": "login.error.credentialsRequired",
+  "登录未配置，请先设置 AXIOM_WEB_PASSWORD。": "login.error.notConfigured",
+  "人机验证未完成，请等待校验后重试。": "login.error.verificationRequired",
+  "人机验证失败，请刷新页面后重试。": "login.error.verificationFailed",
+  "账号已被临时锁定，请 10 分钟后重试。": "login.error.locked",
+  "账号或密码不正确。": "login.error.invalidCredentials",
+  "会话创建失败，请稍后重试。": "login.error.sessionFailed",
+};
+
 export function LoginPage() {
   const t = useT();
   const brand = useBrand();
   const [altchaEnabled, setAltchaEnabled] = useState(false);
-  const [sessionTtlLabel, setSessionTtlLabel] = useState("8h");
+  const [sessionTtlSeconds, setSessionTtlSeconds] = useState(8 * 3_600);
   const [configError, setConfigError] = useState("");
+  const sessionTtlLabel = formatDuration(sessionTtlSeconds, t);
 
   const urlError = new URLSearchParams(window.location.search).get("error") ?? "";
-  const errorMessage = configError || urlError;
+  const errorMessage = configError || (LOGIN_ERROR_TRANSLATIONS[urlError] ? t(LOGIN_ERROR_TRANSLATIONS[urlError]) : urlError);
 
   useEffect(() => {
     loadAuthConfig()
       .then((payload) => {
         setAltchaEnabled(Boolean(payload.altchaEnabled));
-        setSessionTtlLabel(payload.sessionTtlLabel);
+        setSessionTtlSeconds(payload.sessionTtlSeconds ?? 8 * 3_600);
       })
       .catch((exc: unknown) => {
         setConfigError(exc instanceof Error ? exc.message : t("login.error.fallback"));
@@ -64,7 +87,7 @@ export function LoginPage() {
         <header className="flex items-start justify-between gap-5 border-b border-[var(--portal-border)] pb-4">
           <div className="min-w-0 space-y-2">
             <div className="flex flex-wrap items-center gap-2">
-              <MiniMeta>SECURE ACCESS</MiniMeta>
+              <MiniMeta>{t("login.access")}</MiniMeta>
               <span className="h-3 w-px bg-[var(--portal-border)]" aria-hidden />
               <span className="font-mono text-[10px] font-semibold uppercase tracking-wider opacity-75" style={monoTnum}>
                 ROOT / 6.13
@@ -75,7 +98,7 @@ export function LoginPage() {
                 {brand.brandName}
               </h1>
               <p className="max-w-[520px] text-[12.5px] font-normal leading-5 text-[var(--portal-muted)]">
-                登录以进入账本：资产快照、决策记录与沙箱推理均隔离在授权空间内呈现。
+                {t("login.description")}
               </p>
             </div>
           </div>
@@ -93,18 +116,18 @@ export function LoginPage() {
         <section className="grid gap-3 border-b border-[var(--portal-border)] py-4">
           <div className="grid grid-cols-1 border-y border-[var(--portal-border)] sm:grid-cols-3 sm:divide-x sm:divide-[var(--portal-border)]">
             <div className="px-0 py-2 sm:px-3">
-              <MiniMeta>STATUS</MiniMeta>
-              <p className="mt-1 text-xs font-normal text-[var(--portal-text)]">门户待授权</p>
+              <MiniMeta>{t("login.status")}</MiniMeta>
+              <p className="mt-1 text-xs font-normal text-[var(--portal-text)]">{t("login.status.waiting")}</p>
             </div>
             <div className="border-t border-[var(--portal-border)] px-0 py-2 sm:border-t-0 sm:px-3">
-              <MiniMeta>SESSION</MiniMeta>
+              <MiniMeta>{t("login.session.label")}</MiniMeta>
               <p className="mt-1 font-mono text-xs font-normal text-[var(--portal-text)]" style={monoTnum}>
                 {sessionTtlLabel}
               </p>
             </div>
             <div className="border-t border-[var(--portal-border)] px-0 py-2 sm:border-t-0 sm:px-3">
-              <MiniMeta>PRIVACY</MiniMeta>
-              <p className="mt-1 text-xs font-normal text-[var(--portal-text)]">图表隔离</p>
+              <MiniMeta>{t("login.privacy")}</MiniMeta>
+              <p className="mt-1 text-xs font-normal text-[var(--portal-text)]">{t("login.privacy.value")}</p>
             </div>
           </div>
         </section>
@@ -185,7 +208,7 @@ export function LoginPage() {
                 "hover:border-[var(--portal-text)] hover:bg-[var(--portal-control)] focus:outline-none focus:ring-0",
               )}
             >
-              进入账本
+              {t("login.enter")}
             </button>
           </div>
         </form>

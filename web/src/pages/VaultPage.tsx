@@ -8,6 +8,28 @@ import { useT } from "@/lib/i18nConfig";
 import type { DocMeta, DocPayload } from "@/types";
 import { cn } from "@/lib/utils";
 
+type Translate = (key: string) => string;
+
+const DOC_SECTION_KEYS: Record<string, string> = {
+  "Axiom Core": "docs.section.axiom",
+  System: "docs.section.system",
+  Ops: "docs.section.ops",
+  "Domains · 9 领域": "docs.section.domains",
+};
+
+function translatedOr(t: Translate, key: string, fallback: string): string {
+  const value = t(key);
+  return value === key ? fallback : value;
+}
+
+function localizeDocMeta<T extends DocMeta>(doc: T, t: Translate): T {
+  const title = translatedOr(t, `docs.${doc.id}.title`, doc.title);
+  const summary = translatedOr(t, `docs.${doc.id}.summary`, doc.summary);
+  const sectionKey = DOC_SECTION_KEYS[doc.section];
+  const section = sectionKey ? translatedOr(t, sectionKey, doc.section) : doc.section;
+  return { ...doc, title, summary, section };
+}
+
 export function VaultPage({ selectedId, navigate }: { selectedId?: string; navigate: (href: string) => void }) {
   const t = useT();
   const [docs, setDocs] = useState<DocMeta[]>([]);
@@ -16,7 +38,7 @@ export function VaultPage({ selectedId, navigate }: { selectedId?: string; navig
 
   useEffect(() => {
     loadDocs()
-      .then((payload) => setDocs(payload.docs))
+      .then((payload) => setDocs(payload.docs.map((doc) => localizeDocMeta(doc, t))))
       .catch((exc) => setError(exc instanceof Error ? exc.message : t("vault.load.fail")));
   }, [t]);
 
@@ -99,7 +121,7 @@ function DocBody({ docId }: { docId: string }) {
     setDoc(null);
     setError("");
     loadDoc(docId)
-      .then(setDoc)
+      .then((payload) => setDoc(localizeDocMeta(payload, t)))
       .catch((exc) => setError(exc instanceof Error ? exc.message : t("vault.read.fail")));
   }, [docId, t]);
   if (error) return <EmptyHint title={t("vault.read.fail")} hint={error} />;

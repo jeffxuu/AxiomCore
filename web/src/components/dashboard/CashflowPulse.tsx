@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { useT } from "@/lib/i18nConfig";
 import type { TimelinePoint } from "@/types";
 
 const VIEW_W = 720;
@@ -24,6 +25,7 @@ function fmtDateShort(iso: string): string {
 }
 
 export function CashflowPulse({ timeline }: { timeline: TimelinePoint[] }) {
+  const t = useT();
   const data = useMemo(() => {
     const window = timeline.slice(-30);
     const totalIn = window.reduce((acc, p) => acc + (p.in || 0), 0);
@@ -50,24 +52,23 @@ export function CashflowPulse({ timeline }: { timeline: TimelinePoint[] }) {
 
   return (
     <div className="ax-card p-5">
-      <div className="flex items-start justify-between">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <div className="ax-h-title">现金脉搏 · Cashflow Pulse</div>
+          <div className="ax-h-title">{t("dashboard.cashflow.title")}</div>
           <div className="ax-h-sub">
-            过去 30 天每日收入 / 支出 ·{" "}
             {data.activeDays > 0
-              ? `${data.activeDays} 个活跃日 · 净流 ¥${fmtCNY(data.netFlow, { signed: true })}`
-              : "等待首笔流水"}
+              ? t("dashboard.cashflow.activity", { days: data.activeDays, net: fmtCNY(data.netFlow, { signed: true }) })
+              : t("dashboard.cashflow.pending")}
           </div>
         </div>
         <div className="flex items-center gap-2">
           <span className="ax-chip" style={{ color: "var(--ax-positive)" }}>
             <span className="ax-chip-dot" style={{ background: "var(--ax-positive)" }} />
-            in
+            {t("dashboard.cashflow.in")}
           </span>
           <span className="ax-chip" style={{ color: "var(--ax-danger)" }}>
             <span className="ax-chip-dot" style={{ background: "var(--ax-danger)" }} />
-            out
+            {t("dashboard.cashflow.out")}
           </span>
         </div>
       </div>
@@ -77,25 +78,25 @@ export function CashflowPulse({ timeline }: { timeline: TimelinePoint[] }) {
           className="mt-6 rounded-md border border-dashed p-10 text-center text-[12px]"
           style={{ borderColor: "var(--ax-border-strong)", color: "var(--ax-muted)" }}
         >
-          过去 30 天暂无现金流活动 —— 在统一指挥部录入一笔收入或支出，脉搏即刻跳动。
+          {t("dashboard.cashflow.empty")}
         </div>
       ) : (
         <>
           <div className="mt-3 grid grid-cols-4 gap-3 border-b border-[var(--ax-border)] pb-3">
             <div>
-              <div className="ax-section-title">30d 收入</div>
+              <div className="ax-section-title">{t("dashboard.cashflow.in30")}</div>
               <div className="ax-kpi mt-0.5 text-[18px] font-semibold" style={{ color: "var(--ax-positive)" }}>
                 +¥{fmtCNY(data.totalIn)}
               </div>
             </div>
             <div>
-              <div className="ax-section-title">30d 支出</div>
+              <div className="ax-section-title">{t("dashboard.cashflow.out30")}</div>
               <div className="ax-kpi mt-0.5 text-[18px] font-semibold" style={{ color: "var(--ax-danger)" }}>
                 −¥{fmtCNY(data.totalOut)}
               </div>
             </div>
             <div>
-              <div className="ax-section-title">净流</div>
+              <div className="ax-section-title">{t("dashboard.cashflow.net")}</div>
               <div
                 className="ax-kpi mt-0.5 text-[18px] font-semibold"
                 style={{ color: data.netFlow >= 0 ? "var(--ax-positive)" : "var(--ax-danger)" }}
@@ -104,7 +105,7 @@ export function CashflowPulse({ timeline }: { timeline: TimelinePoint[] }) {
               </div>
             </div>
             <div>
-              <div className="ax-section-title">最大单日</div>
+              <div className="ax-section-title">{t("dashboard.cashflow.largest")}</div>
               <div
                 className="ax-kpi mt-0.5 text-[14px]"
                 style={{ color: "var(--ax-text-soft)" }}
@@ -114,7 +115,8 @@ export function CashflowPulse({ timeline }: { timeline: TimelinePoint[] }) {
             </div>
           </div>
 
-          <svg viewBox={`0 0 ${VIEW_W} ${VIEW_H}`} className="mt-3 w-full" style={{ height: 200 }}>
+          <div className="ax-chart-scroll">
+          <svg viewBox={`0 0 ${VIEW_W} ${VIEW_H}`} className="ax-chart-canvas mt-3 w-full" style={{ height: 200 }}>
             {/* Horizontal grid */}
             <line x1={PLOT_X0} y1={BAR_TOP} x2={PLOT_X1} y2={BAR_TOP} className="ax-grid-line-soft" />
             <line x1={PLOT_X0} y1={(BAR_TOP + ZERO_Y) / 2} x2={PLOT_X1} y2={(BAR_TOP + ZERO_Y) / 2} className="ax-grid-line-soft" />
@@ -176,6 +178,7 @@ export function CashflowPulse({ timeline }: { timeline: TimelinePoint[] }) {
               );
             })}
           </svg>
+          </div>
         </>
       )}
     </div>

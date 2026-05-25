@@ -1,3 +1,4 @@
+import { useT } from "@/lib/i18nConfig";
 import type { CapitalSnapshot, Decision, TimelinePoint } from "@/types";
 
 function fmtCNY(value: number, opts?: { signed?: boolean }): string {
@@ -31,7 +32,7 @@ function NetWorthSpark({ points }: { points: TimelinePoint[] }) {
   );
 }
 
-function RunwayLine({ runwayDays, monthlyOut }: { runwayDays: number; monthlyOut: number }) {
+function RunwayLine({ monthlyOut }: { monthlyOut: number }) {
   // Simple sloped line trending toward a dashed red floor.
   const w = 200;
   const h = 38;
@@ -46,7 +47,6 @@ function RunwayLine({ runwayDays, monthlyOut }: { runwayDays: number; monthlyOut
         strokeLinecap="round"
       />
       <line x1={0} y1={34} x2={w} y2={34} stroke="var(--ax-danger)" strokeWidth={1} strokeDasharray="2 3" opacity={0.7} />
-      <title>{`runway ${runwayDays}d, monthly burn ${monthlyOut}`}</title>
     </svg>
   );
 }
@@ -137,6 +137,7 @@ export function KpiStrip({
   timeline: TimelinePoint[];
   decisions: Decision[];
 }) {
+  const t = useT();
   // Net Worth — % vs 30 days ago derived from timeline.
   const net = capital?.net_position ?? 0;
   const tStart = timeline[0]?.net ?? net;
@@ -148,10 +149,13 @@ export function KpiStrip({
     ? Math.round(capital.runway_months * 30)
     : null;
   const runwayExhaust = (() => {
-    if (runwayDays === null || runwayDays === undefined) return "∞ · 现金正流";
+    if (runwayDays === null || runwayDays === undefined) return t("dashboard.kpi.positiveCashflow");
     const d = new Date();
     d.setDate(d.getDate() + runwayDays);
-    return `至 ${d.toISOString().slice(0, 10)}  ·  月烧 ¥${(capital?.monthly_out ?? 0).toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
+    return t("dashboard.kpi.runwayEstimate", {
+      date: d.toISOString().slice(0, 10),
+      amount: (capital?.monthly_out ?? 0).toLocaleString("en-US", { maximumFractionDigits: 0 }),
+    });
   })();
 
   // Decisions — total, win rate.
@@ -164,7 +168,7 @@ export function KpiStrip({
       {/* Net Worth */}
       <div className="ax-card p-4">
         <div className="flex items-start justify-between">
-          <span className="ax-section-title">Net Worth · 净资产</span>
+          <span className="ax-section-title">{t("dashboard.kpi.netWorth")}</span>
           <span className="ax-chip" style={{ color: pct >= 0 ? "var(--ax-positive)" : "var(--ax-danger)" }}>
             <span className="ax-chip-dot" style={{ background: pct >= 0 ? "var(--ax-positive)" : "var(--ax-danger)" }} />
             {pct >= 0 ? "+" : ""}{pct.toFixed(1)}%
@@ -174,7 +178,7 @@ export function KpiStrip({
           ¥{fmtCNY(net)}
         </div>
         <div className="ax-kpi mt-0.5 text-[11px]" style={{ color: "var(--ax-muted)" }}>
-          vs 30d ago  {fmtCNY(netDelta, { signed: true })}
+          {t("dashboard.kpi.vs30", { amount: fmtCNY(netDelta, { signed: true }) })}
         </div>
         <NetWorthSpark points={timeline} />
       </div>
@@ -182,7 +186,7 @@ export function KpiStrip({
       {/* Runway */}
       <div className="ax-card p-4">
         <div className="flex items-start justify-between">
-          <span className="ax-section-title">Runway · 资金跑道</span>
+          <span className="ax-section-title">{t("dashboard.kpi.runway")}</span>
           <span
             className="ax-chip"
             style={{
@@ -209,22 +213,26 @@ export function KpiStrip({
                     : "var(--ax-danger)",
               }}
             />
-            {runwayDays === null ? "stable" : runwayDays > 365 ? "stable" : runwayDays > 180 ? "watch" : "risk"}
+            {runwayDays === null || runwayDays > 365
+              ? t("dashboard.status.stable")
+              : runwayDays > 180
+              ? t("dashboard.status.watch")
+              : t("dashboard.status.risk")}
           </span>
         </div>
         <div className="ax-kpi mt-2 text-[26px] font-semibold" style={{ color: "var(--ax-text)" }}>
-          {runwayDays === null ? "∞" : runwayDays} <span className="text-[14px]" style={{ color: "var(--ax-muted)" }}>{runwayDays === null ? "" : "days"}</span>
+          {runwayDays === null ? "∞" : runwayDays} <span className="text-[14px]" style={{ color: "var(--ax-muted)" }}>{runwayDays === null ? "" : t("dashboard.kpi.days")}</span>
         </div>
         <div className="ax-kpi mt-0.5 text-[11px]" style={{ color: "var(--ax-muted)" }}>
           {runwayExhaust}
         </div>
-        <RunwayLine runwayDays={runwayDays ?? 9999} monthlyOut={capital?.monthly_out ?? 0} />
+        <RunwayLine monthlyOut={capital?.monthly_out ?? 0} />
       </div>
 
       {/* Decisions */}
       <div className="ax-card p-4">
         <div className="flex items-start justify-between">
-          <span className="ax-section-title">Decisions · 决策胜率</span>
+          <span className="ax-section-title">{t("dashboard.kpi.decisions")}</span>
           {winPct !== null ? (
             <span
               className="ax-chip"
@@ -243,7 +251,7 @@ export function KpiStrip({
           ) : (
             <span className="ax-chip">
               <span className="ax-chip-dot" style={{ background: "var(--ax-muted)" }} />
-              {decisions.length} 条
+              {t("dashboard.kpi.records", { n: decisions.length })}
             </span>
           )}
         </div>
@@ -251,7 +259,9 @@ export function KpiStrip({
           {wins}<span className="text-[14px]" style={{ color: "var(--ax-muted)" }}> / {decisions.length || 0}</span>
         </div>
         <div className="ax-kpi mt-0.5 text-[11px]" style={{ color: "var(--ax-muted)" }}>
-          {reviewed.length > 0 ? `${reviewed.length} 条复盘已闭环 · 12 个月滚动` : "等待首次复盘"}
+          {reviewed.length > 0
+            ? t("dashboard.kpi.reviewed", { n: reviewed.length })
+            : t("dashboard.kpi.awaitingReview")}
         </div>
         <DecisionsBars decisions={decisions} />
       </div>
@@ -259,17 +269,17 @@ export function KpiStrip({
       {/* 4SAPI Tokens */}
       <div className="ax-card p-4">
         <div className="flex items-start justify-between">
-          <span className="ax-section-title">4SAPI · Token 池</span>
+          <span className="ax-section-title">{t("dashboard.kpi.tokens")}</span>
           <span className="ax-chip" style={{ color: "var(--ax-positive)" }}>
             <span className="ax-chip-dot" style={{ background: "var(--ax-positive)" }} />
-            healthy
+            {t("dashboard.kpi.healthy")}
           </span>
         </div>
         <div className="ax-kpi mt-2 text-[26px] font-semibold" style={{ color: "var(--ax-text)" }}>
-          live<span className="text-[14px]" style={{ color: "var(--ax-muted)" }}> · gateway</span>
+          {t("dashboard.kpi.live")}<span className="text-[14px]" style={{ color: "var(--ax-muted)" }}> · {t("dashboard.kpi.gateway")}</span>
         </div>
         <div className="ax-kpi mt-0.5 text-[11px]" style={{ color: "var(--ax-muted)" }}>
-          27 keys · 6 vendors · 实时遥测待接入
+          {t("dashboard.kpi.telemetryPending")}
         </div>
         <TokenSpark />
       </div>

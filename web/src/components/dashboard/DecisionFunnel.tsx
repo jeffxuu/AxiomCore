@@ -1,4 +1,6 @@
 import { useMemo } from "react";
+import { domainIndex, domainName } from "@/lib/domainLabels";
+import { useT } from "@/lib/i18nConfig";
 import type { Decision, Transaction } from "@/types";
 
 const POSITIVE_HINTS = ["✓", "成功", "达成", "win", "won", "positive", "good", "exceeded", "yes", "shipped"];
@@ -12,18 +14,6 @@ function classifyOutcome(text: string): "positive" | "negative" | "neutral" {
   return "neutral";
 }
 
-const DOMAIN_LABELS: Record<string, string> = {
-  "01": "Health",
-  "02": "Cashflow",
-  "03": "Career",
-  "04": "Skills",
-  "05": "Projects",
-  "06": "Cognition",
-  "07": "Relationships",
-  "08": "Decisions",
-  "09": "Principles",
-};
-
 export function DecisionFunnel({
   decisions,
   transactions,
@@ -31,6 +21,7 @@ export function DecisionFunnel({
   decisions: Decision[];
   transactions: Transaction[];
 }) {
+  const t = useT();
   const stats = useMemo(() => {
     // Observations = recorded events (each transaction is one observation).
     const observations = transactions.length;
@@ -67,8 +58,8 @@ export function DecisionFunnel({
     <div className="ax-card p-5">
       <div className="flex items-start justify-between">
         <div>
-          <div className="ax-h-title">认知转化漏斗</div>
-          <div className="ax-h-sub">观察 → 决策 → 复盘胜率 · 12M 滚动</div>
+          <div className="ax-h-title">{t("dashboard.funnel.title")}</div>
+          <div className="ax-h-sub">{t("dashboard.funnel.subtitle")}</div>
         </div>
         {winPct !== null ? (
           <span
@@ -88,7 +79,7 @@ export function DecisionFunnel({
         {/* Stage 1: OBSERVATIONS */}
         <path d="M20,20 L340,20 L300,80 L60,80 Z" fill="var(--ax-hover)" stroke="var(--ax-border-strong)" strokeWidth={1} />
         <text x={180} y={48} className="ax-axis-text" textAnchor="middle" fill="var(--ax-muted)">
-          OBSERVATIONS · 信号采集
+          {t("dashboard.funnel.observations")}
         </text>
         <text x={180} y={68} className="ax-axis-text" textAnchor="middle" fill="var(--ax-text)" fontWeight={700} fontSize={13}>
           {stats.observations}
@@ -97,7 +88,7 @@ export function DecisionFunnel({
         {/* Stage 2: DECISIONS */}
         <path d="M60,86 L300,86 L260,146 L100,146 Z" fill="var(--ax-canvas, var(--ax-hover))" stroke="var(--ax-border-strong)" strokeWidth={1} />
         <text x={180} y={114} className="ax-axis-text" textAnchor="middle" fill="var(--ax-muted)">
-          DECISIONS · 已下注
+          {t("dashboard.funnel.decisions")}
         </text>
         <text x={180} y={134} className="ax-axis-text" textAnchor="middle" fill="var(--ax-text)" fontWeight={700} fontSize={13}>
           {stats.total}
@@ -106,7 +97,7 @@ export function DecisionFunnel({
         {/* Stage 3: WINS */}
         <path d="M100,152 L260,152 L220,212 L140,212 Z" fill="var(--ax-positive-soft)" stroke="var(--ax-positive)" strokeWidth={1} />
         <text x={180} y={180} className="ax-axis-text" textAnchor="middle" fill="var(--ax-positive)">
-          WINS · 复盘验证
+          {t("dashboard.funnel.wins")}
         </text>
         <text x={180} y={200} className="ax-axis-text" textAnchor="middle" fill="var(--ax-text)" fontWeight={700} fontSize={13}>
           {stats.wins}
@@ -123,25 +114,25 @@ export function DecisionFunnel({
 
       <div className="mt-3 flex items-baseline justify-between border-t border-[var(--ax-border)] pt-3">
         <div>
-          <div className="ax-section-title">复盘胜率 · Win-rate</div>
+          <div className="ax-section-title">{t("dashboard.funnel.rate")}</div>
           <div className="ax-kpi text-[34px] font-semibold" style={{ color: winPct === null ? "var(--ax-muted)" : winPct >= 60 ? "var(--ax-positive)" : winPct >= 40 ? "var(--ax-warning)" : "var(--ax-danger)" }}>
             {winPct === null ? "—" : `${winPct}%`}
           </div>
           <div className="ax-kpi text-[10.5px]" style={{ color: "var(--ax-muted)" }}>
-            {stats.wins} / {stats.reviewed} · 12M rolling
+            {t("dashboard.funnel.rolling", { wins: stats.wins, reviewed: stats.reviewed })}
           </div>
         </div>
         <div className="text-right">
-          <div className="ax-section-title">Best domain</div>
+          <div className="ax-section-title">{t("dashboard.funnel.best")}</div>
           <div className="ax-kpi text-[13px]" style={{ color: "var(--ax-text)" }}>
             {stats.best
-              ? `${stats.best.id} ${DOMAIN_LABELS[stats.best.id] ?? ""} · ${Math.round(stats.best.rate * 100)}%`
+              ? `${domainIndex(stats.best.id)} ${domainName(stats.best.id, t)} · ${Math.round(stats.best.rate * 100)}%`
               : "—"}
           </div>
-          <div className="ax-section-title mt-2">Worst</div>
+          <div className="ax-section-title mt-2">{t("dashboard.funnel.worst")}</div>
           <div className="ax-kpi text-[13px]" style={{ color: "var(--ax-danger)" }}>
             {stats.worst
-              ? `${stats.worst.id} ${DOMAIN_LABELS[stats.worst.id] ?? ""} · ${Math.round(stats.worst.rate * 100)}%`
+              ? `${domainIndex(stats.worst.id)} ${domainName(stats.worst.id, t)} · ${Math.round(stats.worst.rate * 100)}%`
               : "—"}
           </div>
         </div>

@@ -198,10 +198,10 @@ export function ProjectsPage({ onStatus }: { onStatus: (status: string) => void 
       />
 
       <section className="grid gap-4 md:grid-cols-4">
-        <MetricCell label="ACTIVE" value={String(metrics.active)} sub={`${metrics.live} live`} />
-        <MetricCell label="ROI" value={`${metrics.avgRoi.toFixed(1)}x`} sub="portfolio mean" tone="positive" />
-        <MetricCell label="COMMITTED" value={formatCNY(metrics.committed, { compact: true })} sub="CNY allocated" />
-        <MetricCell label="SPENT" value={formatCNY(metrics.spent, { compact: true })} sub="CNY consumed" tone={metrics.spent > metrics.committed ? "danger" : "neutral"} />
+        <MetricCell label={t("projects.metrics.active")} value={String(metrics.active)} sub={t("projects.metrics.live", { count: metrics.live })} />
+        <MetricCell label={t("projects.metrics.roi")} value={`${metrics.avgRoi.toFixed(1)}x`} sub={t("projects.metrics.mean")} tone="positive" />
+        <MetricCell label={t("projects.metrics.committed")} value={formatCNY(metrics.committed, { compact: true })} sub={t("projects.metrics.allocated")} />
+        <MetricCell label={t("projects.metrics.spent")} value={formatCNY(metrics.spent, { compact: true })} sub={t("projects.metrics.consumed")} tone={metrics.spent > metrics.committed ? "danger" : "neutral"} />
       </section>
 
       <Panel contentClassName="px-0 py-0">
@@ -241,7 +241,7 @@ export function ProjectsPage({ onStatus }: { onStatus: (status: string) => void 
                       </span>
                       {starBet ? (
                         <span className={cn(MICRO_LABEL, "rounded-sm bg-[#0D9488]/8 px-1.5 py-0.5 text-[#0D9488] dark:bg-[#14B8A6]/14 dark:text-[#14B8A6]")}>
-                          STAR BET
+                          {t("projects.badge.star")}
                         </span>
                       ) : null}
                       {p.domain_tag ? <DomainBadge tag={p.domain_tag} /> : null}
@@ -260,14 +260,14 @@ export function ProjectsPage({ onStatus }: { onStatus: (status: string) => void 
                           {t("projects.risk.suffix", { level: t(`risk.${p.risk_level}`) })}
                         </span>
                       </span>
-                      <span className={cn(MICRO_LABEL, "rounded-sm bg-muted/50 px-1.5 py-0.5 text-muted-foreground")}>OPEN</span>
+                      <span className={cn(MICRO_LABEL, "rounded-sm bg-muted/50 px-1.5 py-0.5 text-muted-foreground")}>{t("projects.badge.open")}</span>
                     </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-4 md:grid-cols-1 md:gap-2">
-                    <KpiLine label="ROI" value={`${p.roi_projection.toFixed(1)}x`} tone="positive" />
+                    <KpiLine label={t("projects.kpi.return")} value={`${p.roi_projection.toFixed(1)}x`} tone="positive" />
                     <KpiLine
-                      label="CAPITAL"
+                      label={t("projects.kpi.capital")}
                       value={`${formatCNY(p.capital_spent, { compact: true })} / ${formatCNY(p.capital_committed, { compact: true })}`}
                     />
                   </div>

@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { useT } from "@/lib/i18nConfig";
 import type { CapitalSnapshot, Project } from "@/types";
 
 function fmtCNY(value: number): string {
@@ -21,6 +22,7 @@ export function CapitalMECE({
   projects: Project[];
   capital: CapitalSnapshot | null;
 }) {
+  const t = useT();
   const slices = useMemo(() => {
     const active = projects.filter((p) => p.status === "active" && p.capital_committed > 0);
     const sorted = [...active].sort((a, b) => b.capital_committed - a.capital_committed);
@@ -42,12 +44,12 @@ export function CapitalMECE({
       key: p.id,
       label: p.name,
       tag: p.risk_level === "low"
-        ? "Ideal"
+        ? t("dashboard.allocation.tag.ideal")
         : p.risk_level === "medium"
-        ? "Hedged"
+        ? t("dashboard.allocation.tag.hedged")
         : p.risk_level === "high"
-        ? "Hero"
-        : "Speculative",
+        ? t("dashboard.allocation.tag.hero")
+        : t("dashboard.allocation.tag.speculative"),
       capital: p.capital_committed,
       pct: (p.capital_committed / grand) * 100,
       color: SLICE_COLORS[Math.min(i, SLICE_COLORS.length - 3)],
@@ -55,8 +57,8 @@ export function CapitalMECE({
     if (reserve > 0) {
       rows.push({
         key: "_reserve",
-        label: "Reserve · 应急流动",
-        tag: "Reserve",
+        label: t("dashboard.allocation.reserve"),
+        tag: t("dashboard.allocation.tag.hedged"),
         capital: reserve,
         pct: (reserve / grand) * 100,
         color: "var(--ax-text-soft)",
@@ -65,29 +67,29 @@ export function CapitalMECE({
     if (sunk > 0) {
       rows.push({
         key: "_sunk",
-        label: "Sunk · 已沉淀",
-        tag: "Sunk",
+        label: t("dashboard.allocation.sunk"),
+        tag: t("dashboard.allocation.tag.speculative"),
         capital: sunk,
         pct: (sunk / grand) * 100,
         color: "var(--ax-border-strong)",
       });
     }
     return { rows, grand };
-  }, [projects, capital]);
+  }, [projects, capital, t]);
 
   return (
     <div className="ax-card p-5">
       <div className="flex items-start justify-between">
         <div>
-          <div className="ax-h-title">资本配置效能树 · MECE</div>
-          <div className="ax-h-sub">¥{fmtCNY(slices.grand)} · 互斥且穷尽</div>
+          <div className="ax-h-title">{t("dashboard.allocation.title")}</div>
+          <div className="ax-h-sub">{t("dashboard.allocation.subtitle", { amount: fmtCNY(slices.grand) })}</div>
         </div>
         <span className="ax-chip ax-kpi">Σ = 100%</span>
       </div>
 
       {slices.rows.length === 0 ? (
         <div className="mt-6 rounded-md border border-dashed p-10 text-center text-[12px]" style={{ borderColor: "var(--ax-border-strong)", color: "var(--ax-muted)" }}>
-          暂无在投资本可分配。
+          {t("dashboard.allocation.empty")}
         </div>
       ) : (
         <>

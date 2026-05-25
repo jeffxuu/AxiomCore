@@ -95,6 +95,7 @@ export type AuthConfigPayload = {
   authEnabled: boolean;
   altchaEnabled: boolean;
   sessionTtlLabel: string;
+  sessionTtlSeconds?: number;
 };
 
 export type BrandConfigPayload = {

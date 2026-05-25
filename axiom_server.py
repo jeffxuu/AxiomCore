@@ -1976,7 +1976,13 @@ def create_app() -> FastAPI:
 
     @app.get("/api/auth/config")
     def auth_config() -> dict[str, Any]:
-        return {"ok": True, "authEnabled": auth_enabled(), "altchaEnabled": cloud_mode(), "sessionTtlLabel": session_ttl_label()}
+        return {
+            "ok": True,
+            "authEnabled": auth_enabled(),
+            "altchaEnabled": cloud_mode(),
+            "sessionTtlLabel": session_ttl_label(),
+            "sessionTtlSeconds": session_ttl_seconds(),
+        }
 
     @app.get("/api/auth/me")
     def auth_me(request: Request) -> dict[str, Any]:

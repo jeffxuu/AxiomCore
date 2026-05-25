@@ -1,4 +1,6 @@
 import { useMemo, useState } from "react";
+import { domainLabel } from "@/lib/domainLabels";
+import { useT } from "@/lib/i18nConfig";
 import { cn } from "@/lib/utils";
 import type { Decision } from "@/types";
 
@@ -25,21 +27,10 @@ const DOMAIN_COLOR: Record<string, string> = {
   "09": "var(--ax-text-soft)",
 };
 
-const DOMAIN_LABEL: Record<string, string> = {
-  "01": "01 Health",
-  "02": "02 Cashflow",
-  "03": "03 Career",
-  "04": "04 Skills",
-  "05": "05 Projects",
-  "06": "06 Cognition",
-  "07": "07 Relationships",
-  "08": "08 Decisions",
-  "09": "09 Principles",
-};
-
 type Bucket = "all" | "open" | "reviewed";
 
 export function DecisionLedger({ decisions }: { decisions: Decision[] }) {
+  const t = useT();
   const [bucket, setBucket] = useState<Bucket>("all");
 
   const rows = useMemo(() => {
@@ -51,11 +42,11 @@ export function DecisionLedger({ decisions }: { decisions: Decision[] }) {
 
   return (
     <div className="ax-card p-5">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <div className="ax-h-title">最近决策流水 · Decision Ledger</div>
+          <div className="ax-h-title">{t("dashboard.ledger.title")}</div>
           <div className="ax-h-sub">
-            直接写入 SQLite <span className="ax-kpi">decisions</span> 表 · 状态机已闭环
+            {t("dashboard.ledger.subtitle")}
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -66,28 +57,29 @@ export function DecisionLedger({ decisions }: { decisions: Decision[] }) {
               onClick={() => setBucket(b)}
               className={cn("ax-btn-ghost", bucket === b && "active")}
             >
-              {b === "all" ? "All" : b === "open" ? "Open" : "Reviewed"}
+              {t(`dashboard.ledger.filter.${b}`)}
             </button>
           ))}
         </div>
       </div>
 
-      <table className="mt-4 w-full text-[12px]">
+      <div className="mt-4 overflow-x-auto">
+      <table className="min-w-[640px] w-full text-[12px]">
         <thead>
           <tr className="border-b border-[var(--ax-border)] text-left" style={{ color: "var(--ax-muted)" }}>
             <th className="py-2 font-medium">ID</th>
-            <th className="py-2 font-medium">Decision</th>
-            <th className="py-2 font-medium">Domain</th>
-            <th className="py-2 text-right font-medium">Options</th>
-            <th className="py-2 text-right font-medium">Outcome</th>
-            <th className="py-2 text-right font-medium">State</th>
+            <th className="py-2 font-medium">{t("dashboard.ledger.column.decision")}</th>
+            <th className="py-2 font-medium">{t("dashboard.ledger.column.domain")}</th>
+            <th className="py-2 text-right font-medium">{t("dashboard.ledger.column.options")}</th>
+            <th className="py-2 text-right font-medium">{t("dashboard.ledger.column.outcome")}</th>
+            <th className="py-2 text-right font-medium">{t("dashboard.ledger.column.state")}</th>
           </tr>
         </thead>
         <tbody>
           {rows.length === 0 ? (
             <tr>
               <td colSpan={6} className="py-6 text-center text-[12px]" style={{ color: "var(--ax-muted)" }}>
-                暂无决策记录
+                {t("dashboard.ledger.empty")}
               </td>
             </tr>
           ) : (
@@ -96,13 +88,13 @@ export function DecisionLedger({ decisions }: { decisions: Decision[] }) {
               const stateLabel =
                 d.status === "reviewed"
                   ? outcomeKind === "positive"
-                    ? "SHIPPED"
+                    ? t("dashboard.ledger.state.shipped")
                     : outcomeKind === "negative"
-                    ? "LOSS"
-                    : "REVIEWED"
+                    ? t("dashboard.ledger.state.loss")
+                    : t("dashboard.ledger.state.reviewed")
                   : d.status === "committed"
-                  ? "COMMITTED"
-                  : "OPEN";
+                  ? t("dashboard.ledger.state.committed")
+                  : t("dashboard.ledger.state.open");
               const stateColor =
                 d.status === "reviewed"
                   ? outcomeKind === "positive"
@@ -114,7 +106,7 @@ export function DecisionLedger({ decisions }: { decisions: Decision[] }) {
                   ? "var(--ax-warning)"
                   : "var(--ax-muted)";
               const domainColor = DOMAIN_COLOR[d.domain_tag] ?? "var(--ax-text-soft)";
-              const domainLabel = DOMAIN_LABEL[d.domain_tag] ?? d.domain_tag ?? "—";
+              const resolvedDomainLabel = d.domain_tag ? domainLabel(d.domain_tag, t, d.domain_tag) : "—";
               const shortId = d.id.length > 6 ? d.id.slice(-6) : d.id;
               return (
                 <tr key={d.id} className="border-b border-[var(--ax-border)] last:border-b-0">
@@ -128,7 +120,7 @@ export function DecisionLedger({ decisions }: { decisions: Decision[] }) {
                     {d.domain_tag ? (
                       <span className="ax-chip">
                         <span className="ax-chip-dot" style={{ background: domainColor }} />
-                        {domainLabel}
+                        {resolvedDomainLabel}
                       </span>
                     ) : (
                       <span className="text-[11px]" style={{ color: "var(--ax-muted)" }}>—</span>
@@ -168,6 +160,7 @@ export function DecisionLedger({ decisions }: { decisions: Decision[] }) {
           )}
         </tbody>
       </table>
+      </div>
     </div>
   );
 }

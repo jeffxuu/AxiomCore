@@ -3,23 +3,25 @@ import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../store';
 import { toggleTheme } from '../store/uiSlice';
 import { InsightCard } from '../components/InsightCard';
+import { useT } from '../lib/i18nConfig';
 
 export const InsightsPage: React.FC = () => {
+  const t = useT();
   const dispatch = useDispatch();
   const theme = useSelector((state: RootState) => state.ui.theme);
   const [hoveredData, setHoveredData] = useState<{ x: number; y: number; val: string } | null>(null);
 
   const mockMetrics = [
-    { label: 'NET CAPITAL CAPACTIY', val: '1,482,904.52', unit: 'USD', change: '+2.41%' },
-    { label: 'COMPLIANCE AUDIT RATE', val: '99.84', unit: '%', change: 'STABLE' },
-    { label: 'GATEWAY TOKEN VELOCITY', val: '4,209', unit: 'T/S', change: '-0.12%' },
+    { label: t('insights.governance.metric.net'), val: '1,482,904.52', unit: 'USD', change: '+2.41%' },
+    { label: t('insights.governance.metric.audit'), val: '99.84', unit: '%', change: t('insights.governance.metric.stable') },
+    { label: t('insights.governance.metric.velocity'), val: '4,209', unit: 'T/S', change: '-0.12%' },
   ];
 
   const mockLogs = [
-    { id: '01', scope: 'NEXITALLY', status: 'SYS_OK', desc: 'Base link optimization verification bypassed.' },
-    { id: '02', scope: 'SURGE_IOS', status: 'NET_ALIVE', desc: 'Dynamic routing rules re-anchored via 4SAPI.' },
-    { id: '03', scope: 'WPS_OFFICE', status: 'LIC_SYNC', desc: 'Enterprise synchronization lock refreshed successfully.' },
-    { id: '04', scope: 'POE_API', status: 'QUOTA_OK', desc: 'Token structural depletion curve convergence check passed.' },
+    { id: '01', scope: 'NEXITALLY', status: 'SYS_OK', desc: t('insights.governance.log.01') },
+    { id: '02', scope: 'SURGE_IOS', status: 'NET_ALIVE', desc: t('insights.governance.log.02') },
+    { id: '03', scope: 'WPS_OFFICE', status: 'LIC_SYNC', desc: t('insights.governance.log.03') },
+    { id: '04', scope: 'POE_API', status: 'QUOTA_OK', desc: t('insights.governance.log.04') },
   ];
 
   return (
@@ -30,7 +32,7 @@ export const InsightsPage: React.FC = () => {
             AXIOM CORE v3.0
           </span>
           <span className="text-xs font-normal opacity-40">/</span>
-          <span className="text-xs font-normal opacity-60 tracking-tight">GOVERNANCE ENGINE ACTIVE</span>
+          <span className="text-xs font-normal opacity-60 tracking-tight">{t('insights.governance.status')}</span>
         </div>
         <div className="flex items-center space-x-4">
           <button
@@ -38,7 +40,7 @@ export const InsightsPage: React.FC = () => {
             onClick={() => dispatch(toggleTheme())}
             className="text-[10px] uppercase tracking-wider font-semibold opacity-70 hover:opacity-100 font-mono transition-opacity"
           >
-            SYS-BREAKER [{theme === 'dark' ? 'DARK' : 'LIGHT'}]
+            {t('insights.governance.theme', { mode: t(theme === 'dark' ? 'insights.governance.dark' : 'insights.governance.light') })}
           </button>
         </div>
       </header>
@@ -58,14 +60,14 @@ export const InsightsPage: React.FC = () => {
                   </span>
                 </div>
                 <div className="text-[10px] font-mono opacity-40 mt-1 flex items-center justify-between">
-                  <span>METRIC DESCRIPTOR</span>
+                  <span>{t('insights.governance.metric.descriptor')}</span>
                   <span className={m.change.startsWith('+') ? 'text-emerald-500' : 'opacity-60'}>{m.change}</span>
                 </div>
               </InsightCard>
             ))}
           </div>
 
-          <InsightCard title="FINANCIAL QUANTIZATION WAVEFORM" badge="REALTIME GRAPH">
+          <InsightCard title={t('insights.governance.chart')} badge={t('insights.governance.realtimeGraph')}>
             <div className="relative w-full h-64 mt-2">
               <svg className="w-full h-full overflow-visible">
                 <line x1="0" y1="220" x2="100%" y2="220" stroke="currentColor" strokeWidth={0.5} strokeOpacity={0.2} />
@@ -87,7 +89,7 @@ export const InsightsPage: React.FC = () => {
                   r="2.5"
                   className="fill-[var(--bg)] stroke-[var(--text)] cursor-pointer"
                   strokeWidth={1}
-                  onMouseEnter={() => setHoveredData({ x: 300, y: 140, val: 'ABS_VAL: $742,019' })}
+                  onMouseEnter={() => setHoveredData({ x: 300, y: 140, val: t('insights.governance.tooltip') })}
                   onMouseLeave={() => setHoveredData(null)}
                 />
               </svg>
@@ -105,15 +107,15 @@ export const InsightsPage: React.FC = () => {
             </div>
           </InsightCard>
 
-          <InsightCard title="SYSTEM TRANSACTIONS REGISTER" badge="LIVE 200">
+          <InsightCard title={t('insights.governance.register')} badge={t('insights.governance.live')}>
             <div className="overflow-x-auto mt-2">
               <table className="w-full border-collapse text-left">
                 <thead>
                   <tr className="border-b border-[var(--border)] text-[10px] uppercase tracking-wider font-semibold opacity-50 font-mono">
-                    <th className="pb-2 font-normal">INDEX</th>
-                    <th className="pb-2 font-normal">ROUTING NODE</th>
-                    <th className="pb-2 font-normal">TELEMETRY CODE</th>
-                    <th className="pb-2 font-normal text-right">CAPACITY METRIC</th>
+                    <th className="pb-2 font-normal">{t('insights.governance.column.index')}</th>
+                    <th className="pb-2 font-normal">{t('insights.governance.column.node')}</th>
+                    <th className="pb-2 font-normal">{t('insights.governance.column.code')}</th>
+                    <th className="pb-2 font-normal text-right">{t('insights.governance.column.latency')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[var(--border)] font-mono text-xs text-[var(--text)] opacity-90">
@@ -143,12 +145,12 @@ export const InsightsPage: React.FC = () => {
 
         {/* 右侧审计栏 (35% 空间拓扑) */}
         <section className="w-full lg:w-[35%] flex flex-col gap-6">
-          <InsightCard title="GOVERNANCE MATRIX AUDIT" badge="REALTIME">
+          <InsightCard title={t('insights.governance.audit')} badge={t('insights.governance.realtime')}>
             <div className="space-y-4 mt-2">
               <div>
                 <div className="flex justify-between text-[11px] mb-1 font-mono opacity-70">
-                  <span>SQLite Structural Integrity</span>
-                  <span className="font-light tnum">100% SECURE</span>
+                  <span>{t('insights.governance.integrity')}</span>
+                  <span className="font-light tnum">{t('insights.governance.secure')}</span>
                 </div>
                 <div className="w-full bg-[var(--border)] h-[2px]">
                   <div className="bg-[var(--text)] h-[2px] w-full transition-all duration-500" />
@@ -156,8 +158,8 @@ export const InsightsPage: React.FC = () => {
               </div>
               <div>
                 <div className="flex justify-between text-[11px] mb-1 font-mono opacity-70">
-                  <span>Network Isolation Surge Filter</span>
-                  <span className="font-light tnum">ACTIVE</span>
+                  <span>{t('insights.governance.isolation')}</span>
+                  <span className="font-light tnum">{t('insights.governance.active')}</span>
                 </div>
                 <div className="w-full bg-[var(--border)] h-[2px]">
                   <div className="bg-[var(--text)] h-[2px] w-[84%] transition-all duration-500" />
@@ -165,8 +167,8 @@ export const InsightsPage: React.FC = () => {
               </div>
               <div>
                 <div className="flex justify-between text-[11px] mb-1 font-mono opacity-70">
-                  <span>WPS / Dropbox Cloud Sync Lock</span>
-                  <span className="font-light tnum">HOLD</span>
+                  <span>{t('insights.governance.sync')}</span>
+                  <span className="font-light tnum">{t('insights.governance.hold')}</span>
                 </div>
                 <div className="w-full bg-[var(--border)] h-[2px]">
                   <div className="bg-[var(--text)] h-[2px] w-[92%] transition-all duration-500" />
@@ -175,7 +177,7 @@ export const InsightsPage: React.FC = () => {
             </div>
           </InsightCard>
 
-          <InsightCard title="IMMUTABLE TELEMETRY STREAM" badge="JOURNAL">
+          <InsightCard title={t('insights.governance.journal.title')} badge={t('insights.governance.journal.badge')}>
             <div className="space-y-3 font-mono text-[11.5px] mt-2">
               {mockLogs.map((log) => (
                 <div key={log.id} className="flex items-start space-x-2.5 border-b border-[var(--border)] pb-2 last:border-none last:pb-0">
