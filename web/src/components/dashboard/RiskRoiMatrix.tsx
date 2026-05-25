@@ -1,4 +1,5 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+import { ChartMethodLink } from "@/components/dashboard/ChartMethodLink";
 import { useT } from "@/lib/i18nConfig";
 import type { Project, RiskLevel } from "@/types";
 
@@ -67,8 +68,9 @@ function truncateLabel(value: string, max = 14): string {
   return value.length > max ? `${value.slice(0, max - 1)}…` : value;
 }
 
-export function RiskRoiMatrix({ projects }: { projects: Project[] }) {
+export function RiskRoiMatrix({ projects, onOpenMethod }: { projects: Project[]; onOpenMethod?: () => void }) {
   const t = useT();
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const bubbles = useMemo(() => {
     return projects.map((p) => {
       const q = quadrant(p.risk_level, p.roi_projection);
@@ -89,6 +91,7 @@ export function RiskRoiMatrix({ projects }: { projects: Project[] }) {
     const hero = [...bubbles].sort((a, b) => b.r - a.r)[0];
     return hero;
   }, [bubbles]);
+  const selected = bubbles.find((bubble) => bubble.project.id === selectedId) ?? featured;
 
   return (
     <div className="ax-card p-5">
@@ -100,6 +103,7 @@ export function RiskRoiMatrix({ projects }: { projects: Project[] }) {
           </div>
         </div>
         <div className="flex flex-wrap items-center justify-end gap-3 text-[11px]" style={{ color: "var(--ax-muted)" }}>
+          <ChartMethodLink onOpen={onOpenMethod} />
           <span className="flex items-center gap-1.5">
             <span className="ax-chip-dot" style={{ background: "var(--ax-positive)" }} />
             {t("dashboard.matrix.q.ideal")}
@@ -167,9 +171,29 @@ export function RiskRoiMatrix({ projects }: { projects: Project[] }) {
 
           {/* Bubbles */}
           {bubbles.map(({ project, cx, cy, r, quad: q, color }) => (
-            <g key={project.id}>
+            <g
+              key={project.id}
+              role="button"
+              tabIndex={0}
+              aria-label={t("dashboard.matrix.point.aria", { project: project.name })}
+              onClick={() => setSelectedId(project.id)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  setSelectedId(project.id);
+                }
+              }}
+              className="cursor-pointer outline-none"
+            >
               <title>{project.name}</title>
-              <circle cx={cx} cy={cy} r={r} fill={`url(#rrm-${q})`} stroke={color} strokeWidth={q === "hero" ? 1.5 : 1} />
+              <circle
+                cx={cx}
+                cy={cy}
+                r={r}
+                fill={`url(#rrm-${q})`}
+                stroke={color}
+                strokeWidth={selected?.project.id === project.id ? 2.5 : q === "hero" ? 1.5 : 1}
+              />
               {q === "hero" ? <circle cx={cx} cy={cy} r={4} fill={color} /> : null}
               <text x={cx} y={cy - 6} className="ax-bubble-label" textAnchor="middle">{truncateLabel(project.name)}</text>
               <text x={cx} y={cy + 8} className="ax-bubble-sub" textAnchor="middle">
@@ -178,27 +202,26 @@ export function RiskRoiMatrix({ projects }: { projects: Project[] }) {
             </g>
           ))}
 
-          {/* Tooltip card for the largest project */}
-          {featured ? (
+          {/* Detail card for the selected project; largest commitment is selected initially. */}
+          {selected ? (
             (() => {
               const tw = 132;
               const th = 60;
-              // Place tooltip near top-right of featured bubble.
-              const tx = Math.min(PLOT_X1 - tw - 4, Math.max(PLOT_X0 + 4, featured.cx + 30));
-              const ty = Math.max(PLOT_Y0 + 4, featured.cy - 60);
+              const tx = Math.min(PLOT_X1 - tw - 4, Math.max(PLOT_X0 + 4, selected.cx + 30));
+              const ty = Math.max(PLOT_Y0 + 4, selected.cy - 60);
               return (
                 <g transform={`translate(${tx}, ${ty})`}>
                   <rect width={tw} height={th} rx={6} fill="var(--ax-card)" stroke="var(--ax-border-strong)" strokeWidth={1} />
-                  <line x1={0} y1={Math.min(36, th)} x2={Math.min(-30, featured.cx - tx - tw / 2)} y2={Math.min(36, th)} stroke="var(--ax-border-strong)" strokeWidth={1} strokeDasharray="2 2" />
+                  <line x1={0} y1={Math.min(36, th)} x2={Math.min(-30, selected.cx - tx - tw / 2)} y2={Math.min(36, th)} stroke="var(--ax-border-strong)" strokeWidth={1} strokeDasharray="2 2" />
                   <text x={9} y={14} className="ax-axis-text" fill="var(--ax-muted)">{t("dashboard.matrix.tooltip.project")}</text>
                   <text x={9} y={29} className="ax-axis-text" fill="var(--ax-text)" fontWeight={600} fontSize={11}>
-                    {truncateLabel(featured.project.name, 18)}
+                    {truncateLabel(selected.project.name, 18)}
                   </text>
                   <text x={9} y={44} className="ax-axis-text" fill="var(--ax-text-soft)">
-                    {t("dashboard.matrix.tooltip.capital", { amount: fmtCNY(featured.project.capital_committed) })}
+                    {t("dashboard.matrix.tooltip.capital", { amount: fmtCNY(selected.project.capital_committed) })}
                   </text>
-                  <text x={9} y={55} className="ax-axis-text" fill={featured.color} fontWeight={600}>
-                    {t("dashboard.matrix.tooltip.expected", { value: featured.project.roi_projection.toFixed(1) })}
+                  <text x={9} y={55} className="ax-axis-text" fill={selected.color} fontWeight={600}>
+                    {t("dashboard.matrix.tooltip.expected", { value: selected.project.roi_projection.toFixed(1) })}
                   </text>
                 </g>
               );

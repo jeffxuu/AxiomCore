@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { loadDoc, loadDocs } from "@/api";
 import { EmptyHint, PageHeader, Panel } from "@/components/axiom/primitives";
 import { MarkdownView } from "@/components/axiom/MarkdownView";
+import { VaultIntakePanel } from "@/components/axiom/VaultIntakePanel";
 import { useT } from "@/lib/i18nConfig";
 import type { DocMeta, DocPayload } from "@/types";
 import { cn } from "@/lib/utils";
@@ -14,6 +15,7 @@ const DOC_SECTION_KEYS: Record<string, string> = {
   "Axiom Core": "docs.section.axiom",
   System: "docs.section.system",
   Ops: "docs.section.ops",
+  Methods: "docs.section.methods",
   "Domains · 9 领域": "docs.section.domains",
 };
 
@@ -30,17 +32,19 @@ function localizeDocMeta<T extends DocMeta>(doc: T, t: Translate): T {
   return { ...doc, title, summary, section };
 }
 
-export function VaultPage({ selectedId, navigate }: { selectedId?: string; navigate: (href: string) => void }) {
+export function VaultPage({ selectedId, panel, navigate }: { selectedId?: string; panel?: string; navigate: (href: string) => void }) {
   const t = useT();
   const [docs, setDocs] = useState<DocMeta[]>([]);
   const [query, setQuery] = useState("");
   const [error, setError] = useState("");
+  const [revision, setRevision] = useState(0);
+  const intakeActive = panel === "intake";
 
   useEffect(() => {
     loadDocs()
       .then((payload) => setDocs(payload.docs.map((doc) => localizeDocMeta(doc, t))))
       .catch((exc) => setError(exc instanceof Error ? exc.message : t("vault.load.fail")));
-  }, [t]);
+  }, [t, revision]);
 
   const visible = useMemo(() => {
     const keyword = query.trim().toLowerCase();
@@ -60,12 +64,37 @@ export function VaultPage({ selectedId, navigate }: { selectedId?: string; navig
 
   return (
     <div>
-      <PageHeader eyebrow={t("vault.eyebrow")} title={t("vault.title")} description={t("vault.desc")} />
+      <PageHeader
+        eyebrow={t("vault.eyebrow")}
+        title={t("vault.title")}
+        description={t("vault.desc")}
+        actions={(
+          <nav className="flex rounded-md border border-border bg-card p-1" aria-label={t("vault.tabs.aria")}>
+            <button
+              type="button"
+              onClick={() => navigate(`/vault?doc=${encodeURIComponent(selected || "dashboard-method")}`)}
+              className={cn("rounded px-3 py-1.5 text-[12px] font-medium transition-colors", !intakeActive ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground")}
+            >
+              {t("vault.tabs.library")}
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate("/vault?panel=intake")}
+              className={cn("rounded px-3 py-1.5 text-[12px] font-medium transition-colors", intakeActive ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground")}
+            >
+              {t("vault.tabs.intake")}
+            </button>
+          </nav>
+        )}
+      />
       {error ? (
         <div className="mb-4 rounded-lg border border-[var(--danger)]/40 bg-[var(--danger)]/5 px-4 py-3 text-[13px] text-[var(--danger)]">
           {error}
         </div>
       ) : null}
+      {intakeActive ? (
+        <VaultIntakePanel onArchived={() => setRevision((value) => value + 1)} />
+      ) : (
       <div className="grid gap-6 lg:grid-cols-[300px_minmax(0,1fr)]">
         <Panel
           title={t("vault.index")}
@@ -109,6 +138,7 @@ export function VaultPage({ selectedId, navigate }: { selectedId?: string; navig
 
         {selected ? <DocBody docId={selected} /> : <EmptyHint title={t("vault.empty")} />}
       </div>
+      )}
     </div>
   );
 }

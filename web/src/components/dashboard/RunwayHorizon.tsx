@@ -1,4 +1,5 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+import { ChartMethodLink } from "@/components/dashboard/ChartMethodLink";
 import { useT } from "@/lib/i18nConfig";
 import type { Baseline, CapitalSnapshot, Transaction } from "@/types";
 
@@ -83,12 +84,15 @@ export function RunwayHorizon({
   baseline,
   transactions,
   capital,
+  onOpenMethod,
 }: {
   baseline: Baseline | null;
   transactions: Transaction[];
   capital: CapitalSnapshot | null;
+  onOpenMethod?: () => void;
 }) {
   const t = useT();
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const data = useMemo(() => {
     const history = buildHistorical(baseline, transactions);
     if (!history.length) return null;
@@ -166,6 +170,17 @@ export function RunwayHorizon({
   const fcArea = data.fcMapped.length
     ? `${fcPath} L ${fcAreaEnd.toFixed(1)} ${PLOT_Y1} L ${data.nowX.toFixed(1)} ${PLOT_Y1} Z`
     : "";
+  const selectablePoints = [
+    ...data.histMapped.map((point) => ({ ...point, projected: false })),
+    ...data.fcMapped.map((point) => ({ ...point, projected: true })),
+  ];
+  const selectedPoint = selectablePoints.find((point) => point.date === selectedDate) ?? {
+    date: data.history[data.history.length - 1].date,
+    net: data.lastNet,
+    x: data.nowX,
+    y: data.nowY,
+    projected: false,
+  };
 
   const tone: "positive" | "warning" | "danger" =
     data.survivalDays === null
@@ -218,10 +233,13 @@ export function RunwayHorizon({
               : t("dashboard.runwayChart.subtitle.days", { floor: fmtCNY(FLOOR_VALUE), days: data.survivalDays })}
           </div>
         </div>
-        <span className="ax-chip" style={{ color: toneVar }}>
-          <span className="ax-chip-dot" style={{ background: toneVar }} />
-          {t("dashboard.runwayChart.active")}
-        </span>
+        <div className="flex flex-wrap items-center gap-2">
+          <ChartMethodLink onOpen={onOpenMethod} />
+          <span className="ax-chip" style={{ color: toneVar }}>
+            <span className="ax-chip-dot" style={{ background: toneVar }} />
+            {t("dashboard.runwayChart.active")}
+          </span>
+        </div>
       </div>
 
       <div className="mt-3 flex flex-wrap items-end gap-6 border-b border-[var(--ax-border)] pb-3">
@@ -304,21 +322,47 @@ export function RunwayHorizon({
         {fcArea ? <path d={fcArea} fill="url(#runwayFill)" /> : null}
         {fcPath ? <path d={fcPath} fill="none" stroke="var(--ax-warning)" strokeWidth={1.8} strokeDasharray="4 3" /> : null}
 
-        {/* NOW vertical line + marker + tooltip card */}
-        <line x1={data.nowX} y1={PLOT_Y0} x2={data.nowX} y2={PLOT_Y1} stroke="var(--ax-border-strong)" strokeWidth={1} strokeDasharray="2 3" />
-        <circle cx={data.nowX} cy={data.nowY} r={5} fill="var(--ax-card)" stroke="var(--ax-text)" strokeWidth={2} />
+        {/* Selectable observation and forecast points. */}
+        {selectablePoints.map((point) => {
+          const active = point.date === selectedPoint.date;
+          return (
+            <circle
+              key={`${point.projected ? "forecast" : "actual"}-${point.date}`}
+              cx={point.x}
+              cy={point.y}
+              r={active ? 5 : 8}
+              fill={active ? "var(--ax-card)" : "transparent"}
+              stroke={active ? (point.projected ? "var(--ax-warning)" : "var(--ax-text)") : "transparent"}
+              strokeWidth={active ? 2 : 0}
+              role="button"
+              tabIndex={0}
+              aria-label={t("dashboard.runwayChart.point.aria", { date: point.date })}
+              onClick={() => setSelectedDate(point.date)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  setSelectedDate(point.date);
+                }
+              }}
+              className="cursor-pointer outline-none"
+            />
+          );
+        })}
+
+        {/* Selected point marker + detail card. */}
+        <line x1={selectedPoint.x} y1={PLOT_Y0} x2={selectedPoint.x} y2={PLOT_Y1} stroke="var(--ax-border-strong)" strokeWidth={1} strokeDasharray="2 3" />
         {(() => {
-          const cx = data.nowX;
+          const cx = selectedPoint.x;
           const tooltipW = 148;
           const x = Math.max(PLOT_X0 + 6, Math.min(PLOT_X1 - tooltipW - 6, cx - tooltipW / 2));
           return (
-            <g transform={`translate(${x}, ${Math.max(PLOT_Y0 + 4, data.nowY - 50)})`}>
+            <g transform={`translate(${x}, ${Math.max(PLOT_Y0 + 4, selectedPoint.y - 50)})`}>
               <rect width={tooltipW} height={34} rx={6} fill="var(--ax-card)" stroke="var(--ax-border-strong)" />
               <text x={10} y={14} className="ax-axis-text" fill="var(--ax-muted)">
-                {t("dashboard.runwayChart.now", { date: new Date().toISOString().slice(0, 10) })}
+                {t(selectedPoint.projected ? "dashboard.runwayChart.forecast" : "dashboard.runwayChart.actual", { date: selectedPoint.date })}
               </text>
               <text x={10} y={28} className="ax-axis-text" fill="var(--ax-text)" fontWeight={600}>
-                ¥{fmtCNY(data.lastNet, true)}
+                ¥{fmtCNY(selectedPoint.net, true)}
               </text>
             </g>
           );

@@ -105,6 +105,7 @@ def floor_position() -> float:
 DOC_SPECS = [
     {"id": "product-vision",    "title": "Product Vision",      "section": "Axiom Core", "summary": "What Axiom Core solves; what it explicitly does not do.", "relative_path": Path("docs") / "product-vision.md"},
     {"id": "decision-engine",   "title": "Decision Engine",     "section": "Axiom Core", "summary": "Capital, ROI and hard-veto rules that gate every commit.", "relative_path": Path("docs") / "decision-engine.md"},
+    {"id": "dashboard-method",  "title": "Dashboard Measures",  "section": "Methods",    "summary": "Definitions, axes, interactions and source data for the executive dashboard charts.", "relative_path": Path("docs") / "dashboard-method.md"},
     {"id": "ai-agent",          "title": "AI Agent Charter",    "section": "Axiom Core", "summary": "The CDO persona, observable inputs, hard boundaries.", "relative_path": Path("docs") / "ai-agent.md"},
     {"id": "roadmap",           "title": "Roadmap",             "section": "Axiom Core", "summary": "Near-term, quarterly and annual evolution path.", "relative_path": Path("docs") / "roadmap.md"},
     {"id": "architecture",      "title": "System Architecture", "section": "System",     "summary": "Front/back tiers, local + cloud topology, data flow.", "relative_path": Path("docs") / "architecture.md"},

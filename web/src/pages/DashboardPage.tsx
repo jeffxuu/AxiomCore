@@ -31,7 +31,7 @@ function fmtCNY(value: number, signed?: boolean): string {
 }
 
 export function DashboardPage({
-  navigate: _navigate,
+  navigate,
   onStatus,
 }: {
   navigate: (href: string) => void;
@@ -107,9 +107,9 @@ export function DashboardPage({
       >
         {/* LEFT main column (13/20 = 65%) */}
         <div className="min-w-0 space-y-4 xl:[grid-column:span_13/span_13]">
-          <RunwayHorizon baseline={baseline} transactions={transactions} capital={cap} />
-          <RiskRoiMatrix projects={activeProjects} />
-          <CashflowPulse timeline={data?.timeline ?? []} />
+          <RunwayHorizon baseline={baseline} transactions={transactions} capital={cap} onOpenMethod={() => navigate("/vault?doc=dashboard-method")} />
+          <RiskRoiMatrix projects={activeProjects} onOpenMethod={() => navigate("/vault?doc=dashboard-method")} />
+          <CashflowPulse timeline={data?.timeline ?? []} onOpenMethod={() => navigate("/vault?doc=dashboard-method")} />
         </div>
 
         {/* RIGHT audit column (7/20 = 35%) */}

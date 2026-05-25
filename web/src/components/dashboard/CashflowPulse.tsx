@@ -1,4 +1,5 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+import { ChartMethodLink } from "@/components/dashboard/ChartMethodLink";
 import { useT } from "@/lib/i18nConfig";
 import type { TimelinePoint } from "@/types";
 
@@ -24,8 +25,9 @@ function fmtDateShort(iso: string): string {
   return `${m}/${day}`;
 }
 
-export function CashflowPulse({ timeline }: { timeline: TimelinePoint[] }) {
+export function CashflowPulse({ timeline, onOpenMethod }: { timeline: TimelinePoint[]; onOpenMethod?: () => void }) {
   const t = useT();
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const data = useMemo(() => {
     const window = timeline.slice(-30);
     const totalIn = window.reduce((acc, p) => acc + (p.in || 0), 0);
@@ -49,6 +51,9 @@ export function CashflowPulse({ timeline }: { timeline: TimelinePoint[] }) {
   const barW = Math.max(8, slot - 4);
   const upH = (v: number) => (data.maxBar === 0 ? 0 : ((ZERO_Y - BAR_TOP) * v) / data.maxBar);
   const downH = (v: number) => (data.maxBar === 0 ? 0 : ((BAR_BOT - ZERO_Y) * v) / data.maxBar);
+  const selected = data.window.find((point) => point.date === selectedDate) ??
+    data.window.find((point) => point.date === data.biggest.date) ??
+    data.window[data.window.length - 1];
 
   return (
     <div className="ax-card p-5">
@@ -62,6 +67,7 @@ export function CashflowPulse({ timeline }: { timeline: TimelinePoint[] }) {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <ChartMethodLink onOpen={onOpenMethod} />
           <span className="ax-chip" style={{ color: "var(--ax-positive)" }}>
             <span className="ax-chip-dot" style={{ background: "var(--ax-positive)" }} />
             {t("dashboard.cashflow.in")}
@@ -139,8 +145,33 @@ export function CashflowPulse({ timeline }: { timeline: TimelinePoint[] }) {
               const x = xCenter - barW / 2;
               const inH = upH(p.in || 0);
               const outH = downH(p.out || 0);
+              const active = selected?.date === p.date;
               return (
-                <g key={p.date || i}>
+                <g
+                  key={p.date || i}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={t("dashboard.cashflow.bar.aria", { date: p.date })}
+                  onClick={() => setSelectedDate(p.date)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      setSelectedDate(p.date);
+                    }
+                  }}
+                  className="cursor-pointer outline-none"
+                >
+                  {active ? (
+                    <line
+                      x1={xCenter}
+                      y1={BAR_TOP}
+                      x2={xCenter}
+                      y2={BAR_BOT}
+                      stroke="var(--ax-border-strong)"
+                      strokeWidth={1}
+                      strokeDasharray="2 3"
+                    />
+                  ) : null}
                   {inH > 0 ? (
                     <rect
                       x={x}
@@ -179,6 +210,20 @@ export function CashflowPulse({ timeline }: { timeline: TimelinePoint[] }) {
             })}
           </svg>
           </div>
+          {selected ? (
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-md border border-[var(--ax-border)] px-3 py-2 text-[11px]">
+              <span className="ax-section-title">{t("dashboard.cashflow.selected", { date: fmtDateShort(selected.date) })}</span>
+              <span style={{ color: "var(--ax-positive)" }}>
+                {t("dashboard.cashflow.selected.in", { value: fmtCNY(selected.in || 0) })}
+              </span>
+              <span style={{ color: "var(--ax-danger)" }}>
+                {t("dashboard.cashflow.selected.out", { value: fmtCNY(selected.out || 0) })}
+              </span>
+              <span className="ax-kpi" style={{ color: (selected.in || 0) - (selected.out || 0) >= 0 ? "var(--ax-positive)" : "var(--ax-danger)" }}>
+                {t("dashboard.cashflow.selected.net", { value: fmtCNY((selected.in || 0) - (selected.out || 0), { signed: true }) })}
+              </span>
+            </div>
+          ) : null}
         </>
       )}
     </div>

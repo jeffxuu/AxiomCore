@@ -102,7 +102,8 @@ function App() {
     if (route.path === "/ledger") return <LedgerPage onStatus={setStatus} />;
     if (route.path === "/insights") return <InsightsPage />;
     if (route.path === "/vault" || route.path === "/files" || route.path === "/library") {
-      return <VaultPage selectedId={new URLSearchParams(route.search).get("doc") || undefined} navigate={navigate} />;
+      const params = new URLSearchParams(route.search);
+      return <VaultPage selectedId={params.get("doc") || undefined} panel={params.get("panel") || undefined} navigate={navigate} />;
     }
     if (route.path === "/oracle" || route.path === "/ai") return <OraclePage onStatus={setStatus} />;
     if (route.path === "/settings" || route.path === "/more") return <SettingsPage navigate={navigate} />;
