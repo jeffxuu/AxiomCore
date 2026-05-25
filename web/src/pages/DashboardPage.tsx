@@ -14,6 +14,7 @@ import { RiskRoiMatrix } from "@/components/dashboard/RiskRoiMatrix";
 import { DomainAudit } from "@/components/dashboard/DomainAudit";
 import { DecisionFunnel } from "@/components/dashboard/DecisionFunnel";
 import { CapitalMECE } from "@/components/dashboard/CapitalMECE";
+import { CashflowPulse } from "@/components/dashboard/CashflowPulse";
 import { DecisionLedger } from "@/components/dashboard/DecisionLedger";
 import { PrinciplesAudit } from "@/components/dashboard/PrinciplesAudit";
 import { useT } from "@/lib/i18nConfig";
@@ -109,6 +110,7 @@ export function DashboardPage({
         <div className="min-w-0 space-y-4 [grid-column:span_13/span_13]">
           <RunwayHorizon baseline={baseline} transactions={transactions} capital={cap} />
           <RiskRoiMatrix projects={activeProjects} />
+          <CashflowPulse timeline={data?.timeline ?? []} />
         </div>
 
         {/* RIGHT audit column (7/20 = 35%) */}
