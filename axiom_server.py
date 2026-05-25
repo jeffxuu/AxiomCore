@@ -1348,6 +1348,43 @@ ORACLE_WEEKLY_SYSTEM_PROMPT = (
 )
 
 
+async def _safe_4sapi_completions(
+    client: AsyncOpenAI,
+    *,
+    model: str,
+    messages: list[dict[str, str]],
+    max_tokens: int,
+    optionals: dict[str, Any] | None = None,
+) -> Any:
+    # Newer model families (Claude 4.x, OpenAI o-series, gpt-5) reject params
+    # earlier models accepted — most notably `temperature` and `response_format`.
+    # Attempt the most expressive call; on a 400/API error, drop optionals in
+    # the insertion order the caller supplied and retry. Beats a vendor allowlist
+    # that rots on every model release.
+    pending = dict(optionals or {})
+    while True:
+        kwargs: dict[str, Any] = {
+            "model": model,
+            "messages": messages,
+            "max_tokens": max_tokens,
+            "stream": False,
+            **pending,
+        }
+        try:
+            return await client.chat.completions.create(**kwargs)
+        except (APIStatusError, APIError) as exc:
+            if not pending:
+                raise
+            dropped_key = next(iter(pending))
+            pending.pop(dropped_key, None)
+            _oracle_log.info(
+                "4sapi.retry dropped=%s remaining=%s reason=%r",
+                dropped_key,
+                list(pending.keys()),
+                exc,
+            )
+
+
 async def oracle_generate_brief(kind: str) -> dict[str, Any]:
     """Call 4SAPI with the live sandbox snapshot. Persists the resulting Markdown.
 
@@ -1375,15 +1412,15 @@ async def oracle_generate_brief(kind: str) -> dict[str, Any]:
 
     client = AsyncOpenAI(api_key=api_key, base_url=ORACLE_BASE_URL, timeout=ORACLE_TIMEOUT_SECONDS)
     try:
-        completion = await client.chat.completions.create(
+        completion = await _safe_4sapi_completions(
+            client,
             model=model_name,
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_message},
             ],
-            temperature=0.5,
             max_tokens=max_tokens,
-            stream=False,
+            optionals={"temperature": 0.5},
         )
     finally:
         try:
@@ -1572,34 +1609,21 @@ async def nlp_call_4sapi(text: str, model_override: str | None = None) -> dict[s
     chosen_model = (model_override or "").strip() or model_name
     client = AsyncOpenAI(api_key=api_key, base_url=ORACLE_BASE_URL, timeout=ORACLE_TIMEOUT_SECONDS)
     try:
-        completion = await client.chat.completions.create(
+        completion = await _safe_4sapi_completions(
+            client,
             model=chosen_model,
             messages=[
                 {"role": "system", "content": NLP_SYSTEM_PROMPT},
                 {"role": "user", "content": text.strip()},
             ],
-            temperature=0.2,
             max_tokens=900,
-            stream=False,
-            response_format={"type": "json_object"},
+            optionals={
+                "response_format": {"type": "json_object"},
+                "temperature": 0.2,
+            },
         )
     except (APIStatusError, APIError) as exc:
-        # response_format may be unsupported by the chosen model — retry once
-        # without it and rely on prompt-level discipline.
-        try:
-            completion = await client.chat.completions.create(
-                model=chosen_model,
-                messages=[
-                    {"role": "system", "content": NLP_SYSTEM_PROMPT},
-                    {"role": "user", "content": text.strip()},
-                ],
-                temperature=0.2,
-                max_tokens=900,
-                stream=False,
-            )
-        except Exception as inner:
-            raise HTTPException(status_code=502, detail=f"4SAPI 通信失败：{inner!s}") from inner
-        _oracle_log.info("nlp_call_4sapi retried without response_format due to: %r", exc)
+        raise HTTPException(status_code=502, detail=f"4SAPI 通信失败：{exc!s}") from exc
     finally:
         try:
             await client.close()
